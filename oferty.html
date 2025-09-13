@@ -776,11 +776,6 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
   const googleBtnRegister = document.getElementById('googleLoginBtn');
   const googleBtnLogin    = document.getElementById('googleLoginBtnLogin');
 
-  // Linki z menu mobilnego + samo menu
-  const loginLink     = document.getElementById('loginLink');
-  const registerLink  = document.getElementById('registerLink');
-  const navMenu       = document.querySelector('.nav-menu');
-
   // --- POMOCNICZE UI ---
   const openModal  = (m) => m && (m.style.display = 'flex');
   const closeModal = (m) => m && (m.style.display = 'none');
@@ -790,24 +785,67 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
   const okDomains = ['localhost','127.0.0.1','trainingtwenty5.github.io','twojadomena.pl'];
   if (domainWarning && !okDomains.includes(location.hostname)) domainWarning.style.display = 'block';
 
+  function renderMobileAuth(user) {
+    const navMenu = document.querySelector('.nav-menu');
+    const mobileAuthC = document.getElementById('mobileAuth');
+    if (!mobileAuthC) return;
+
+    if (user) {
+      const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Użytkownik');
+      mobileAuthC.innerHTML = `
+        <div class="nav-link" style="font-weight:600;">
+          <i class="fas fa-user"></i> ${label}
+        </div>
+        <a href="#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
+        <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
+          <i class="fas fa-sign-out-alt"></i> Wyloguj się
+        </button>
+      `;
+    } else {
+      mobileAuthC.innerHTML = `
+        <a href="#" id="loginLink" class="nav-link">Zaloguj się</a>
+        <a href="#" id="registerLink" class="nav-link">Zarejestruj się</a>
+      `;
+    }
+
+    const loginLink = document.getElementById('loginLink');
+    const registerLink = document.getElementById('registerLink');
+    const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
+    const mobileAccountLink = document.getElementById('mobileAccountLink');
+
+    loginLink && loginLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(loginModal);
+      navMenu?.classList.remove('active');
+      mobileAuthC.style.display = 'none';
+    });
+
+    registerLink && registerLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(registerModal);
+      navMenu?.classList.remove('active');
+      mobileAuthC.style.display = 'none';
+    });
+
+    mobileLogoutBtn && mobileLogoutBtn.addEventListener('click', async () => {
+      try { await signOut(auth); } catch(e){ console.error(e); }
+      navMenu?.classList.remove('active');
+      mobileAuthC.style.display = 'none';
+    });
+
+    mobileAccountLink && mobileAccountLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('userDashboard')?.scrollIntoView({behavior:'smooth'});
+      navMenu?.classList.remove('active');
+      mobileAuthC.style.display = 'none';
+    });
+
+    mobileAuthC.style.display = navMenu?.classList.contains('active') ? 'flex' : 'none';
+  }
+
   // --- HANDLERY MODALI (desktop) ---
   loginBtn    && loginBtn.addEventListener('click', () => openModal(loginModal));
   registerBtn && registerBtn.addEventListener('click', () => openModal(registerModal));
-
-  // --- HANDLERY MODALI (mobile: z hamburgera) ---
-  loginLink && loginLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    navMenu?.classList.remove('active');
-    document.body.classList.remove('menu-open');
-    openModal(loginModal);
-  });
-
-  registerLink && registerLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    navMenu?.classList.remove('active');
-    document.body.classList.remove('menu-open');
-    openModal(registerModal);
-  });
 
   // Przełączanie między modalami
   switchToRegister && switchToRegister.addEventListener('click', (e) => {
@@ -911,6 +949,7 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
       userDashboard && (userDashboard.style.display = 'none');
       userOffers && (userOffers.innerHTML = '');
     }
+    renderMobileAuth(user);
   });
 
   // --- WYLOGOWANIE ---
