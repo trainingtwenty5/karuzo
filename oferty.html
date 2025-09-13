@@ -1,0 +1,3004 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Działkofert - Dodaj darmowe ogłoszenie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+ 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  
+    <!-- Favicon dla przeglądarek -->
+  <link rel="icon" type="image/png" sizes="32x32" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+
+  <!-- Ikona dla Apple (po zapisaniu strony na ekranie głównym iPhone/iPad) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+
+  <!-- Ikona dla Androida (progressive web app / home screen) -->
+  <link rel="icon" type="image/png" sizes="192x192" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+
+	
+  <style>
+    :root {
+      --primary: #1e6fba;
+      --primary-dark: #155d9d;
+      --secondary: #2c8ac9;
+      --accent: #3ba3e3;
+      --dark: #1e293b;
+      --darker: #0f172a;
+      --light: #f0f8ff;
+      --gray: #7b9cba;
+      --success: #2e94cc;
+      
+      --gradient-primary: linear-gradient(135deg, #1e6fba, #2c8ac9);
+      --gradient-accent: linear-gradient(135deg, #3ba3e3, #2c8ac9);
+      --gradient-card: linear-gradient(135deg, #ffffff, #e6f2ff);
+      
+      --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      
+      --radius: 10px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--dark);
+      background-color: var(--light);
+      line-height: 1.5;
+      overflow-x: hidden;
+      font-size: 0.95rem;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.875rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+    }
+
+    h2 {
+      font-size: 2rem;
+    }
+
+    h3 {
+      font-size: 1.5rem;
+    }
+
+    p {
+      margin-bottom: 1.25rem;
+      font-size: 0.95rem;
+    }
+
+    a {
+      color: var(--primary);
+      text-decoration: none;
+      transition: var(--transition);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      transition: var(--transition);
+      border: none;
+      cursor: pointer;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    .btn-primary {
+      background: var(--gradient-primary);
+      color: white;
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .btn-secondary:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-accent {
+      background: var(--gradient-accent);
+      color: white;
+    }
+
+    .btn-outline-primary {
+      background: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .btn-outline-primary:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .section {
+      padding: 3.5rem 0;
+    }
+
+    .section-title {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .section-title h2 {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-title h2::after {
+      content: '';
+      position: absolute;
+      bottom: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 50px;
+      height: 3px;
+      background: var(--gradient-primary);
+      border-radius: 2px;
+    }
+
+    /* Top Navbar */
+    .top-navbar {
+      background: #fff;
+      color: var(--dark);
+      padding: 0.4rem 0;
+      font-size: 0.85rem;
+      border-bottom: 1px solid #eee;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 1100;
+    }
+    
+    .top-navbar-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Header */
+    header {
+      position: fixed;
+      top: 40px;
+      left: 0;
+      width: 100%;
+      z-index: 1000;
+      background: #fff;
+      box-shadow: var(--shadow-sm);
+      padding: 0.875rem 0;
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      font-weight: 700;
+      font-size: 1.25rem;
+      color: var(--darker);
+    }
+
+    .logo img {
+      height: 32px;
+      width: auto;
+    }
+
+    .nav-menu {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-link {
+      font-weight: 500;
+      color: var(--dark);
+      position: relative;
+      font-size: 0.95rem;
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -5px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: var(--gradient-primary);
+      transition: var(--transition);
+    }
+
+    .nav-link:hover::after {
+      width: 100%;
+    }
+
+    .mobile-menu-btn {
+      display: none;
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--dark);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 2rem;
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 400px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--dark);
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+    }
+
+    .form-footer {
+      margin-top: 1.5rem;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    /* User Dashboard */
+    .user-dashboard {
+      display: none;
+      margin-top: 120px;
+      margin-bottom: 20px;
+      padding: 2rem;
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+    }
+
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .offers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .offer-card p {
+      margin: 0.25rem 0;
+      font-size: 0.9rem;
+      color: #555;
+    }
+
+    .offer-card h5 {
+      margin: 0 0 0.5rem;
+      font-size: 1.2rem;
+      color: var(--primary, #1e6fba);
+    }
+
+    .offer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 0.5rem;
+    }
+
+    .offer-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+      padding: 1.25rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      margin-bottom: 1.25rem;
+    }
+
+    .offer-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .offer-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: #222;
+    }
+
+    .offer-details {
+      font-size: 0.85rem;
+      color: #666;
+      line-height: 1.4;
+      margin-bottom: 0.75rem;
+    }
+
+    .offer-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-sm {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      border-radius: 6px;
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 10rem 0 4rem;
+      background: linear-gradient(135deg, rgba(30, 111, 186, 0.05) 0%, rgba(44, 138, 201, 0.05) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      right: -80px;
+      width: 300px;
+      height: 300px;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      opacity: 0.1;
+      filter: blur(60px);
+    }
+
+    .hero-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      align-items: center;
+    }
+
+    .hero-text h1 {
+      font-size: 2.5rem;
+      margin-bottom: 1.25rem;
+      background: var(--gradient-primary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-text p {
+      font-size: 1.1rem;
+      color: var(--gray);
+      margin-bottom: 2rem;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 0.875rem;
+      flex-wrap: wrap;
+    }
+
+    .hero-image {
+      position: relative;
+    }
+
+    .hero-image img {
+      width: 100%;
+      max-width: 450px;
+      height: auto;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      transform: perspective(800px) rotateY(-10deg);
+      transition: var(--transition);
+    }
+
+    .hero-image img:hover {
+      transform: perspective(800px) rotateY(0);
+    }
+
+    /* Features */
+    .features {
+      background: white;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1.75rem;
+    }
+
+    .feature-card {
+      background: var(--gradient-card);
+      padding: 1.75rem;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      transition: var(--transition);
+      text-align: center;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .feature-icon {
+      width: 55px;
+      height: 55px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+      border-radius: 50%;
+      background: var(--gradient-primary);
+      color: white;
+      font-size: 1.5rem;
+    }
+
+    /* Course Info */
+    .course-info {
+      background: linear-gradient(135deg, rgba(30, 111, 186, 0.05) 0%, rgba(44, 138, 201, 0.05) 100%);
+    }
+
+    .info-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3.5rem;
+      align-items: center;
+    }
+
+    .info-image {
+      position: relative;
+    }
+
+    .info-image img {
+      width: 100%;
+      max-width: 450px;
+      height: auto;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .info-badge {
+      position: absolute;
+      top: -12px;
+      right: -12px;
+      background: var(--gradient-primary);
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 25px;
+      font-weight: 600;
+      box-shadow: var(--shadow-md);
+      font-size: 0.85rem;
+    }
+
+    .info-content h2 {
+      margin-bottom: 1.25rem;
+    }
+
+    .info-list {
+      list-style: none;
+      margin-bottom: 1.75rem;
+    }
+
+    .info-list li {
+      margin-bottom: 0.625rem;
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      font-size: 0.95rem;
+    }
+
+    .info-list li::before {
+      content: '✓';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--success);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.7rem;
+    }
+
+    /* Instructor */
+    .instructor {
+      background: white;
+    }
+
+    .instructor-container {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 3.5rem;
+      align-items: center;
+    }
+
+    .instructor-image {
+      position: relative;
+    }
+
+    .instructor-image img {
+      width: 100%;
+      max-width: 300px;
+      height: auto;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .instructor-badge {
+      position: absolute;
+      bottom: -12px;
+      left: -12px;
+      background: var(--gradient-primary);
+      color: white;
+      padding: 0.625rem 1.25rem;
+      border-radius: 25px;
+      font-weight: 600;
+      box-shadow: var(--shadow-md);
+      font-size: 0.85rem;
+    }
+
+    .instructor-bio h2 {
+      margin-bottom: 1.25rem;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 0.875rem;
+      margin-top: 1.25rem;
+    }
+
+    .social-link {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--light);
+      color: var(--dark);
+      transition: var(--transition);
+    }
+
+    .social-link:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateY(-3px);
+    }
+
+    /* FAQ */
+    .faq {
+      background: linear-gradient(135deg, rgba(30, 111, 186, 0.05) 0%, rgba(44, 138, 201, 0.05) 100%);
+    }
+
+    .faq-container {
+      max-width: 750px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      margin-bottom: 1.25rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+      background: white;
+    }
+
+    .faq-question {
+      padding: 1.25rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-weight: 600;
+      transition: var(--transition);
+      font-size: 0.95rem;
+    }
+
+    .faq-question:hover {
+      color: var(--primary);
+    }
+
+    .faq-question i {
+      transition: var(--transition);
+    }
+
+    .faq-answer {
+      padding: 0 1.25rem;
+      max-height: 0;
+      overflow: hidden;
+      transition: var(--transition);
+      font-size: 0.9rem;
+    }
+
+    .faq-item.active .faq-question i {
+      transform: rotate(180deg);
+    }
+
+    .faq-item.active .faq-answer {
+      padding: 0 1.25rem 1.25rem;
+      max-height: 500px;
+    }
+
+    /* CTA */
+    .cta {
+      background: var(--gradient-primary);
+      color: white;
+      text-align: center;
+      padding: 5rem 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta::before {
+      content: '';
+      position: absolute;
+      top: -80px;
+      left: -80px;
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .cta::after {
+      content: '';
+      position: absolute;
+      bottom: -80px;
+      right: -80px;
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .cta h2 {
+      margin-bottom: 1.25rem;
+    }
+
+    .cta p {
+      max-width: 550px;
+      margin: 0 auto 2rem;
+      opacity: 0.9;
+    }
+
+    /* Footer */
+    footer {
+      background: var(--darker);
+      color: white;
+      padding: 4rem 0 1.75rem;
+    }
+
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      margin-bottom: 1.25rem;
+      font-weight: 700;
+      font-size: 1.25rem;
+    }
+
+    .footer-logo img {
+      height: 32px;
+      width: auto;
+    }
+
+    .footer-about p {
+      opacity: 0.7;
+      margin-bottom: 1.25rem;
+      font-size: 0.9rem;
+    }
+
+    .footer-links h3,
+    .footer-contact h3 {
+      margin-bottom: 1.25rem;
+      position: relative;
+      display: inline-block;
+      font-size: 1.1rem;
+    }
+
+    .footer-links h3::after,
+    .footer-contact h3::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 0;
+      width: 25px;
+      height: 2px;
+      background: var(--gradient-primary);
+      border-radius: 2px;
+    }
+
+    .footer-links ul {
+      list-style: none;
+    }
+
+    .footer-links li {
+      margin-bottom: 0.625rem;
+    }
+
+    .footer-links a {
+      color: var(--gray);
+      transition: var(--transition);
+      font-size: 0.9rem;
+    }
+
+    .footer-links a:hover {
+      color: white;
+      padding-left: 5px;
+    }
+
+    .footer-contact p {
+      margin-bottom: 0.875rem;
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      opacity: 0.7;
+      font-size: 0.9rem;
+    }
+
+    .footer-bottom {
+      text-align: center;
+      padding-top: 1.75rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      opacity: 0.7;
+      font-size: 0.85rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      h1 {
+        font-size: 2.25rem;
+      }
+      
+      h2 {
+        font-size: 1.75rem;
+      }
+      
+      .hero-content,
+      .info-container,
+      .instructor-container {
+        grid-template-columns: 1fr;
+        gap: 2.5rem;
+      }
+      
+      .hero-text {
+        order: 2;
+        text-align: center;
+      }
+      
+      .hero-image {
+        order: 1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-menu {
+        position: fixed;
+        top: 110px;
+        left: 0;
+        width: 100%;
+        flex-direction: column;
+        background: white;
+        padding: 1.75rem;
+        box-shadow: var(--shadow-md);
+        transform: translateY(-100%);
+        opacity: 0;
+        visibility: hidden;
+        transition: var(--transition);
+      }
+      
+      .nav-menu.active {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+      }
+      
+      .mobile-menu-btn {
+        display: block;
+      }
+      
+      .hero {
+        padding: 8rem 0 2.5rem;
+      }
+      
+      .hero-text h1 {
+        font-size: 2rem;
+      }
+      
+      .hero-buttons {
+        justify-content: center;
+      }
+      
+      .top-navbar-container {
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .section {
+        padding: 2.5rem 0;
+      }
+      
+      .hero-text h1 {
+        font-size: 1.75rem;
+      }
+      
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .hero-buttons {
+        flex-direction: column;
+      }
+      
+      header {
+        top: 70px;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .fade-in {
+      animation: fadeIn 1s ease forwards;
+    }
+
+    .delay-1 {
+      animation-delay: 0.2s;
+    }
+
+    .delay-2 {
+      animation-delay: 0.4s;
+    }
+
+    .delay-3 {
+      animation-delay: 0.6s;
+    }
+
+    /* Social login buttons */
+    .social-login {
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+    
+    .social-login .btn {
+      margin-bottom: 0.75rem;
+      width: 100%;
+      justify-content: center;
+    }
+    
+    .btn-google {
+      background: #DB4437;
+      color: white;
+      border: none;
+    }
+    
+    .btn-google:hover {
+      background: #c23325;
+      color: white;
+    }
+    
+    .btn-facebook {
+      background: #4267B2;
+      color: white;
+      border: none;
+    }
+    
+    .btn-facebook:hover {
+      background: #365899;
+      color: white;
+    }
+    
+    .domain-warning {
+      display: none;
+      background: #ffebee;
+      color: #c62828;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+	
+    /* Top Navbar (komputer) */
+    .top-navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      background: #fff;
+      z-index: 1200;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .contact-info {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .auth-buttons,
+    .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .top-navbar .btn-sm {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+
+    /* Przycisk Dodaj ofertę */
+    .desktop-add-offer,
+    .mobile-add-offer {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.4rem 0.8rem;
+      border-radius: 5px;
+      background: linear-gradient(90deg, #007bff, #0056b3);
+      color: white;
+      font-weight: 500;
+      font-size: 0.85rem;
+      text-decoration: none;
+      transition: 0.3s;
+    }
+
+    .desktop-add-offer:hover,
+    .mobile-add-offer:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: fixed;
+      top: 40px; /* pod top-navbar na desktopie */
+      width: 100%;
+      z-index: 1100;
+      background: #fff;
+      padding: 0.5rem 1rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    header .logo img {
+      height: 70px;
+      margin-right: 0.5rem;
+    }
+
+    /* Desktopowe menu */
+    .desktop-nav {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .desktop-nav .nav-link {
+      text-decoration: none;
+      color: #333;
+      font-weight: 500;
+    }
+
+    /* Menu i przyciski mobilne */
+    .nav-menu {
+      position: fixed;
+      top: 60px;
+      left: 0;
+      width: 100%;
+      flex-direction: column;
+      background: white;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateY(-100%);
+      opacity: 0;
+      visibility: hidden;
+      transition: 0.3s;
+      z-index: 1000;
+    }
+
+    .nav-menu.active {
+      transform: translateY(0);
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .nav-menu .nav-link {
+      margin-bottom: 1rem;
+      font-size: 1rem;
+      color: #333;
+      text-decoration: none;
+    }
+
+    .mobile-auth {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      border-top: 1px solid #eee;
+      padding-top: 1.5rem;
+    }
+
+    .mobile-menu-btn {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      display: none;
+    }
+
+    /* Responsywność */
+    @media (max-width: 768px) {
+      .top-navbar,
+      .desktop-nav,
+      .desktop-add-offer {
+        display: none !important;
+      }
+
+      header {
+        top: 0; /* header przy samej górze telefonu */
+      }
+
+      .mobile-add-offer,
+      .mobile-menu-btn {
+        display: inline-flex;
+      }
+    }
+
+    @media (min-width: 769px) {
+      .nav-menu,
+      .mobile-add-offer,
+      .mobile-menu-btn,
+      .mobile-auth {
+        display: none !important;
+      }
+    }
+
+    /* GŁÓWNY UKŁAD STRONY - STATYCZNA MAPA PO LEWEJ, PRZEWIJANA ZAWARTOŚĆ PO PRAWEJ */
+    .main-layout {
+      display: flex;
+      height: calc(100vh - 120px);
+      margin-top: 120px;
+      position: relative;
+    }
+
+    /* Lewa strona - statyczna mapa */
+    .map-container {
+      position: fixed;
+      left: 0;
+      top: 120px;
+      width: 70%;
+      height: calc(100vh - 120px);
+      z-index: 1;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+    }
+
+    /* Prawa strona - przewijana zawartość */
+    .content-container {
+      margin-left: 70%;
+      width: 30%;
+      padding: 20px;
+      overflow-y: auto;
+      background: #f8f9fa;
+      height: calc(100vh - 120px);
+    }
+
+    /* Sekcje ofert */
+    .offers-section {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
+	  height: 800px;
+    }
+
+    .offers-section .section-title {
+      margin-bottom: 1rem;
+    }
+
+    .offers-section .section-title h2 {
+      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+    }
+
+    /* Kontenery list ofert - przewijane */
+    .offers-list, .offers-grid {
+      max-height: 800px;
+      overflow-y: auto;
+    }
+
+    /* User dashboard dostosowanie */
+    .user-dashboard {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+    }
+
+    .user-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .user-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    /* Responsywność - na mniejszych ekranach */
+    @media (max-width: 992px) {
+      .main-layout {
+        flex-direction: column;
+        height: auto;
+        margin-top: 110px;
+      }
+      
+      .map-container {
+        position: relative;
+        width: 100%;
+        height: 50vh;
+        top: 0;
+      }
+      
+      .content-container {
+        margin-left: 0;
+        width: 100%;
+        height: auto;
+        padding: 10px;
+      }
+    }
+
+    /* Bardzo małe ekrany */
+    @media (max-width: 576px) {
+      .main-layout {
+        margin-top: 100px;
+      }
+      
+      .map-container {
+        height: 40vh;
+      }
+      
+      .offers-section {
+        padding: 15px;
+      }
+      
+      .user-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+      }
+      
+      .user-header h2 {
+        font-size: 1.3rem;
+      }
+    }
+
+    /* Styl paska przewijania */
+    .offers-list::-webkit-scrollbar,
+    .offers-grid::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .offers-list::-webkit-scrollbar-track,
+    .offers-grid::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+
+    .offers-list::-webkit-scrollbar-thumb,
+    .offers-grid::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+
+    .offers-list::-webkit-scrollbar-thumb:hover,
+    .offers-grid::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+
+    /* Styl dla modala edycji */
+    #editModal .modal-content {
+      max-width: 500px;
+    }
+
+    #editModal .form-group {
+      margin-bottom: 1rem;
+    }
+
+    #editModal .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--dark);
+    }
+
+    #editModal .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      transition: border-color 0.3s;
+    }
+
+    #editModal .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(30, 111, 186, 0.1);
+    }
+	
+    /* Napraw problemy z pozycjonowaniem Leaflet */
+    .leaflet-container {
+      height: 100%;
+      width: 100%;
+      touch-action: auto !important;
+    }
+	
+    /* Ukryj powiadomienie o CTRL w Google Maps */
+    .gm-style-moc {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+
+    /* Ukryj wszystkie elementy, które mogą zawierać tekst o CTRL */
+    .gm-style div, 
+    .gm-style span {
+      font-size: 12px !important;
+    }
+
+    /* Ukryj powiadomienia o CTRL */
+    .gm-style div[style*="CTRL"], 
+    .gm-style div[style*="Ctrl"] {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+	
+	
+	/* STOPKA - WIDOCZNA I POPRAWNIE UMIESZCZONA */
+footer {
+  background: var(--darker);
+  color: white;
+  padding: 3rem 0 1.5rem;
+  width: 100%;
+  position: relative;
+  z-index: 1000;
+  margin-top: auto; /* Push footer to bottom */
+  clear: both;
+}
+
+/* Kontener stopki - wyśrodkowanie */
+.footer-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* Logo w stopce */
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 1.25rem;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: white !important;
+  text-decoration: none;
+}
+
+.footer-logo img {
+  height: 32px;
+  width: auto;
+  filter: brightness(0) invert(1);
+}
+
+/* Sekcje stopki */
+.footer-about p {
+  opacity: 0.8;
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.footer-links h3,
+.footer-contact h3 {
+  margin-bottom: 1.25rem;
+  position: relative;
+  display: inline-block;
+  font-size: 1.1rem;
+  color: white;
+}
+
+.footer-links h3::after,
+.footer-contact h3::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 25px;
+  height: 2px;
+  background: var(--gradient-primary);
+  border-radius: 2px;
+}
+
+.footer-links ul {
+  list-style: none;
+  padding: 0;
+}
+
+.footer-links li {
+  margin-bottom: 0.625rem;
+}
+
+.footer-links a {
+  color: var(--gray);
+  transition: var(--transition);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  color: white;
+  padding-left: 5px;
+}
+
+.footer-contact p {
+  margin-bottom: 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  opacity: 0.8;
+  font-size: 0.9rem;
+}
+
+.footer-bottom {
+  text-align: center;
+  padding-top: 1.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0.7;
+  font-size: 0.85rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+/* RESPONSYWNOŚĆ */
+@media (max-width: 992px) {
+  .main-layout-wrapper {
+    flex-direction: column;
+    margin-top: 100px;
+  }
+  
+  .main-layout {
+    flex-direction: column;
+    height: auto;
+  }
+  
+  .map-container {
+    position: relative;
+    width: 100% !important;
+    height: 50vh;
+    top: 0;
+  }
+  
+  .content-container {
+    margin-left: 0 !important;
+    width: 100% !important;
+    height: auto;
+    min-height: auto;
+  }
+  
+  footer {
+    position: relative;
+    z-index: 1000;
+    margin-top: 0;
+  }
+  
+  .footer-container {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  
+  .footer-links h3::after,
+  .footer-contact h3::after {
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 576px) {
+  .main-layout-wrapper {
+    margin-top: 80px;
+  }
+  
+  .map-container {
+    height: 40vh;
+  }
+  
+  footer {
+    padding: 2rem 0 1rem;
+  }
+  
+  .footer-container {
+    gap: 1.5rem;
+  }
+}
+	
+/* === NADPISANIA DLA PRAWEJ KOLUMNY I SEKCJI OFERT === */
+.content-container {
+  position: relative;
+  z-index: 2;              /* zawartość zawsze nad mapą */
+  background: #f8f9fa;
+}
+
+.offers-section {
+  height: auto !important; /* nie wymuszaj stałej wysokości */
+  margin-bottom: 24px;     /* oddech przed "Moje Oferty" */
+}
+
+.offers-list,
+.offers-grid {
+  max-height: none !important;  /* pozwól rosnąć, nie ucinać */
+  overflow: visible !important; /* bez wewnętrznych scrolli */
+}
+
+/* "Moje Oferty" – bez nakładania i z marginesem */
+#userDashboard {
+  margin-top: 16px;
+  scroll-margin-top: 140px; /* żeby scroll do sekcji nie chował się pod fixed headerem */
+}
+
+/* na mniejszych ekranach prawa kolumna i tak jest pod mapą – zostaw auto */
+@media (max-width: 992px) {
+  .offers-list, .offers-grid {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+	
+/* MOBILE: pokaż sekcję logowania w rozwijanym menu */
+@media (max-width: 768px) {
+  .mobile-auth{
+    display: none;                /* domyślnie schowaj… */
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid #eee;
+    padding-top: 1.5rem;
+  }
+  .nav-menu.active .mobile-auth{
+    display: flex;                /* …ale pokaż gdy menu jest rozwinięte */
+  }
+  .nav-menu{ z-index: 1200; }     /* na wszelki wypadek ponad mapą/headerem */
+}
+	
+/* === SIZE & DENSITY OVERRIDES (jak na stronie głównej) === */
+html { font-size: 15px; }
+body { font-size: 0.9rem; }
+
+.top-navbar { padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+header { padding: 0.4rem 0.75rem; top: 40px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+.logo img { height: 42px; }
+.logo span { font-size: 1rem; }
+.nav-link { font-size: 0.9rem; }
+
+.section { padding: 2rem 0; }
+.hero { padding: 6rem 0 2.5rem; }
+.hero-text h1 { font-size: 1.9rem; }
+.hero-text p { font-size: 1rem; margin-bottom: 1.25rem; }
+.hero-buttons { gap: 0.5rem; }
+
+.btn { padding: 0.55rem 1rem; font-size: 0.85rem; border-radius: 8px; gap: 0.4rem; }
+.btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; border-radius: 6px; }
+
+.modal-content { padding: 1.1rem; max-width: 360px; }
+.modal-header { margin-bottom: 0.9rem; }
+.modal-header h3 { font-size: 1.1rem; }
+.form-group { margin-bottom: 0.8rem; }
+.form-group label { font-size: 0.85rem; margin-bottom: 0.4rem; }
+.form-group input { padding: 0.55rem 0.75rem; font-size: 0.9rem; border-radius: 8px; }
+.form-footer { margin-top: 1rem; font-size: 0.85rem; }
+
+.social-login { margin-top: 0.9rem; }
+.social-login .btn { margin-bottom: 0.5rem; }
+
+.offers-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.offer-card { padding: 1rem; }
+.offer-title { font-size: 0.95rem; }
+.offer-card h5 { font-size: 1.05rem; }
+.offer-details { font-size: 0.82rem; }
+
+.feature-card { padding: 1.2rem; }
+.feature-icon { width: 44px; height: 44px; font-size: 1.1rem; }
+.info-badge, .instructor-badge { padding: 0.45rem 0.9rem; font-size: 0.8rem; }
+.cta { padding: 3.5rem 0; }
+
+footer { padding: 2.5rem 0 1.25rem; }
+.footer-container { gap: 1.5rem; }
+
+.desktop-add-offer, .mobile-add-offer {
+  padding: 0.35rem 0.7rem; font-size: 0.8rem; border-radius: 6px;
+}
+
+.domain-warning { font-size: 0.85rem; padding: 8px; }
+
+@media (max-width: 1024px) {
+  html { font-size: 14px; }
+  .logo img { height: 36px; }
+  .nav-link { font-size: 0.85rem; }
+  .modal-content { max-width: 340px; }
+}
+@media (max-width: 768px) {
+  html { font-size: 13px; }
+  .hero { padding: 5.5rem 0 2rem; }
+  .hero-text h1 { font-size: 1.6rem; }
+  header { top: 0; }
+  .nav-menu { top: 82px; padding: 1.1rem; }
+  .nav-menu .nav-link { font-size: 0.95rem; margin-bottom: 0.7rem; }
+  .mobile-add-offer { font-size: 0.85rem; padding: 0.35rem 0.7rem; }
+}
+@media (max-width: 480px) {
+  html { font-size: 12px; }
+  .modal-content { max-width: 320px; padding: 1rem; }
+  .btn { width: 100%; }
+  .feature-card { padding: 1rem; }
+  .hero-text h1 { font-size: 1.45rem; }
+}
+	
+	
+	
+	
+	
+	
+	
+	
+	
+/* === Pretty confirm modal === */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  display: none;                 /* toggled to flex in JS */
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);  /* var(--darker) z przeźroczystością */
+  z-index: 1300;
+  padding: 16px;
+}
+
+.confirm-box {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 20px 20px 16px;
+  transform: scale(0.98);
+  opacity: 0;
+  transition: transform .15s ease, opacity .15s ease;
+}
+
+.confirm-modal.show .confirm-box {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.confirm-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--darker);
+}
+
+.confirm-message {
+  margin: 0 0 16px;
+  color: #475569;
+  font-size: .95rem;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  border: none;
+  border-radius: 8px;
+  padding: .55rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .08s ease, background .2s ease, color .2s ease;
+}
+
+.confirm-btn:hover { transform: translateY(-1px); }
+
+.confirm-cancel {
+  background: #eef2f7;
+  color: #0f172a;
+}
+
+.confirm-cancel:hover {
+  background: #e6ebf3;
+}
+
+.confirm-yes {
+  background: var(--primary, #1e6fba);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.confirm-yes:hover {
+  box-shadow: var(--shadow-md);
+}
+	
+	
+	
+/* === TOASTS (lekki, vanilla) === */
+.toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none; /* klik przechodzi dalej, poza przyciskiem zamknięcia */
+}
+
+.toast-lite {
+  min-width: 280px;
+  max-width: 92vw;
+  background: #fff;
+  color: #0f172a;
+  border-radius: 10px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.12), 0 3px 6px rgba(0,0,0,.08);
+  padding: 12px 14px 12px 12px;
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(-8px);
+  opacity: 0;
+  transition: transform .18s ease, opacity .18s ease;
+  pointer-events: auto; /* żeby dało się kliknąć X */
+}
+
+.toast-lite.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.toast-lite .toast-icon {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 14px; color: #fff;
+}
+
+.toast-lite .toast-msg { line-height: 1.45; font-size: .95rem; }
+.toast-lite .toast-close {
+  background: transparent; border: 0; cursor: pointer;
+  font-size: 18px; line-height: 1; color: #64748b; padding: 4px;
+}
+.toast-lite .toast-close:hover { color: #0f172a; }
+
+/* warianty */
+.toast-success .toast-icon { background: #16a34a; }   /* zielony */
+.toast-info    .toast-icon { background: #1e6fba; }   /* niebieski */
+.toast-warning .toast-icon { background: #f59e0b; }   /* żółty */
+.toast-error   .toast-icon { background: #dc2626; }   /* czerwony */
+
+/* ciut ciaśniej na mobile */
+@media (max-width: 576px){
+  .toast-container { top: 10px; right: 10px; gap: 8px; }
+  .toast-lite { padding: 10px 12px; }
+}
+	
+/* === MAP INFO WINDOW – czytelniejsze i mniejsze na mobile === */
+.map-info-window { font-size: .95rem; max-width: 320px; }
+.map-info-window h3 { font-size: 1.05rem; margin: 0 0 .4rem; }
+.map-info-window p  { margin: .2rem 0; font-size: .9rem; }
+.map-info-window .mini-actions { margin-top: .55rem; display: flex; gap: .5rem; }
+.map-info-window .btn-mini {
+  display: inline-block; padding: .35rem .6rem; border-radius: 6px; border: 0;
+  background: var(--primary); color: #fff; font-size: .8rem; cursor: pointer;
+  text-decoration: none;
+}
+
+/* mniejszy „X” w InfoWindow + ciaśniej na telefonach */
+@media (max-width: 768px){
+  .map-info-window { font-size: .9rem; max-width: 260px; }
+  .map-info-window h3 { font-size: 1rem; }
+  .map-info-window p  { font-size: .85rem; }
+
+  /* domyślny przycisk zamykania GM – zmniejsz */
+  .gm-ui-hover-effect { transform: scale(.75) !important; }
+  .gm-style-iw-c { padding: 8px !important; }
+}
+	
+	
+/* === Pretty confirm modal === */
+.confirm-modal {
+  position: fixed;
+  inset: 0;
+  display: none;                 /* toggled to flex in JS */
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);  /* var(--darker) z przeźroczystością */
+  z-index: 1300;
+  padding: 16px;
+}
+
+.confirm-box {
+  width: 100%;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: var(--shadow-lg);
+  padding: 20px 20px 16px;
+  transform: scale(0.98);
+  opacity: 0;
+  transition: transform .15s ease, opacity .15s ease;
+}
+
+.confirm-modal.show .confirm-box {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.confirm-title {
+  margin: 0 0 8px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--darker);
+}
+
+.confirm-message {
+  margin: 0 0 16px;
+  color: #475569;
+  font-size: .95rem;
+  line-height: 1.5;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.confirm-btn {
+  border: none;
+  border-radius: 8px;
+  padding: .55rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .08s ease, background .2s ease, color .2s ease;
+}
+
+.confirm-btn:hover { transform: translateY(-1px); }
+
+.confirm-cancel {
+  background: #eef2f7;
+  color: #0f172a;
+}
+
+.confirm-cancel:hover {
+  background: #e6ebf3;
+}
+
+.confirm-yes {
+  background: var(--primary, #1e6fba);
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.confirm-yes:hover {
+  box-shadow: var(--shadow-md);
+}
+	
+	
+body.menu-open { overflow: hidden; }	
+	
+  </style>
+  
+
+  
+  
+</head>
+<body>
+  <!-- Top Navbar - tylko na komputerze -->
+  <div class="top-navbar">
+    <div class="contact-info">
+      <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+      <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+    </div>
+
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
+        <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+      </button>
+      <button class="btn btn-primary btn-sm" id="registerBtn">
+        <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+      </button>
+    </div>
+
+    <div class="user-menu" id="userMenu" style="display: none;">
+      <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
+        <i class="fas fa-user me-1"></i> Moje konto
+      </button>
+
+      <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
+        <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+      </button>
+    </div>
+  </div>
+
+  <!-- Header - telefon -->
+  <header>
+    <a href="index.html" class="logo">
+      <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png" alt="Działkofert">
+      <span>Działkofert</span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+    </nav>
+
+    <!-- Przycisk Dodaj ofertę -->
+    <a href="dodaj.html" class="desktop-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <!-- Przycisk Dodaj ofertę -->
+    <a href="dodaj.html" class="mobile-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <button class="mobile-menu-btn">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj ofertę</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+
+      <div class="mobile-auth">
+        <a href="#" id="loginLink" class="nav-link">Zaloguj się</a>
+        <a href="#" id="registerLink" class="nav-link">Zarejestruj się</a>
+      </div>
+    </nav>
+  </header>
+
+
+<!-- Toasts -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+<script>
+/* ===== UI: TOAST (vanilla) =====
+   showToast('Oferta „...” została usunięta.', 'success')
+   type: 'info' | 'success' | 'warning' | 'error'
+*/
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = `toast-lite toast-${type}`;
+  wrap.setAttribute('role', 'status');
+  wrap.setAttribute('aria-live', 'polite');
+
+  // dobierz ikonę
+  const icon = {
+    success: '✓',
+    info: 'ℹ',
+    warning: '!',
+    error: '✕'
+  }[type] || 'ℹ';
+
+  wrap.innerHTML = `
+    <div class="toast-icon" aria-hidden="true">${icon}</div>
+    <div class="toast-msg">${message}</div>
+    <button class="toast-close" aria-label="Zamknij">&times;</button>
+  `;
+
+  // zamykanie
+  const close = () => {
+    wrap.classList.remove('show');
+    setTimeout(() => wrap.remove(), 160);
+  };
+  wrap.querySelector('.toast-close').addEventListener('click', close);
+
+  // dodaj + animacja wejścia
+  container.appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add('show'));
+
+  // auto-hide po 4s
+  const t = setTimeout(close, 4000);
+  // jeśli użytkownik najedzie, nie chowaj
+  wrap.addEventListener('mouseenter', () => clearTimeout(t), { once: true });
+}
+
+window.deletePlot = async function(offerId, plotIndex, plotTitle) {
+  // ładne potwierdzenie (używa Twojego showConfirm)
+  const ok = await showConfirm({
+    title: 'Usunąć ofertę?',
+    message: `Czy na pewno chcesz usunąć ofertę „${plotTitle}”?`,
+    yesText: 'Usuń',
+    noText: 'Anuluj'
+  });
+  if (!ok) return;
+
+  try {
+    // pobierz dokument
+    const offerDoc = await getDoc(doc(db, "propertyListings", offerId));
+    if (!offerDoc.exists()) {
+      showToast("Oferta nie istnieje.", "warning");
+      return;
+    }
+
+    const offerData = offerDoc.data();
+    if (!Array.isArray(offerData.plots) || plotIndex >= offerData.plots.length) {
+      showToast("Wybrana działka nie istnieje.", "warning");
+      return;
+    }
+
+    // miękkie usunięcie: mock:false tylko dla wskazanej działki
+    const updated = [...offerData.plots];
+    updated[plotIndex] = { ...updated[plotIndex], mock: false };
+
+    await updateDoc(doc(db, "propertyListings", offerId), { plots: updated });
+
+    // odśwież listę + toast sukcesu
+	const user = auth.currentUser;
+	if (user) await loadUserOffers(user.email || null, user.uid || null);
+
+    showToast(`Oferta „${plotTitle}” została usunięta.`, "success");
+  } catch (err) {
+    console.error("Błąd podczas usuwania oferty:", err);
+    showToast("Wystąpił błąd podczas usuwania oferty.", "error");
+  }
+};
+
+</script>
+
+<!-- Confirm (Tak/Nie) -->
+<div id="confirmModal" class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-hidden="true">
+  <div class="confirm-box" role="document">
+    <h3 id="confirmTitle" class="confirm-title">Potwierdzenie</h3>
+    <p id="confirmMessage" class="confirm-message">Czy na pewno chcesz kontynuować?</p>
+    <div class="confirm-actions">
+      <button type="button" class="confirm-btn confirm-cancel" id="confirmNo">Nie</button>
+      <button type="button" class="confirm-btn confirm-yes" id="confirmYes">Tak</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// Ładny modal potwierdzenia: zwraca Promise<boolean>
+function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz kontynuować?', yesText = 'Tak', noText = 'Nie' } = {}) {
+  return new Promise((resolve) => {
+    const modal   = document.getElementById('confirmModal');
+    const box     = modal.querySelector('.confirm-box');
+    const titleEl = document.getElementById('confirmTitle');
+    const msgEl   = document.getElementById('confirmMessage');
+    const btnNo   = document.getElementById('confirmNo');
+    const btnYes  = document.getElementById('confirmYes');
+
+    // Ustaw treści
+    titleEl.textContent = title;
+    msgEl.textContent   = message;
+    btnYes.textContent  = yesText;
+    btnNo.textContent   = noText;
+
+    // Pokazanie
+    modal.style.display = 'flex';
+    // timeout żeby CSS transition złapał klasę
+    requestAnimationFrame(() => modal.classList.add('show'));
+
+    // Handlery zamknięcia
+    const cleanup = (val) => {
+      modal.classList.remove('show');
+      setTimeout(() => { modal.style.display = 'none'; }, 120);
+      document.removeEventListener('keydown', onKey);
+      modal.removeEventListener('click', onBackdrop);
+      btnNo.removeEventListener('click', onNo);
+      btnYes.removeEventListener('click', onYes);
+      resolve(val);
+    };
+
+    const onNo = () => cleanup(false);
+    const onYes = () => cleanup(true);
+    const onBackdrop = (e) => { if (e.target === modal) cleanup(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Enter')  cleanup(true);
+    };
+
+    btnNo.addEventListener('click', onNo);
+    btnYes.addEventListener('click', onYes);
+    modal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+
+    // Fokus na „Tak”
+    btnYes.focus();
+  });
+}
+</script>
+
+  <!-- ===== GŁÓWNY UKŁAD Z MAPĄ I ZAWARTOŚCIĄ ===== -->
+  <div class="main-layout">
+    <!-- Lewa strona - statyczna mapa -->
+    <div class="map-container">
+      <div id="map"></div>
+    </div>
+    
+    <!-- Prawa strona - przewijana zawartość -->
+    <div class="content-container">
+      <!-- Panel z ofertami publicznymi -->
+      <div class="offers-section">
+        <div class="section-title">
+          <h2>Oferty działek</h2>
+        </div>
+        <div class="offers-list" id="offersList"></div>
+      </div>
+      
+      <!-- Panel z Twoimi ofertami -->
+	  
+	  
+    
+        <div class="section-title">
+          <h2>Moje Oferty</h2>
+        </div>
+        <div  id="userDashboard">
+     
+          <div class="offers-grid" id="userOffers"></div>
+        </div>
+     </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Zaloguj się</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Hasło</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Zaloguj się</button>
+      </form>
+	  
+	  <div class="social-login">
+  <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+    <i class="fab fa-google"></i> Kontynuuj z Google
+  </button>
+</div>
+	  
+      <div class="form-footer">
+        <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Utwórz konto</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerName">Imię i nazwisko</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Hasło</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="registerConfirmPassword">Potwierdź hasło</label>
+          <input type="password" id="registerConfirmPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Zarejestruj się</button>
+      </form>
+	  
+      <div class="social-login mt-3 text-center">
+        <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
+          <i class="fab fa-google me-1"></i> Zaloguj przez Google
+        </button>
+
+      </div>
+      
+      <div class="domain-warning" id="domainWarning">
+        <i class="fas fa-exclamation-triangle"></i> 
+        Uwaga: Logowanie przez Facebook może nie działać na tej domenie. 
+        Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase.
+      </div>
+	  
+      <div class="form-footer">
+        <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal edycji -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Edytuj ofertę</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="editForm">
+        <input type="hidden" id="editOfferId">
+        <input type="hidden" id="editPlotIndex">
+        
+        <div class="form-group">
+          <label for="editPlotId">Identyfikator działki</label>
+          <input type="text" id="editPlotId" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editPrice">Cena całkowita (zł)</label>
+          <input type="number" id="editPrice" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editPhone">Telefon kontaktowy</label>
+          <input type="tel" id="editPhone" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="editCity">Miejscowość</label>
+          <input type="text" id="editCity" required>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Zaktualizuj ofertę</button>
+      </form>
+    </div>
+  </div>
+
+
+<style>
+/* === FOOTER === */
+footer{background:var(--darker);color:#fff;padding:2.5rem 0 1.25rem;margin-top:120px}
+.footer-container{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.5rem;margin-bottom:1.5rem
+}
+.footer-logo{display:flex;align-items:center;gap:.6rem;font-weight:700;font-size:1.25rem;color:#fff}
+.footer-logo img{height:32px;filter:brightness(0) invert(1)}
+.footer-about p{opacity:.8;font-size:.9rem;line-height:1.6;margin-top:.5rem}
+.footer-links h3,.footer-contact h3{font-size:1.1rem;margin-bottom:1rem;position:relative;display:inline-block}
+.footer-links h3::after,.footer-contact h3::after{
+  content:'';position:absolute;left:0;bottom:-6px;width:25px;height:2px;background:var(--gradient-primary);border-radius:2px
+}
+.footer-links ul{list-style:none}
+.footer-links li{margin-bottom:.6rem}
+.footer-links a{color:#b6c7da;font-size:.9rem}
+.footer-links a:hover{color:#fff;padding-left:5px}
+.footer-contact p{opacity:.8;font-size:.9rem;display:flex;align-items:center;gap:.6rem;margin:.4rem 0}
+.footer-bottom{text-align:center;border-top:1px solid rgba(255,255,255,.12);padding-top:1.25rem;opacity:.75;font-size:.85rem}
+
+</style>
+<footer id="contact">
+  <div class="container">
+    <div class="footer-container">
+      <div class="footer-about">
+        <a href="index.html" class="footer-logo">
+          <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png" alt="Działkofert">
+          <span>Działkofert</span>
+        </a>
+        <p>Bezpłatne ogłoszenia nieruchomości. Szybka sprzedaż działek bez zbędnych kosztów i formalności.</p>
+      </div>
+
+      <div class="footer-links">
+        <h3>Przydatne linki</h3>
+        <ul>
+          <li><a href="index.html">Strona główna</a></li>
+          <li><a href="oferty.html">Oferty</a></li>
+          <li><a href="dodaj.html">Dodaj ofertę</a></li>
+          <li><a href="#contact">Kontakt</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-contact">
+        <h3>Kontakt</h3>
+        <p><i class="fas fa-envelope"></i> info@dzialkofert.pl</p>
+        <p><i class="fas fa-phone"></i> +48 123 456 789</p>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      © 2025 Działkofert. Wszelkie prawa zastrzeżone.
+    </div>
+  </div>
+</footer>
+
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
+      authDomain: "base-468e0.firebaseapp.com",
+      projectId: "base-468e0",
+      storageBucket: "base-468e0.firebasestorage.app",
+      messagingSenderId: "829161895559",
+      appId: "1:829161895559:web:d832541aac05b35847ea22"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    window.db = db;
+    window.collection = collection;
+    window.getDocs = getDocs;
+  </script>
+
+
+
+
+
+
+
+
+
+
+
+ <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+
+<script>
+  let map;
+  let markers = [];
+  let markerCluster;
+  let allOffers = [];
+
+  // jedno, globalne InfoWindow – NIGDY nie tworzymy wielu
+  window.infoWin = null;
+
+  // ====== HELPERS ======
+  function infoHTML(plot, data, offerId, plotIndex) {
+    const price = Number(plot.price || 0);
+    const area  = Number(plot.pow_dzialki_m2_uldk || 0);
+    const ppm2  = price && area ? (price/area).toFixed(0) : null;
+    const city  = data.city || "brak";
+    const phone = data.phone || "brak";
+    const detailsUrl = `oferta.html?id=${offerId}&plot=${plotIndex}`;
+
+    return `
+      <div class="map-info-window">
+        <h3>${plot.Id || "Brak identyfikatora"}</h3>
+        <p><b>Miejscowość:</b> ${city}</p>
+        ${price ? `<p><b>Cena:</b> ${price.toLocaleString('pl-PL')} zł${ppm2 ? ` <span style="color:#718096;">(${ppm2} zł/m²)</span>` : ''}</p>` : ''}
+        ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+        <p><b>Telefon:</b> ${phone}</p>
+        <div class="mini-actions center">
+          <a class="btn-mini" target="_blank" href="${detailsUrl}">Szczegóły</a>
+        </div>
+      </div>
+    `;
+  }
+
+  function openInfo(marker, html) {
+    if (!window.infoWin) window.infoWin = new google.maps.InfoWindow();
+    window.infoWin.setContent(html);
+    window.infoWin.open(map, marker);
+  }
+
+  // ====== MAPA ======
+  async function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+      center: { lat: 52.0, lng: 19.0 },
+      zoom: 6,
+      gestureHandling: "greedy",
+      mapTypeId: google.maps.MapTypeId.HYBRID
+    });
+
+    google.maps.event.addListener(map, "idle", () => filterOffersByBounds());
+    await loadOffers();
+
+    // delikatny zoom kółkiem (opcjonalne)
+    const mapContainer = document.getElementById('map');
+    mapContainer.addEventListener('wheel', function(e) {
+      if (e.target.closest('.gm-style')) {
+        e.preventDefault();
+        const delta = e.deltaY || e.detail || (-e.wheelDelta);
+        const currentZoom = map.getZoom();
+        map.setZoom(delta < 0 ? currentZoom + 0.5 : currentZoom - 0.5);
+      }
+    }, { passive: false });
+  }
+
+  async function loadOffers() {
+    try {
+      const snapshot = await window.getDocs(window.collection(window.db, "propertyListings"));
+      const listContainer = document.getElementById("offersList");
+      listContainer && (listContainer.innerHTML = "");
+
+      // reset
+      allOffers = [];
+      markers.forEach(m => m.setMap(null));
+      markers = [];
+      const plotPolygons = [];
+
+      snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if (!data.plots || !data.plots.length) return;
+
+        data.plots.forEach((plot, index) => {
+          // POKAZUJ wszystko oprócz jawnie ukrytych
+          if (plot.mock === false) return;
+
+          const lat = plot.lat, lng = plot.lng;
+          const geometry = plot.geometry_uldk;
+          const offerId = docSnap.id;
+
+          // marker
+          const marker = new google.maps.Marker({
+            position: { lat, lng }, map,
+            title: data.firstName || "Oferta",
+            icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
+          });
+          markers.push(marker);
+
+          // klik w marker → InfoWindow + „Szczegóły”
+          marker.addListener('click', () => openInfo(marker, infoHTML(plot, data, offerId, index)));
+
+          // polygon (pokazywany od określonego zoomu)
+          let polygon = null;
+          if (geometry) {
+            const coords = parseGeometry(geometry);
+            if (coords.length) {
+              polygon = new google.maps.Polygon({
+                paths: coords,
+                strokeColor: "#FF0000",
+                strokeOpacity: 0.9,
+                strokeWeight: 3,
+                fillColor: "#FF0000",
+                fillOpacity: 0.15,
+                map: null, visible: false
+              });
+              polygon.addListener('click', (evt) => {
+                // klik w obrys także otwiera JEDNO info okno
+                const fakeMarker = new google.maps.Marker({ position: evt.latLng, map: null });
+                openInfo(fakeMarker, infoHTML(plot, data, offerId, index));
+              });
+              plotPolygons.push({ polygon, bounds: getPolygonBounds(coords), marker });
+            }
+          }
+
+          // zapisz wpis
+          allOffers.push({ id: offerId, data, plot, index, marker, polygon });
+        });
+      });
+
+      // klastrowanie
+      if (markerCluster) markerCluster.clearMarkers();
+      markerCluster = new markerClusterer.MarkerClusterer({
+        map, markers,
+        renderer: {
+          render: ({ count, position }) => {
+            return new google.maps.Marker({
+              position,
+              label: { text: String(count), color: "white", fontSize: "14px", fontWeight: "bold" },
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 20,
+                fillColor: "red",
+                fillOpacity: 0.85,
+                strokeColor: "red",
+                strokeWeight: 2
+              }
+            });
+          }
+        }
+      });
+
+      // polygony od zoom >= 8
+      google.maps.event.addListener(map, 'zoom_changed', () => {
+        const show = map.getZoom() >= 8;
+        plotPolygons.forEach(p => {
+          if (!p.polygon) return;
+          p.polygon.setMap(show ? map : null);
+          p.polygon.setVisible(!!show);
+        });
+      });
+
+      filterOffersByBounds();
+    } catch (err) {
+      console.error("Błąd pobierania ofert:", err);
+    }
+  }
+
+  // widoczność listy wg granic + SZCZEGÓŁY na środku
+  function filterOffersByBounds() {
+    if (!map || !allOffers.length) return;
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const visibleOffers = allOffers.filter(o => bounds.contains(o.marker.getPosition()));
+    const listContainer = document.getElementById("offersList");
+    if (!listContainer) return;
+
+    listContainer.innerHTML = "";
+    if (!visibleOffers.length) {
+      listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
+      return;
+    }
+
+    visibleOffers.forEach(o => {
+      const card = document.createElement("div");
+      card.className = "offer-card";
+      const price = Number(o.plot.price || 0);
+      const area  = Number(o.plot.pow_dzialki_m2_uldk || 0);
+      const ppm2  = price && area ? (price/area).toFixed(2) : "0.00";
+      const detailsUrl = `oferta.html?id=${o.id}&plot=${o.index}`;
+
+      card.innerHTML = `
+        <h5>${o.plot.Id || "Brak identyfikatora"}</h5>
+        ${o.data.city ? `<p><b>Miejscowość:</b> ${o.data.city}</p>` : ""}
+        <p><b>Telefon:</b> ${o.data.phone || "-"}</p>
+        ${price ? `<p><b>Cena całkowita:</b> ${price.toLocaleString('pl-PL')} zł <span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2} zł/m²</span></p>` : ""}
+        ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ""}
+        <div class="offer-actions center">
+          <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
+            <i class="fas fa-info-circle"></i> Szczegóły
+          </a>
+        </div>
+      `;
+
+      // klik w kartę (publiczną) → ogniskuj na mapie + InfoWindow
+      card.addEventListener("click", (e) => {
+        // jeśli klik to „Szczegóły” – nie ogniskuj mapy
+        if (e.target.closest('a')) return;
+        map.panTo(o.marker.getPosition());
+        map.setZoom(Math.max(16, map.getZoom()));
+        openInfo(o.marker, infoHTML(o.plot, o.data, o.id, o.index));
+      });
+
+      listContainer.appendChild(card);
+    });
+  }
+
+  // EPSG:2180 -> WGS84
+  function parseGeometry(geometryString) {
+    const coords = [];
+    try {
+      proj4.defs("EPSG:2180", "+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +units=m +no_defs");
+      const coordString = geometryString.match(/\(\(([^)]+)\)\)/)[1];
+      const points = coordString.split(',');
+      points.forEach(point => {
+        const [xStr, yStr] = point.trim().split(' ');
+        const x = parseFloat(xStr), y = parseFloat(yStr);
+        const [lng, lat] = proj4("EPSG:2180", "WGS84", [x, y]);
+        coords.push({ lat, lng });
+      });
+    } catch (e) { console.error("Błąd parsowania geometrii:", e, geometryString); }
+    return coords;
+  }
+
+  function getPolygonBounds(coords) {
+    const bounds = new google.maps.LatLngBounds();
+    coords.forEach(c => bounds.extend(c));
+    return bounds;
+  }
+
+  // PUBLIC: focus z „Moje Oferty”
+  window.focusOfferOnMap = function(offerId, plotIndex) {
+    const match = allOffers.find(o => o.id === offerId && o.index === plotIndex);
+    if (!match || !map) return;
+    map.panTo(match.marker.getPosition());
+    map.setZoom(17);
+    openInfo(match.marker, infoHTML(match.plot, match.data, match.id, match.index));
+    document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  // ładowanie Google Maps
+  function loadGoogleMaps() {
+    const apiKey = localStorage.getItem('googleMapsApiKey') || 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+    script.async = true; script.defer = true;
+    document.head.appendChild(script);
+  }
+  document.addEventListener("DOMContentLoaded", loadGoogleMaps);
+</script>
+
+
+
+
+<script type="module">
+  import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged, signOut,
+    signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+    GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+    setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import {
+    getFirestore, doc, setDoc, getDoc, updateDoc,
+    collection, query, where, getDocs
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // --- KONFIG ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
+    authDomain: "base-468e0.firebaseapp.com",
+    projectId: "base-468e0",
+    storageBucket: "base-468e0.firebasestorage.app",
+    messagingSenderId: "829161895559",
+    appId: "1:829161895559:web:d832541aac05b35847ea22"
+  };
+
+  // --- INIT ---
+  const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
+  auth.languageCode = 'pl';
+
+  try { await setPersistence(auth, browserLocalPersistence); }
+  catch { try { await setPersistence(auth, browserSessionPersistence); }
+  catch { await setPersistence(auth, inMemoryPersistence); } }
+
+  const googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+  // --- DOM ---
+  const authButtons   = document.getElementById('authButtons');
+  const userMenu      = document.getElementById('userMenu');
+  const loginBtn      = document.getElementById('loginBtn');
+  const registerBtn   = document.getElementById('registerBtn');
+  const accountBtn    = document.getElementById('accountBtn');
+  const logoutBtn     = document.getElementById('logoutBtn');
+
+  const loginModal    = document.getElementById('loginModal');
+  const registerModal = document.getElementById('registerModal');
+  const closeBtns     = document.querySelectorAll('.modal-close');
+  const switchToRegister = document.getElementById('switchToRegister');
+  const switchToLogin    = document.getElementById('switchToLogin');
+
+  const loginForm     = document.getElementById('loginForm');
+  const registerForm  = document.getElementById('registerForm');
+
+  const userDashboard = document.getElementById('userDashboard');
+  const userOffers    = document.getElementById('userOffers');
+
+  const googleBtnRegister = document.getElementById('googleLoginBtn');
+  const googleBtnLogin    = document.getElementById('googleLoginBtnLogin');
+
+  // Linki z menu mobilnego + samo menu
+  const loginLink     = document.getElementById('loginLink');
+  const registerLink  = document.getElementById('registerLink');
+  const navMenu       = document.querySelector('.nav-menu');
+
+  // --- POMOCNICZE UI ---
+  const openModal  = (m) => m && (m.style.display = 'flex');
+  const closeModal = (m) => m && (m.style.display = 'none');
+
+  // Pokaż ostrzeżenie o domenie (jeśli nie jest autoryzowana w Firebase)
+  const domainWarning = document.getElementById('domainWarning');
+  const okDomains = ['localhost','127.0.0.1','trainingtwenty5.github.io','twojadomena.pl'];
+  if (domainWarning && !okDomains.includes(location.hostname)) domainWarning.style.display = 'block';
+
+  // --- HANDLERY MODALI (desktop) ---
+  loginBtn    && loginBtn.addEventListener('click', () => openModal(loginModal));
+  registerBtn && registerBtn.addEventListener('click', () => openModal(registerModal));
+
+  // --- HANDLERY MODALI (mobile: z hamburgera) ---
+  loginLink && loginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    navMenu?.classList.remove('active');
+    document.body.classList.remove('menu-open');
+    openModal(loginModal);
+  });
+
+  registerLink && registerLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    navMenu?.classList.remove('active');
+    document.body.classList.remove('menu-open');
+    openModal(registerModal);
+  });
+
+  // Przełączanie między modalami
+  switchToRegister && switchToRegister.addEventListener('click', (e) => {
+    e.preventDefault(); closeModal(loginModal);  openModal(registerModal);
+  });
+  switchToLogin && switchToLogin.addEventListener('click', (e) => {
+    e.preventDefault(); closeModal(registerModal); openModal(loginModal);
+  });
+
+  // Zamknięcie X i klik w tło
+  closeBtns.forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal'))));
+  window.addEventListener('click', (e) => {
+    if (e.target.classList?.contains('modal')) closeModal(e.target);
+  });
+
+  // --- ŁADNE BŁĘDY ---
+  const niceErr = (err) => {
+    switch (err?.code) {
+      case 'auth/invalid-email': return 'Nieprawidłowy adres e-mail.';
+      case 'auth/missing-password': return 'Podaj hasło.';
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential': return 'Nieprawidłowy e-mail lub hasło.';
+      case 'auth/too-many-requests': return 'Za dużo prób. Spróbuj później.';
+      case 'auth/unauthorized-domain': return `Domena ${location.hostname} nie jest dodana w Firebase (Authorized domains).`;
+      case 'auth/popup-blocked': return 'Przeglądarka zablokowała okno logowania Google.';
+      case 'auth/operation-not-supported-in-this-environment': return 'Uruchom stronę przez http/https (nie file://).';
+      default: return 'Błąd: ' + (err?.code || err?.message || 'nieznany');
+    }
+  };
+
+  // --- E-mail/hasło ---
+  loginForm && loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass  = document.getElementById('loginPassword').value;
+    try { await signInWithEmailAndPassword(auth, email, pass); closeModal(loginModal); }
+    catch (err) { showToast(niceErr(err)); }
+  });
+
+  registerForm && registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name  = document.getElementById('registerName').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
+    const pass1 = document.getElementById('registerPassword').value;
+    const pass2 = document.getElementById('registerConfirmPassword').value;
+    if (pass1 !== pass2) return showToast('Hasła nie są identyczne!');
+    try {
+      const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
+      if (name) await updateProfile(user, { displayName: name });
+      await setDoc(doc(db, "users", user.uid), {
+        name: name || null, email, createdAt: new Date(), provider: 'password'
+      }, { merge: true });
+      closeModal(registerModal);
+    } catch (err) { showToast(niceErr(err)); }
+  });
+
+  // --- Google ---
+  async function signInWithGoogleSmart() {
+    if (!['http:', 'https:'].includes(location.protocol))
+      return showToast('Uruchom stronę przez http/https (nie file://).');
+    try {
+      const res = await signInWithPopup(auth, googleProvider);
+      const user = res.user;
+      const uref = doc(db, "users", user.uid);
+      const udoc = await getDoc(uref);
+      if (!udoc.exists()) {
+        await setDoc(uref, { name: user.displayName, email: user.email, createdAt: new Date(), provider: 'google' });
+      }
+      closeModal(loginModal); closeModal(registerModal);
+    } catch (err) {
+      if (['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(err?.code)) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        showToast(niceErr(err));
+      }
+    }
+  }
+  [googleBtnRegister, googleBtnLogin].forEach(btn =>
+    btn && btn.addEventListener('click', (e) => { e.preventDefault(); signInWithGoogleSmart(); })
+  );
+
+  // --- STAN LOGOWANIA ---
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      authButtons && (authButtons.style.display = 'none');
+      userMenu    && (userMenu.style.display   = 'flex');
+      userDashboard && (userDashboard.style.display = 'block');
+
+      accountBtn  && (accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${user.displayName || user.email}`);
+      accountBtn  && accountBtn.addEventListener('click', () => {
+        location.hash = '#userDashboard';
+        userDashboard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, { once: true });
+
+      try { await loadUserOffers(user.email || null, user.uid || null); } catch(e){ console.error(e); }
+      closeModal(loginModal); closeModal(registerModal);
+    } else {
+      authButtons && (authButtons.style.display = 'flex');
+      userMenu    && (userMenu.style.display   = 'none');
+      userDashboard && (userDashboard.style.display = 'none');
+      userOffers && (userOffers.innerHTML = '');
+    }
+  });
+
+  // --- WYLOGOWANIE ---
+  logoutBtn && logoutBtn.addEventListener('click', async () => {
+    try { await signOut(auth); } catch(_) {}
+  });
+  
+  
+  
+  
+  
+  
+  
+  
+
+  // --- „Miękkie usuwanie” i ładowanie ofert (jeśli używasz) ---
+async function loadUserOffers(email, uid) {
+  try {
+    const emailFields = ['email', 'userEmail', 'ownerEmail', 'createdByEmail', 'contactEmail'];
+    const idFields    = ['userUid', 'uid', 'userId', 'ownerId', 'createdBy'];
+
+    userOffers.innerHTML = '<p>Ładuję Twoje oferty…</p>';
+
+    // Zbierz WSZYSTKIE pasujące dokumenty z wielu zapytań i zdeduplikuj po id
+    const results = new Map(); // id -> QueryDocumentSnapshot
+
+    // — po e-mailu (uwzględnij różne wielkości liter)
+    if (email) {
+      const variants = [...new Set([email, email.toLowerCase()])];
+      for (const field of emailFields) {
+        for (const val of variants) {
+          try {
+            const s = await getDocs(query(collection(db, 'propertyListings'), where(field, '==', val)));
+            s.forEach(d => results.set(d.id, d));
+          } catch (e) {
+            console.warn('Email query failed for', field, e);
+          }
+        }
+      }
+    }
+
+    // — po UID
+    if (uid) {
+      for (const field of idFields) {
+        try {
+          const s = await getDocs(query(collection(db, 'propertyListings'), where(field, '==', uid)));
+          s.forEach(d => results.set(d.id, d));
+        } catch (e) {
+          console.warn('UID query failed for', field, e);
+        }
+      }
+    }
+
+    userOffers.innerHTML = '';
+
+    if (results.size === 0) {
+      userOffers.innerHTML = `
+        <p>Nie znaleziono Twoich ofert.</p>
+        <p style="font-size:.9em;color:#666">
+          Sprawdź, czy dokumenty w <code>propertyListings</code> mają któreś z pól:
+          <code>${['email','userEmail','ownerEmail','createdByEmail','contactEmail','userUid','uid','userId','ownerId','createdBy'].join(', ')}</code>
+          z Twoim e-mailem (najlepiej małymi literami) lub UID.
+        </p>`;
+      return;
+    }
+
+    // Render (twój fragment bez zmian poza źródłem danych)
+    Array.from(results.values()).forEach((docu) => {
+      const offer  = docu.data();
+      const offerId = docu.id;
+      if (!Array.isArray(offer.plots) || offer.plots.length === 0) return;
+
+      const activePlots = offer.plots
+        .map((plot, originalIndex) => ({ plot, originalIndex }))
+        .filter(({ plot }) => plot?.mock !== false);
+
+      activePlots.forEach(({ plot, originalIndex }, i) => {
+        const price = Number(plot.price || 0);
+        const area  = Number(plot.pow_dzialki_m2_uldk || plot.area || plot.areaM2 || 0);
+        const ppm2  = price && area ? Math.round(price/area) : 0;
+        const detailsUrl = `oferta.html?id=${offerId}&plot=${originalIndex}`;
+
+        const el = document.createElement('div');
+        el.className = 'offer-card';
+        el.innerHTML = `
+          <h3 class="offer-title">${plot.Id || `Działka ${i+1}`}</h3>
+          <div class="offer-details">
+            <p><strong>Lokalizacja:</strong> ${offer.city || offer.location?.city || 'Nie podano'}</p>
+            ${area  ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+            ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
+              ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>`:''}
+            </p>` : ''}
+          </div>
+          <div class="offer-actions">
+            <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
+              <i class="fas fa-info-circle"></i> Szczegóły
+            </a>
+            <button class="btn btn-primary btn-sm" onclick="window.location.href='dodaj.html?edit=${offerId}&plot=${originalIndex}'">
+              <i class="fas fa-edit"></i> Edytuj
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(plot.Id||`Działka ${i+1}`).replace(/'/g,"\\'")}')">
+              <i class="fas fa-trash"></i> Usuń
+            </button>
+          </div>
+        `;
+        el.addEventListener('click', (e) => {
+          if (e.target.closest('.offer-actions')) return;
+          window.focusOfferOnMap?.(offerId, originalIndex);
+        });
+        userOffers.appendChild(el);
+      });
+    });
+
+    if (!userOffers.querySelector('.offer-card')) {
+      userOffers.innerHTML = '<p>Nie masz jeszcze żadnych aktywnych ofert.</p>';
+    }
+  } catch (error) {
+    console.error('Error loading offers: ', error);
+    userOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
+  }
+}
+
+
+
+  // --- EXPORTY DLA ZWYKŁYCH SKRYPTÓW (jeśli używasz poza module) ---
+  window.db = db;
+  window.collection = collection;
+  window.getDocs = getDocs;
+  window.query = query;
+  window.where = where;
+  window.doc       = doc;
+  window.updateDoc = updateDoc;
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+  const navMenu = document.querySelector('.nav-menu');
+  const mobileAuth = document.querySelector('.mobile-auth');
+
+  if (!mobileMenuBtn || !navMenu) return;
+
+  const toggleMenu = () => {
+    navMenu.classList.toggle('active');
+    const open = navMenu.classList.contains('active');
+    if (mobileAuth) mobileAuth.style.display = open ? 'flex' : 'none';
+    mobileMenuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.body.classList.toggle('menu-open', open);
+  };
+
+  mobileMenuBtn.addEventListener('click', toggleMenu);
+
+  // opcjonalnie: zamykaj menu po kliknięciu w link
+  navMenu.querySelectorAll('a').forEach(a => 
+    a.addEventListener('click', () => {
+      navMenu.classList.remove('active');
+      if (mobileAuth) mobileAuth.style.display = 'none';
+      mobileMenuBtn.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('menu-open');
+    })
+  );
+});
+</script>
+
+
+</body>
+</html>
