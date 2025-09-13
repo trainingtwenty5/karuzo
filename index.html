@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Działkofert - Dodaj darmowe ogłoszenie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  
+      <!-- Favicon dla przeglądarek -->
+  <link rel="icon" type="image/png" sizes="32x32" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+
+  <!-- Ikona dla Apple (po zapisaniu strony na ekranie głównym iPhone/iPad) -->
+  <link rel="apple-touch-icon" sizes="180x180" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+
+  <!-- Ikona dla Androida (progressive web app / home screen) -->
+  <link rel="icon" type="image/png" sizes="192x192" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  
+<link rel="stylesheet" href="assets/main.css"/>  
+	
+	
+	
+ 
+</head>
+
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Działkofert - Dodaj darmowe ogłoszenie</title>
+
+  <!-- (opcjonalnie) ikony i fonty -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Favicony -->
+  <link rel="icon" type="image/png" sizes="32x32" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+</head>
+<body>
+
+  <!-- Top Navbar (desktop) -->
+  <div class="top-navbar">
+    <div class="contact-info">
+      <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+      <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+    </div>
+
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
+        <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+      </button>
+      <button class="btn btn-primary btn-sm" id="registerBtn">
+        <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+      </button>
+    </div>
+
+    <div class="user-menu" id="userMenu" style="display:none;">
+      <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
+        <i class="fas fa-user me-1"></i> Moje konto
+      </button>
+      <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
+        <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+      </button>
+    </div>
+  </div>
+
+  <!-- Header + Nawigacja -->
+  <header>
+    <a href="index.html" class="logo">
+      <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png" alt="Działkofert">
+      <span>Działkofert</span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+    </nav>
+
+    <a href="dodaj.html" class="desktop-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <a href="dodaj.html" class="mobile-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <button class="mobile-menu-btn" aria-label="Otwórz menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj ofertę</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+
+      <!-- Miejsce na elementy auth w menu mobilnym -->
+      <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+    </nav>
+  </header>
+
+  <!-- Skrypt: menu mobilne (toggle + zamykanie przy zmianie rozmiaru) -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navMenu = document.querySelector('.nav-menu');
+      const mobileAuth = document.getElementById('mobileAuth');
+
+      mobileMenuBtn?.addEventListener('click', function () {
+        navMenu.classList.toggle('active');
+        if (mobileAuth) {
+          mobileAuth.style.display = navMenu.classList.contains('active') ? 'flex' : 'none';
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+          navMenu.classList.remove('active');
+          if (mobileAuth) mobileAuth.style.display = 'none';
+        }
+      });
+    });
+  </script>
+
+  <!-- Login Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Zaloguj się</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Hasło</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zaloguj się</button>
+      </form>
+
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+
+      <div class="form-footer">
+        <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Utwórz konto</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerName">Imię i nazwisko</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Hasło</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="registerConfirmPassword">Potwierdź hasło</label>
+          <input type="password" id="registerConfirmPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zarejestruj się</button>
+      </form>
+
+      <div class="social-login mt-3 text-center">
+        <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+
+      <div class="domain-warning" id="domainWarning" style="display:none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        Uwaga: Logowanie przez Facebook może nie działać na tej domenie.
+        Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase.
+      </div>
+
+      <div class="form-footer">
+        <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Dashboard -->
+  <div class="container user-dashboard" id="userDashboard" style="display:none;">
+    <div class="user-header">
+      <h2>Moje oferty</h2>
+      <a href="dodaj.html" class="btn btn-primary" id="dashboardAddOffer">
+        <i class="fas fa-plus me-1"></i> Dodaj ofertę
+      </a>
+    </div>
+    <div class="offers-grid" id="userOffers">
+      <!-- Oferty użytkownika -->
+    </div>
+  </div>
+
+  <!-- Sekcje strony (bez CSS wygląd będzie surowy) -->
+  <section class="hero" id="home">
+    <div class="container hero-content">
+      <div class="hero-text">
+        <h1>Znajdź swoją wymarzoną działkę</h1>
+        <p>Dodaj bezpłatne ogłoszenie lub przeglądaj oferty idealnych działek w najlepszych lokalizacjach w Polsce.</p>
+        <div class="hero-buttons">
+          <a href="oferty.html" class="btn btn-primary"><i class="fas fa-search"></i> Przeglądaj oferty</a>
+          <a href="dodaj.html" class="btn btn-secondary" id="heroAddOffer"><i class="fas fa-plus"></i> Dodaj ogłoszenie</a>
+        </div>
+      </div>
+      <div class="hero-image">
+        <img src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Działka" style="max-width:100%;height:auto;">
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="section features">
+    <div class="container">
+      <div class="section-title">
+        <h2>Dlaczego warto wybrać Działkofert?</h2>
+        <p>Skuteczna sprzedaż działek bez zbędnych kosztów</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+          <h3>Analiza rynkowa</h3>
+          <p>Darmowa analiza wartości Twojej działki na podstawie aktualnych danych rynkowych.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-users"></i></div>
+          <h3>Szeroki zasięg</h3>
+          <p>Dotrzyj do tysięcy potencjalnych kupujących w całej Polsce.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><i class="fas fa-euro-sign"></i></div>
+          <h3>Zero opłat</h3>
+          <p>Dodawanie i przeglądanie ogłoszeń jest całkowicie darmowe.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how-it-works" class="section course-info">
+    <div class="container">
+      <div class="info-container">
+        <div class="info-image">
+          <img src="https://files.cdn.thinkific.com/file_uploads/1010971/images/2fe/9ae/bbf/new2.png" alt="Jak działa Działkofert" style="max-width:100%;height:auto;">
+          <div class="info-badge">Proste i szybkie</div>
+        </div>
+        <div class="info-content">
+          <h2>Jak to działa?</h2>
+          <ul class="info-list">
+            <li>Dodajesz numer działki i podstawowe informacje</li>
+            <li>Nasi eksperci przygotowują analizę i ogłoszenie</li>
+            <li>W ciągu 48 godzin Twoja oferta jest online</li>
+            <li>Kontaktujesz się z zainteresowanymi kupującymi</li>
+            <li>Finalizujesz transakcję bez pośredników</li>
+          </ul>
+          <a href="dodaj.html" class="btn btn-primary">
+            <i class="fas fa-plus-circle"></i> Dodaj ogłoszenie
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="section faq">
+    <div class="container">
+      <div class="section-title">
+        <h2>Często zadawane pytania</h2>
+        <p>Znajdź odpowiedzi na najczęstsze pytania</p>
+      </div>
+      <div class="faq-container">
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Ile kosztuje dodanie ogłoszenia?</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Dodanie ogłoszenia jest całkowicie darmowe. Nie pobieramy żadnych opłat ani prowizji.</p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Jak długo ogłoszenie jest aktywne?</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Ogłoszenie jest aktywne przez 90 dni. Po tym czasie możesz je bezpłatnie przedłużyć.</p>
+          </div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-question">
+            <span>Czy potrzebuję dokumentów własności?</span>
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Do dodania ogłoszenia nie potrzebujesz dokumentów. Będą one konieczne dopiero przy finalizacji transakcji.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta">
+    <div class="container">
+      <h2>Gotowy, aby sprzedać swoją działkę?</h2>
+      <p>Dołącz do tysięcy zadowolonych sprzedających i kupujących</p>
+      <a href="dodaj.html" class="btn btn-primary">
+        <i class="fas fa-plus-circle"></i> Dodaj bezpłatne ogłoszenie
+      </a>
+    </div>
+  </section>
+
+
+
+
+<footer id="contact">
+  <div class="container">
+    <div class="footer-container">
+      <div class="footer-about">
+        <a href="index.html" class="footer-logo">
+          <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png" alt="Działkofert">
+          <span>Działkofert</span>
+        </a>
+        <p>Bezpłatne ogłoszenia nieruchomości. Szybka sprzedaż działek bez zbędnych kosztów i formalności.</p>
+      </div>
+
+      <div class="footer-links">
+        <h3>Przydatne linki</h3>
+        <ul>
+          <li><a href="index.html">Strona główna</a></li>
+          <li><a href="oferty.html">Oferty</a></li>
+          <li><a href="dodaj.html">Dodaj ofertę</a></li>
+          <li><a href="#contact">Kontakt</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-contact">
+        <h3>Kontakt</h3>
+        <p><i class="fas fa-envelope"></i> info@dzialkofert.pl</p>
+        <p><i class="fas fa-phone"></i> +48 123 456 789</p>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      © 2025 Działkofert. Wszelkie prawa zastrzeżone.
+    </div>
+  </div>
+</footer>
+
+
+
+
+  <!-- Firebase + logika aplikacji -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signOut,
+      signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+      GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+      setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      getFirestore, collection, query, where, getDocs, doc, setDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // --- Konfiguracja ---
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
+      authDomain: "base-468e0.firebaseapp.com",
+      projectId: "base-468e0",
+      storageBucket: "base-468e0.firebasestorage.app",
+      messagingSenderId: "829161895559",
+      appId: "1:829161895559:web:d832541aac05b35847ea22"
+    };
+
+    // --- Init ---
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    auth.languageCode = 'pl';
+
+    // Persystencja
+    async function useBestPersistence() {
+      try { await setPersistence(auth, browserLocalPersistence); }
+      catch { try { await setPersistence(auth, browserSessionPersistence); }
+      catch { await setPersistence(auth, inMemoryPersistence); } }
+    }
+    await useBestPersistence();
+
+    // Podpowiedź o domenie
+    (function domainHint(){
+      const hint = document.getElementById('domainWarning');
+      if (!hint) return;
+      const knownGood = ['localhost','127.0.0.1','trainingtwenty5.github.io'];
+      if (!knownGood.includes(location.hostname)) {
+        hint.style.display = 'block';
+      }
+    })();
+
+    // Google provider
+    const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+    // DOM referencje
+    const authButtons   = document.getElementById('authButtons');
+    const userMenu      = document.getElementById('userMenu');
+    const loginBtn      = document.getElementById('loginBtn');
+    const registerBtn   = document.getElementById('registerBtn');
+    const accountBtn    = document.getElementById('accountBtn');
+    const logoutBtn     = document.getElementById('logoutBtn');
+    const loginModal    = document.getElementById('loginModal');
+    const registerModal = document.getElementById('registerModal');
+    const closeBtns     = document.querySelectorAll('.modal-close');
+    const switchToReg   = document.getElementById('switchToRegister');
+    const switchToLog   = document.getElementById('switchToLogin');
+    const loginForm     = document.getElementById('loginForm');
+    const registerForm  = document.getElementById('registerForm');
+    const userDashboard = document.getElementById('userDashboard');
+    const userOffers    = document.getElementById('userOffers');
+    const gBtn1         = document.getElementById('googleLoginBtn');
+    const gBtn2         = document.getElementById('googleLoginBtnLogin');
+
+    const openModal  = (m) => m && (m.style.display = 'flex');
+    const closeModal = (m) => m && (m.style.display = 'none');
+
+    // >>> renderMobileAuth PRZENIESIONE DO MODUŁU <<<
+    function renderMobileAuth(user) {
+      const navMenu = document.querySelector('.nav-menu');
+      const mobileAuthC = document.getElementById('mobileAuth');
+      if (!mobileAuthC) return;
+
+      if (user) {
+        const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Użytkownik');
+        mobileAuthC.innerHTML = `
+          <div class="nav-link" style="font-weight:600;">
+            <i class="fas fa-user"></i> ${label}
+          </div>
+          <a href="#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
+          <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
+            <i class="fas fa-sign-out-alt"></i> Wyloguj się
+          </button>
+        `;
+      } else {
+        mobileAuthC.innerHTML = `
+          <a href="#" id="loginLink" class="nav-link">Zaloguj się</a>
+          <a href="#" id="registerLink" class="nav-link">Zarejestruj się</a>
+        `;
+      }
+
+      const loginLink = document.getElementById('loginLink');
+      const registerLink = document.getElementById('registerLink');
+      const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
+      const mobileAccountLink = document.getElementById('mobileAccountLink');
+
+      loginLink && loginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(loginModal);
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      registerLink && registerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(registerModal);
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      mobileLogoutBtn && mobileLogoutBtn.addEventListener('click', async () => {
+        try { await signOut(auth); } catch(e){ console.error(e); }
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      mobileAccountLink && mobileAccountLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('userDashboard')?.scrollIntoView({behavior:'smooth'});
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      // dopasuj widoczność do stanu menu
+      mobileAuthC.style.display = navMenu?.classList.contains('active') ? 'flex' : 'none';
+    }
+
+    // Auth state
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authButtons && (authButtons.style.display = 'none');
+        userMenu    && (userMenu.style.display = 'flex');
+        if (accountBtn) {
+          const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Moje konto');
+          accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${label}`;
+        }
+        userDashboard && (userDashboard.style.display = 'block');
+        loadUserOffers(user.email || null, user.uid || null);
+        closeModal(loginModal); closeModal(registerModal);
+      } else {
+        authButtons && (authButtons.style.display = 'flex');
+        userMenu    && (userMenu.style.display = 'none');
+        userDashboard && (userDashboard.style.display = 'none');
+        userOffers && (userOffers.innerHTML = '');
+      }
+      // aktualizuj sekcję menu mobilnego
+      renderMobileAuth(user);
+    });
+
+    // Zdarzenia UI
+    loginBtn     && loginBtn.addEventListener('click', () => openModal(loginModal));
+    registerBtn  && registerBtn.addEventListener('click', () => openModal(registerModal));
+    switchToReg  && switchToReg.addEventListener('click', (e) => { e.preventDefault(); closeModal(loginModal);  openModal(registerModal); });
+    switchToLog  && switchToLog.addEventListener('click', (e) => { e.preventDefault(); closeModal(registerModal); openModal(loginModal); });
+    closeBtns?.forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal'))));
+    window.addEventListener('click', (e) => { if (e.target.classList?.contains('modal')) closeModal(e.target); });
+    accountBtn && accountBtn.addEventListener('click', () => document.getElementById('userDashboard')?.scrollIntoView({behavior:'smooth'}));
+
+    // Komunikaty błędów
+    const niceAuthError = (err) => {
+      const code = err?.code || '';
+      switch (code) {
+        case 'auth/invalid-email':             return 'Nieprawidłowy adres e-mail.';
+        case 'auth/missing-password':          return 'Podaj hasło.';
+        case 'auth/invalid-credential':        return 'Nieprawidłowy e-mail lub hasło.';
+        case 'auth/user-not-found':            return 'Użytkownik nie istnieje.';
+        case 'auth/wrong-password':            return 'Błędne hasło.';
+        case 'auth/too-many-requests':         return 'Za dużo prób. Spróbuj później.';
+        case 'auth/unauthorized-domain':       return `Domena ${location.hostname} nie jest autoryzowana w Firebase (Authentication → Authorized domains).`;
+        case 'auth/popup-blocked':             return 'Przeglądarka zablokowała okno logowania Google. Użyj przekierowania.';
+        case 'auth/operation-not-supported-in-this-environment':
+                                               return 'To środowisko nie wspiera popup (np. file://). Uruchom przez http/https.';
+        default: return `Błąd: ${code || (err?.message || 'nieznany')}`;
+      }
+    };
+
+    // Email/hasło
+    loginForm && loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const pass  = document.getElementById('loginPassword').value;
+      try {
+        await signInWithEmailAndPassword(auth, email, pass);
+        // modale zamknie onAuthStateChanged
+      } catch (err) {
+        console.error('[login]', err);
+        alert(niceAuthError(err));
+      }
+    });
+
+    registerForm && registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name  = document.getElementById('registerName').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const pass1 = document.getElementById('registerPassword').value;
+      const pass2 = document.getElementById('registerConfirmPassword').value;
+      if (pass1 !== pass2) return alert('Hasła nie są identyczne!');
+      try {
+        const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
+        if (name) await updateProfile(user, { displayName: name });
+        await setDoc(doc(db, "users", user.uid), {
+          name: name || null, email, createdAt: new Date(), provider: "password"
+        }, { merge: true });
+      } catch (err) {
+        console.error('[register]', err);
+        alert(niceAuthError(err));
+      }
+    });
+
+    // Google
+    async function signInWithGoogleSmart() {
+      const ok = ['http:', 'https:'].includes(location.protocol);
+      if (!ok) return alert('Uruchom stronę przez http/https (nie file://).');
+      try {
+        await signInWithPopup(auth, googleProvider);
+        closeModal(loginModal); closeModal(registerModal);
+        document.querySelector('.nav-menu')?.classList.remove('active'); // zamknij mobilne menu
+        document.getElementById('mobileAuth')?.setAttribute('style', 'display:none;');
+      } catch (err) {
+        console.error('[google]', err);
+        if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+          await signInWithRedirect(auth, googleProvider);
+        } else {
+          alert(niceAuthError(err));
+        }
+      }
+    }
+    [gBtn1, gBtn2].forEach(b => b && b.addEventListener('click', (e) => { e.preventDefault(); signInWithGoogleSmart(); }));
+
+    // Wylogowanie (desktop)
+    logoutBtn && logoutBtn.addEventListener('click', async () => {
+      try { await signOut(auth); } catch(e){ console.error(e); }
+    });
+
+    // Oferty użytkownika
+    async function loadUserOffers(email, uid) {
+      if (!userOffers) return;
+      userOffers.innerHTML = '<p>Ładuję Twoje oferty…</p>';
+
+      try {
+        const colRef = collection(db, "propertyListings");
+        const queries = [];
+
+        if (email) {
+          queries.push(getDocs(query(colRef, where("email", "==", email))));
+          queries.push(getDocs(query(colRef, where("userEmail", "==", email))));
+        }
+        if (uid) {
+          queries.push(getDocs(query(colRef, where("userUid", "==", uid))));
+          queries.push(getDocs(query(colRef, where("uid", "==", uid))));
+          queries.push(getDocs(query(colRef, where("ownerId", "==", uid))));
+        }
+
+        const results = await Promise.allSettled(queries);
+        const docsById = new Map();
+        results.forEach(r => {
+          if (r.status === "fulfilled") {
+            r.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
+          }
+        });
+
+        userOffers.innerHTML = '';
+
+        if (docsById.size === 0) {
+          userOffers.innerHTML = '<p>Nie masz jeszcze żadnych ofert.</p>';
+          return;
+        }
+
+        docsById.forEach(docSnap => {
+          const offer = docSnap.data();
+          const offerId = docSnap.id;
+          if (!Array.isArray(offer.plots) || offer.plots.length === 0) return;
+
+          offer.plots
+            .map((plot, originalIndex) => ({ plot, originalIndex }))
+            .filter(({ plot }) => plot?.mock !== false)
+            .forEach(({ plot, originalIndex }, visibleIdx) => {
+              const el = document.createElement('div');
+              el.className = 'offer-card';
+
+              const price = Number(plot.price || 0);
+              const area  = Number(plot.pow_dzialki_m2_uldk || 0);
+              const ppm2  = price && area ? Math.round(price / area) : 0;
+              const city  = offer.city || 'Nie podano';
+              const phone = offer.phone || 'Nie podano';
+              const title = plot.Id || `Działka ${visibleIdx + 1}`;
+              const detailsUrl = `oferta.html?id=${offerId}&plot=${originalIndex}`;
+
+              el.innerHTML = `
+                <h3 class="offer-title">${title}</h3>
+                <div class="offer-details">
+                  <p><strong>Lokalizacja:</strong> ${city}</p>
+                  <p><strong>Telefon:</strong> ${phone}</p>
+                  ${area  ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+                  ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
+                    ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>` : ''}
+                  </p>` : ''}
+                </div>
+                <div class="offer-actions">
+                  <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
+                    <i class="fas fa-info-circle"></i> Szczegóły
+                  </a>
+                  <button class="btn btn-primary btn-sm" onclick="window.location.href='dodaj.html?edit=${offerId}&plot=${originalIndex}'">
+                    <i class="fas fa-edit"></i> Edytuj
+                  </button>
+                  <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(title||'').replace(/'/g,"\\'")}')">
+                    <i class="fas fa-trash"></i> Usuń
+                  </button>
+                </div>
+              `;
+
+              el.addEventListener('click', (e) => {
+                if (e.target.closest('.offer-actions')) return;
+                if (window.focusOfferOnMap) window.focusOfferOnMap(offerId, originalIndex);
+              });
+
+              userOffers.appendChild(el);
+            });
+        });
+
+        if (!userOffers.querySelector('.offer-card')) {
+          userOffers.innerHTML = '<p>Nie masz jeszcze żadnych aktywnych ofert.</p>';
+        }
+      } catch (err) {
+        console.error('loadUserOffers:', err);
+        userOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
+      }
+    }
+  </script>
+</body>
+</html>
