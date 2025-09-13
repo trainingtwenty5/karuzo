@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Działkofert - Dodaj darmowe ogłoszenie</title>
+
+  <!-- Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="icon" type="image/png" sizes="32x32" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png" />
+
+  <!-- Bootstrap -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+  <!-- Firebase SDK (APP, Firestore, Analytics, Auth) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
+    import { getFirestore, collection, addDoc, getDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
+      authDomain: "base-468e0.firebaseapp.com",
+      projectId: "base-468e0",
+      storageBucket: "base-468e0.firebasestorage.app",
+      messagingSenderId: "829161895559",
+      appId: "1:829161895559:web:d832541aac05b35847ea22"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+
+    // Udostępniamy do zwykłych skryptów
+    window.db = db;
+    window.addDoc = addDoc;
+    window.collection = collection;
+    window.getDoc = getDoc;
+    window.doc = doc;
+    window.auth = auth;
+
+    // Emituj event o stanie logowania
+    onAuthStateChanged(auth, (user) => {
+      window.currentUser = user || null;
+      window.dispatchEvent(new CustomEvent('auth-state-changed', { detail: user }));
+    });
+  </script>
+
+  <style>
+    :root {
+      --primary: #1e6fba;
+      --secondary: #2c8ac9;
+      --accent: #3ba3e3;
+      --light: #f0f8ff;
+      --radius: 10px;
+      --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.15);
+      --transition: all 0.3s ease;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--light);
+      margin: 0;
+    }
+
+    .container-main { display: flex; min-height: 100vh; }
+    .map-container { flex: 1; position: sticky; top: 0; height: 100vh; }
+    #map { height: 100%; width: 100%; }
+
+    .form-container {
+      width: 400px;
+      background: #fff;
+      padding: 20px;
+      overflow-y: auto;
+      height: 100vh;
+      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+    }
+
+    .map-overlay { position: absolute; top: 15px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
+
+    .btn-overlay {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white; border: none; padding: 0.6rem 1rem; border-radius: var(--radius);
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-md); transition: var(--transition);
+    }
+    .btn-overlay:hover { transform: translateY(-2px); box-shadow: 0 8px 14px rgba(0,0,0,0.2); }
+
+    .form-check.form-switch {
+      background: white; padding: 0.5rem 0.75rem; border-radius: var(--radius);
+      box-shadow: var(--shadow-md); font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: .5rem;
+    }
+
+    #selectedPlots { margin-top: 1rem; }
+    #selectedPlots .plot-item {
+      background: var(--light); border-radius: var(--radius); padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
+      display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md);
+    }
+    #selectedPlots .plot-item button { background: transparent; border: none; color: #c62828; font-size: 1rem; cursor: pointer; transition: var(--transition); }
+    #selectedPlots .plot-item button:hover { color: red; transform: scale(1.1); }
+
+    .privacy-text { margin-top: 1rem; font-size: 0.8rem; color: #555; line-height: 1.4; text-align: justify; }
+
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; font-weight: 600; }
+    .btn-primary:hover { background: linear-gradient(135deg, var(--secondary), var(--primary)); }
+
+    @media (max-width: 992px) {
+      .container-main { flex-direction: column; }
+      .map-container { height: 50vh; order: 2; }
+      .form-container { width: 100%; height: auto; order: 1; }
+    }
+
+    /* MOBILE MAP */
+    #map-mobile { width: 100%; height: 40vh; border-radius: 0; }
+    @media (min-width: 992px) { #map-mobile { display: none; } }
+    .map-overlay-mobile { position: absolute; top: 15px; right: 15px; z-index: 2000; display: flex; gap: 10px; }
+
+    @media (max-width: 992px) {
+      #map { display: none !important; }
+      :root { --mobile-map-height: 82vh; }
+      .full-bleed-mobile { position: relative; left: 50%; transform: translateX(-50%); width: 100vw; max-width: 100vw; padding: 0; margin: 0 0 16px 0; overflow: hidden; z-index: 0; }
+      .lead-over-map { display: block !important; margin: 0 0 8px 0; padding: 0 16px; font-weight: 300; text-align: center; opacity: .95; }
+      #map-mobile { display: block; width: 100%; height: var(--mobile-map-height); border-radius: 0; }
+      @supports (height: 1dvh) { #map-mobile { height: 82dvh; } }
+      .map-overlay-mobile { top: calc(env(safe-area-inset-top, 0px) + 40px); right: calc(env(safe-area-inset-right, 0px) + 12px); z-index: 2; pointer-events: none; }
+      .map-overlay-mobile .btn-overlay { pointer-events: auto; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 9999px; line-height: 1; }
+      .consents-block { position: relative; z-index: 1; margin-top: 8px; }
+    }
+
+    /* ——— WYGASZONE POLA (dla zalogowanych) ——— */
+    .disabled-field .form-label { opacity: .6; }
+    .disabled-field .form-control { background-color: #f8f9fa; }
+
+    /* KLUCZOWE: tekst w polach musi pozostać ciemny i w 100% widoczny */
+    .form-control[readonly], .form-control:disabled,
+    input[readonly], input:disabled,
+    textarea[readonly], textarea:disabled {
+      -webkit-text-fill-color: #212529 !important; /* iOS/Safari */
+      color: #212529 !important;                   /* reszta */
+      opacity: 1 !important;                       /* nie przyciemniaj inputa */
+    }
+    .disabled-field .form-control::placeholder { opacity: .65; }
+	
+	
+	@media (max-width: 992px) {
+  .map-overlay-desktop { display: none !important; }
+}
+  </style>
+</head>
+
+<body onload="loadGoogleMaps()">
+  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100"></div>
+
+  <div class="container-main">
+    <!-- Mapa desktop -->
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-overlay map-overlay-desktop">
+        <button id="clearPlotsBtn" class="btn-overlay">🗑️ Wyczyść punkty</button>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="autoSave" />
+          <label class="form-check-label" for="autoSave">Auto-zapis</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formularz -->
+    <div class="form-container">
+      <h1 class="text-center mb-3">Dodaj darmowe ogłoszenie</h1>
+      <p class="lead text-center mb-4 d-none d-lg-block">Kliknij na mapę, aby wskazać lokalizację działki</p>
+
+      <div id="selectedPlots"><p class="text-muted">Brak wskazanych działek.</p></div>
+      <hr />
+
+      <form id="propertyForm" class="mt-3">
+        <div class="mb-3">
+          <label for="firstName" class="form-label">Imię *</label>
+          <input type="text" class="form-control" id="firstName" required />
+        </div>
+
+        <div class="mb-3">
+          <label for="phone" class="form-label">Telefon *</label>
+          <input type="tel" class="form-control" id="phone" required pattern="^(\+48\d{9}|\d{9})$" placeholder="Np. 505849404 lub +48505849404" />
+          <div class="form-text">Numer telefonu: 9 cyfr lub +48 i 9 cyfr</div>
+        </div>
+
+        <div class="mb-3">
+          <label for="email" class="form-label">E-mail *</label>
+          <input type="email" class="form-control" id="email" required />
+        </div>
+
+        <div class="mb-3">
+          <label for="city" class="form-label">Miejscowość *</label>
+          <input type="text" class="form-control" id="city" required />
+        </div>
+
+        <div class="mb-3">
+          <label for="price" class="form-label">Cena (zł)</label>
+          <input type="number" class="form-control" id="price" />
+        </div>
+
+        <!-- MOBILE MAPA -->
+        <div class="map-container mb-3 d-lg-none full-bleed-mobile">
+          <p class="lead-over-map">Kliknij na mapę, aby wskazać lokalizację działki</p>
+          <div id="map-mobile"></div>
+          <div class="map-overlay map-overlay-mobile">
+            <button id="clearPlotsBtnMobile" class="btn-overlay" aria-label="Wyczyść punkty">🗑️</button>
+          </div>
+        </div>
+
+        <!-- ZGODY + SUBMIT -->
+        <div class="consents-block">
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="selectAllConsents" />
+            <label class="form-check-label" for="selectAllConsents">Zaznacz wszystkie zgody</label>
+          </div>
+
+          <div class="form-check mb-2">
+            <input class="form-check-input" type="checkbox" id="termsConsent" required />
+            <label class="form-check-label" for="termsConsent">Zapoznałem się z <a href="#" target="_blank">RODO</a> i <a href="#" target="_blank">Polityką prywatności</a> oraz akceptuję ich treść *</label>
+          </div>
+
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" id="marketingConsent" />
+            <label class="form-check-label" for="marketingConsent">Akceptuję zgodę marketingową</label>
+          </div>
+
+          <button type="submit" class="btn btn-primary w-100"><span id="submitText">Dodaj bezpłatne ogłoszenie</span></button>
+        </div>
+      </form>
+
+      <div class="privacy-text">
+        Za przetwarzanie danych osobowych podanych w formularzu odpowiada Działkofert, ul. Edwarda Suchardy 4, 50-362 Wrocław. Współadministratorem pozostaje Działkofert, ul. Edwarda Suchardy 4, 50-362 Wrocław. Zasady przetwarzania opisaliśmy tutaj: <a href="https://www.dzialkofert.pl/polityka-prywatnosci" target="_blank">www.dzialkofert.pl/polityka-prywatnosci</a>. Masz prawo odwołać zgody w dowolnym momencie.
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap + jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    /* ===== PERSISTENCJA FORMULARZA I PUNKTÓW ===== */
+    const FORM_KEY = 'df.form.v1';
+    const POINTS_KEY = 'df.points.v1';
+    let isLoggedIn = false;
+
+    function saveFormToStorage() {
+      const data = {
+        firstName: $('#firstName').val()?.trim() || '',
+        phone:     $('#phone').val()?.trim() || '',
+        email:     $('#email').val()?.trim() || '',
+        city:      $('#city').val()?.trim() || '',
+        price:     $('#price').val()?.trim() || '',
+        termsConsent: $('#termsConsent').is(':checked'),
+        marketingConsent: $('#marketingConsent').is(':checked')
+      };
+      localStorage.setItem(FORM_KEY, JSON.stringify(data));
+    }
+
+    function loadFormFromStorage() {
+      const raw = localStorage.getItem(FORM_KEY);
+      if (!raw) return;
+      try {
+        const d = JSON.parse(raw);
+        if (d.firstName !== undefined) $('#firstName').val(d.firstName);
+        if (d.phone     !== undefined) $('#phone').val(d.phone);
+        if (d.email     !== undefined) $('#email').val(d.email);
+        if (d.city      !== undefined) $('#city').val(d.city);
+        if (d.price     !== undefined) $('#price').val(d.price);
+        if (d.termsConsent !== undefined) $('#termsConsent').prop('checked', d.termsConsent);
+        if (d.marketingConsent !== undefined) $('#marketingConsent').prop('checked', d.marketingConsent);
+      } catch (_) {}
+    }
+
+    function persistSelectedPoints() { localStorage.setItem(POINTS_KEY, JSON.stringify(selectedPoints)); }
+    function loadSelectedPointsFromStorage() {
+      const raw = localStorage.getItem(POINTS_KEY);
+      if (!raw) return;
+      try {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) { selectedPoints = arr; updateSelectedPointsList(); }
+      } catch (_) {}
+    }
+
+    function restoreMarkersFromSelectedPoints() {
+      if (!selectedPoints || selectedPoints.length === 0) return;
+      selectedPoints.forEach(p => {
+        const latLng = new google.maps.LatLng(p.lat, p.lng);
+        let desktopMarker = null, mobileMarker = null;
+        if (desktopMap) desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
+        if (mobileMap)  mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
+        pointMarkers.push({ id: p.id, desktopMarker, mobileMarker });
+      });
+    }
+
+    /* ===== UI: TOAST ===== */
+    function showToast(message, type = "info") {
+      let bgClass = "bg-primary";
+      if (type === "success") bgClass = "bg-success";
+      if (type === "warning") bgClass = "bg-warning text-dark";
+      if (type === "error")   bgClass = "bg-danger";
+
+      const toast = $(`
+        <div class="toast align-items-center text-white ${bgClass} border-0" role="showToast" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      `);
+
+      $(".toast-container").append(toast);
+      const bsToast = new bootstrap.Toast(toast[0], { delay: 4000 });
+      bsToast.show();
+      toast.on("hidden.bs.toast", () => toast.remove());
+    }
+
+    /* ===== WALIDACJA (zależna od logowania) ===== */
+    function validateForm() {
+      if (isLoggedIn) {
+        const city = $("#city").val().trim();
+        if (!city) { showToast("Podaj miejscowość.", "warning"); return false; }
+        return true;
+      }
+
+      const firstName = $("#firstName").val().trim();
+      const phone = $("#phone").val().trim();
+      const email = $("#email").val().trim();
+      const city = $("#city").val().trim();
+      const termsConsent = $("#termsConsent").is(":checked");
+
+      const phoneRegex = /^(\+48\d{9}|\d{9})$/;
+      const emailValid = email.length > 0 && email.includes("@");
+
+      if (!firstName || !phone || !emailValid || !city || !termsConsent) return false;
+      if (!phoneRegex.test(phone)) { showToast("Numer telefonu musi być w formacie 505849404 lub +48505849404", "warning"); return false; }
+      return true;
+    }
+
+    /* ===== GOOGLE MAPS ===== */
+    function loadGoogleMaps() {
+      const apiKey = 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
+
+    let desktopMap, mobileMap;
+    let selectedPoints = [];
+    let pointMarkers = []; // {id, desktopMarker, mobileMarker}
+    let isSaving = false;
+    let lastCenter = { lat: 51.63538575429843, lng: 16.45740592647929 };
+    let lastZoom = 17;
+
+    function initMap() {
+      const mapOptionsBase = {
+        center: lastCenter,
+        zoom: lastZoom,
+        fullscreenControl: false,
+        styles: [
+          { featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] },
+          { featureType: "administrative.locality", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+          { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+          { featureType: "road", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+          { featureType: "poi", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+          { featureType: "address", elementType: "labels.text", stylers: [{ visibility: "on" }] }
+        ]
+      };
+
+      // Desktop
+      const desktopEl = document.getElementById('map');
+      if (desktopEl) {
+        desktopMap = new google.maps.Map(desktopEl, { ...mapOptionsBase, streetViewControl: true });
+        desktopMap.addListener('click', e => addPointToSelection(e.latLng));
+        desktopMap.addListener('idle', () => {
+          if (isVisible(desktopEl)) { const c = desktopMap.getCenter(); if (c) lastCenter = c.toJSON(); lastZoom = desktopMap.getZoom(); }
+        });
+        addWmsLayer(desktopMap, "dzialki");
+        addWmsLayer(desktopMap, "numery_dzialek");
+      }
+
+      // Mobile
+      const mobileEl = document.getElementById('map-mobile');
+      if (mobileEl) {
+        mobileMap = new google.maps.Map(mobileEl, { ...mapOptionsBase, streetViewControl: false });
+        mobileMap.addListener('click', e => addPointToSelection(e.latLng));
+        mobileMap.addListener('idle', () => {
+          if (isVisible(mobileEl)) { const c = mobileMap.getCenter(); if (c) lastCenter = c.toJSON(); lastZoom = mobileMap.getZoom(); }
+        });
+        addWmsLayer(mobileMap, "dzialki");
+        addWmsLayer(mobileMap, "numery_dzialek");
+      }
+
+      restoreMarkersFromSelectedPoints();
+      handleResize();
+    }
+
+    function isVisible(el) { if (!el) return false; const style = window.getComputedStyle(el); return style && style.display !== 'none' && style.visibility !== 'hidden'; }
+
+    let resizeTimer = null;
+    function handleResize() {
+      const desktopEl = document.getElementById('map');
+      const mobileEl = document.getElementById('map-mobile');
+      const useMobile = isVisible(mobileEl);
+      const map = useMobile ? mobileMap : desktopMap;
+      if (!map) return;
+      map.setCenter(lastCenter);
+      map.setZoom(lastZoom);
+      google.maps.event.trigger(map, 'resize');
+    }
+
+    window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(handleResize, 150); });
+    window.addEventListener('orientationchange', handleResize);
+
+    function addWmsLayer(map, layerName) {
+      const wmsUrl = "https://integracja.gugik.gov.pl/cgi-bin/KrajowaIntegracjaEwidencjiGruntow";
+      const wmsMapType = new google.maps.ImageMapType({
+        getTileUrl: function(coord, zoom) {
+          const proj = map.getProjection();
+          const zfactor = Math.pow(2, zoom);
+          const ul = proj.fromPointToLatLng(new google.maps.Point(coord.x * 256 / zfactor, coord.y * 256 / zfactor));
+          const lr = proj.fromPointToLatLng(new google.maps.Point((coord.x + 1) * 256 / zfactor, (coord.y + 1) * 256 / zfactor));
+          const bbox = ul.lng() + "," + lr.lat() + "," + lr.lng() + "," + ul.lat();
+          return wmsUrl +
+            "?service=WMS&version=1.1.1&request=GetMap" +
+            "&layers=" + layerName +
+            "&styles=" +
+            "&bbox=" + bbox +
+            "&width=256&height=256" +
+            "&srs=EPSG:4326" +
+            "&format=image/png" +
+            "&transparent=true";
+        },
+        tileSize: new google.maps.Size(256, 256),
+        opacity: 0.7,
+        name: layerName
+      });
+      map.overlayMapTypes.push(wmsMapType);
+    }
+
+    /* ===== POLSKA BOUNDS ===== */
+    const POLAND_BOUNDS = { north: 55.0, south: 49.0, west: 14.1, east: 24.2 };
+    function isInPoland(latLng) {
+      return (
+        latLng.lat() >= POLAND_BOUNDS.south &&
+        latLng.lat() <= POLAND_BOUNDS.north &&
+        latLng.lng() >= POLAND_BOUNDS.west &&
+        latLng.lng() <= POLAND_BOUNDS.east
+      );
+    }
+
+    /* ===== PUNKTY / MARKERY ===== */
+    function addPointToSelection(latLng) {
+      if (!isInPoland(latLng)) { showToast("Możesz dodać punkt tylko na terenie Polski 🇵🇱", "warning"); return; }
+
+      const pointId = 'point_' + Date.now();
+      const point = { id: pointId, lat: latLng.lat(), lng: latLng.lng(), timestamp: new Date().toISOString() };
+      selectedPoints.push(point);
+
+      let desktopMarker = null, mobileMarker = null;
+      if (desktopMap) desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
+      if (mobileMap)  mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
+      pointMarkers.push({ id: pointId, desktopMarker, mobileMarker });
+
+      updateSelectedPointsList();
+      persistSelectedPoints();
+
+      // Auto-zapis: klik zapisuje i usuwa punkt
+      if ($('#autoSave').is(':checked')) {
+        const toSave = { lat: point.lat, lng: point.lng };
+        removePlot(pointId);
+        savePlots([toSave]);
+      }
+    }
+
+    function removePlot(pointId) {
+      selectedPoints = selectedPoints.filter(p => p.id !== pointId);
+      const markerObj = pointMarkers.find(m => m.id === pointId);
+      if (markerObj) { if (markerObj.desktopMarker) markerObj.desktopMarker.setMap(null); if (markerObj.mobileMarker)  markerObj.mobileMarker.setMap(null); }
+      pointMarkers = pointMarkers.filter(m => m.id !== pointId);
+      updateSelectedPointsList();
+      persistSelectedPoints();
+    }
+
+    function clearAllPoints() {
+      selectedPoints = [];
+      pointMarkers.forEach(m => { if (m.desktopMarker) m.desktopMarker.setMap(null); if (m.mobileMarker) m.mobileMarker.setMap(null); });
+      pointMarkers = [];
+      updateSelectedPointsList();
+      persistSelectedPoints();
+    }
+
+    function updateSelectedPointsList() {
+      const container = document.getElementById('selectedPlots');
+      if (selectedPoints.length === 0) { container.innerHTML = '<p class="text-muted">Brak wskazanych działek.</p>'; return; }
+      let html = '';
+      selectedPoints.forEach((p, i) => {
+        html += `
+          <div class="plot-item">
+            <span>Działka nr ${i + 1}</span>
+            <button onclick="removePlot('${p.id}')" aria-label="Usuń działkę ${i+1}"><i class="fas fa-trash"></i></button>
+          </div>`;
+      });
+      container.innerHTML = html;
+    }
+
+    /* ===== ZGODY – zaznacz wszystkie ===== */
+    $("#selectAllConsents").on("change", function() {
+      const checked = $(this).is(":checked");
+      $("#termsConsent, #marketingConsent").prop("checked", checked);
+    });
+    $("#termsConsent, #marketingConsent").on("change", function() {
+      if (!$("#termsConsent").is(":checked") || !$("#marketingConsent").is(":checked")) { $("#selectAllConsents").prop("checked", false); } else { $("#selectAllConsents").prop("checked", true); }
+    });
+
+    /* ===== BUDOWANIE DANYCH DO ZAPISU ===== */
+    function buildFormData(points) {
+      const user = window.currentUser || null;
+
+      const firstName = $('#firstName').val().trim();
+      const phone = $('#phone').val().trim();
+      const email = $('#email').val().trim() || (user ? (user.email || '') : '');
+      const city = $('#city').val().trim();
+      const price = $('#price').val().trim();
+      const termsConsent = $('#termsConsent').is(':checked');
+      const marketingConsent = $('#marketingConsent').is(':checked');
+
+      const base = {
+        price,
+        mock: true,
+        plots: points.map(p => ({
+          Id: "", idDzialki_uldk: "",
+          lat: p.lat, lng: p.lng,
+          mock: true,
+          geometry_uldk: null,
+          pow_dzialki_m2_uldk: null,
+          price: price || "",
+          termsConsent: isLoggedIn ? true : termsConsent,
+          timestamp: new Date()
+        })),
+        timestamp: new Date()
+      };
+
+      if (isLoggedIn) {
+        base.userUid = user?.uid || '';
+        base.userEmail = user?.email || '';
+        base.city = city;
+        base.phone = phone; // zapis numeru przy ogłoszeniu
+      } else {
+        base.city = city;
+        base.firstName = firstName;
+        base.phone = phone;
+        base.email = email;
+        base.termsConsent = termsConsent;
+        base.marketingConsent = marketingConsent;
+      }
+      return base;
+    }
+
+    /* ===== ZAPIS DO FIRESTORE ===== */
+    async function savePlots(points) {
+      if (isSaving) return false;
+      if (!points || points.length === 0) { showToast("Żadna działka nie jest zaznaczona.", "warning"); return false; }
+      if (!validateForm()) { showToast("Uzupełnij wymagane pola.", "warning"); return false; }
+
+      const formData = buildFormData(points);
+      const submitBtn = document.querySelector('#propertyForm button[type="submit"]');
+      const submitText = document.getElementById('submitText');
+
+      try {
+        isSaving = true; if (submitBtn) submitBtn.disabled = true; if (submitText) submitText.textContent = "Zapisywanie...";
+        await window.addDoc(window.collection(window.db, "propertyListings"), formData);
+        showToast("Zapisano do bazy!", "success");
+        return true;
+      } catch (err) {
+        showToast("Błąd zapisu: " + err.message, "error");
+        return false;
+      } finally {
+        isSaving = false; if (submitBtn) submitBtn.disabled = false; if (submitText) submitText.textContent = "Dodaj bezpłatne ogłoszenie";
+      }
+    }
+
+    async function saveToDatabase() {
+      if (selectedPoints.length === 0) { showToast("Żadna działka nie jest zaznaczona. Dodaj co najmniej jeden punkt.", "warning"); return; }
+      const ok = await savePlots([...selectedPoints]);
+      if (ok) { clearAllPoints(); /* localStorage.removeItem(POINTS_KEY); */ }
+    }
+
+    /* ===== POBIERANIE NUMERU TEL. UŻYTKOWNIKA ===== */
+    async function fetchAndPrefillPhone(user) {
+      if (!user) return;
+      try {
+        // Spróbuj w kolekcji 'users/{uid}'
+        let snap = await window.getDoc(window.doc(window.db, 'users', user.uid));
+        let phone = snap.exists() ? (snap.data().phone || snap.data().telefon) : '';
+
+        // Jeżeli brak, spróbuj alternatywnie 'profiles/{uid}'
+        if (!phone) {
+          snap = await window.getDoc(window.doc(window.db, 'profiles', user.uid));
+          if (snap.exists()) phone = snap.data().phone || snap.data().telefon || '';
+        }
+
+        if (phone && !$('#phone').val()) $('#phone').val(phone);
+      } catch (e) {
+        // cicho ignoruj – brak profilu to nie błąd krytyczny
+      }
+    }
+
+    /* ===== TRYB LOGOWANIA – ukrywanie/wyświetlanie pól ===== */
+    function toggleFieldsForAuth(user) {
+      isLoggedIn = !!user;
+
+      const others = ['#firstName', '#email'];
+
+      if (isLoggedIn) {
+        // TELEFON – widoczny i edytowalny (autouzupełnimy z profilu, jeśli jest)
+        $('#phone').prop('required', false).prop('readonly', false).closest('.mb-3').removeClass('d-none disabled-field');
+
+        // MIEJSCOWOŚĆ i CENA – aktywne
+        $('#city').prop('required', true).prop('readonly', false).closest('.mb-3').removeClass('d-none disabled-field');
+        $('#price').prop('required', false).prop('readonly', false).closest('.mb-3').removeClass('d-none disabled-field');
+
+        // POZOSTAŁE – tylko wygaszamy (widoczne + czytelne wartości)
+        others.forEach(sel => {
+          const $wrap = $(sel).closest('.mb-3');
+          $(sel).prop('required', false).prop('readonly', true);
+          $wrap.removeClass('d-none').addClass('disabled-field');
+        });
+
+        // Autowartości: email i ewentualnie imię z profilu auth
+        if (user?.email) $('#email').val(user.email);
+        if (user?.displayName && !$('#firstName').val()) $('#firstName').val(user.displayName);
+
+        // Zgody ukryte dla zalogowanych
+        $('#selectAllConsents').closest('.form-check').addClass('d-none');
+        $('#termsConsent').prop('required', false).closest('.form-check').addClass('d-none');
+        $('#marketingConsent').closest('.form-check').addClass('d-none');
+
+        // Dociągnij numer z bazy (jeśli brak w localStorage)
+        fetchAndPrefillPhone(user);
+
+      } else {
+        // Niezalogowany: wszystko standardowo
+        ['#firstName', '#phone', '#email', '#city', '#price'].forEach(sel => {
+          const $wrap = $(sel).closest('.mb-3');
+          $(sel).prop('readonly', false).prop('disabled', false).prop('required', true);
+          $wrap.removeClass('d-none disabled-field');
+        });
+        $('#phone').prop('required', true);
+
+        // Zgody widoczne
+        $('#selectAllConsents').closest('.form-check').removeClass('d-none');
+        $('#termsConsent').prop('required', true).closest('.form-check').removeClass('d-none');
+        $('#marketingConsent').closest('.form-check').removeClass('d-none');
+      }
+    }
+
+    window.addEventListener('auth-state-changed', (e) => toggleFieldsForAuth(e.detail));
+
+    /* ===== READY ===== */
+    $(document).ready(function() {
+      loadFormFromStorage();
+      loadSelectedPointsFromStorage();
+
+      $('#propertyForm').on('input change', 'input, textarea, select', saveFormToStorage);
+
+      $("#propertyForm").on("submit", function(e){ e.preventDefault(); saveToDatabase(); });
+
+      $("#autoSave").on("change", async function () {
+        if ($(this).is(":checked")) {
+          if (!validateForm()) { showToast("Aby włączyć Auto-zapis, najpierw uzupełnij wymagane pola!", "warning"); $(this).prop("checked", false); return; }
+          if (selectedPoints.length > 0) { const ok = await savePlots([...selectedPoints]); if (ok) clearAllPoints(); }
+          showToast("Auto-zapis włączony. Nowe kliknięcia będą zapisywane automatycznie.", "success");
+        } else {
+          showToast("Auto-zapis wyłączony.", "info");
+        }
+      });
+
+      $("#clearPlotsBtn, #clearPlotsBtnMobile").on("click", function(){ clearAllPoints(); });
+
+      toggleFieldsForAuth(window.currentUser || null);
+    });
+	
+	
+	
+  </script>
+</body>
+</html>
