@@ -151,10 +151,16 @@ header{
 .social-login .btn{margin-bottom:.5rem;width:100%;justify-content:center;}
 .btn-google{background:#DB4437;color:#fff;border:0;}
 .btn-google:hover{background:#c23325;color:#fff;}
-.domain-warning{display:none;background:#ffebee;color:#c62828;padding:8px;border-radius:5px;margin-top:15px;font-size:.85rem;}
+ .domain-warning{display:none;background:#ffebee;color:#c62828;padding:8px;border-radius:5px;margin-top:15px;font-size:.85rem;}
+
+/* ====== Toasts ====== */
+.toast-container,
+.toast{
+  z-index:1300!important;
+}
 
 /* ====== User dashboard ====== */
-.user-dashboard{display:none;margin-top:calc(var(--topbar-height) + var(--header-height) + 40px);margin-bottom:20px;padding:2rem;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-md);}
+  .user-dashboard{display:none;margin-top:calc(var(--topbar-height) + var(--header-height) + 40px);margin-bottom:20px;padding:2rem;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-md);}
 .user-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid #eee;}
 .offers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;}
 .offer-card{background:#fff;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,.08);padding:1rem;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease;margin-bottom:1rem;}
