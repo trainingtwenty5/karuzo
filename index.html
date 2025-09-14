@@ -45,8 +45,109 @@
   <link rel="icon" type="image/png" sizes="512x512" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" defer></script>
+  <link rel="stylesheet" href="assets/main.css">
 </head>
 <body>
+<script>
+function ensureToastContainer() {
+  let cont = document.querySelector('.toast-container');
+  if (!cont) {
+    cont = document.createElement('div');
+    cont.className = 'toast-container position-fixed top-0 end-0 p-3';
+    cont.style.zIndex = '1100';
+    document.body.appendChild(cont);
+  }
+  return cont;
+}
+
+function showToast(message, type = 'info') {
+  const cont = ensureToastContainer();
+
+  let bgClass = 'bg-primary';
+  if (type === 'success') bgClass = 'bg-success';
+  if (type === 'warning') bgClass = 'bg-warning text-dark';
+  if (type === 'error')   bgClass = 'bg-danger';
+
+  const wrapper = document.createElement('div');
+  wrapper.className = `toast align-items-center text-white ${bgClass} border-0`;
+  wrapper.setAttribute('role', 'alert');
+  wrapper.setAttribute('aria-live', 'assertive');
+  wrapper.setAttribute('aria-atomic', 'true');
+
+  wrapper.innerHTML = `
+    <div class="d-flex">
+      <div class="toast-body">${message}</div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  `;
+
+  cont.appendChild(wrapper);
+
+  const bsToast = new bootstrap.Toast(wrapper, { delay: 4000 });
+  bsToast.show();
+  wrapper.addEventListener('hidden.bs.toast', () => wrapper.remove());
+}
+</script>
+
+<!-- Confirm (Tak/Nie) -->
+<div id="confirmModal" class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-hidden="true">
+  <div class="confirm-box" role="document">
+    <h3 id="confirmTitle" class="confirm-title">Potwierdzenie</h3>
+    <p id="confirmMessage" class="confirm-message">Czy na pewno chcesz kontynuować?</p>
+    <div class="confirm-actions">
+      <button type="button" class="confirm-btn confirm-cancel" id="confirmNo">Nie</button>
+      <button type="button" class="confirm-btn confirm-yes" id="confirmYes">Tak</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz kontynuować?', yesText = 'Tak', noText = 'Nie' } = {}) {
+  return new Promise((resolve) => {
+    const modal   = document.getElementById('confirmModal');
+    const box     = modal.querySelector('.confirm-box');
+    const titleEl = document.getElementById('confirmTitle');
+    const msgEl   = document.getElementById('confirmMessage');
+    const btnNo   = document.getElementById('confirmNo');
+    const btnYes  = document.getElementById('confirmYes');
+
+    titleEl.textContent = title;
+    msgEl.textContent   = message;
+    btnYes.textContent  = yesText;
+    btnNo.textContent   = noText;
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => modal.classList.add('show'));
+
+    const cleanup = (val) => {
+      modal.classList.remove('show');
+      setTimeout(() => { modal.style.display = 'none'; }, 120);
+      document.removeEventListener('keydown', onKey);
+      modal.removeEventListener('click', onBackdrop);
+      btnNo.removeEventListener('click', onNo);
+      btnYes.removeEventListener('click', onYes);
+      resolve(val);
+    };
+
+    const onNo = () => cleanup(false);
+    const onYes = () => cleanup(true);
+    const onBackdrop = (e) => { if (e.target === modal) cleanup(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') cleanup(false);
+      if (e.key === 'Enter')  cleanup(true);
+    };
+
+    btnNo.addEventListener('click', onNo);
+    btnYes.addEventListener('click', onYes);
+    modal.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+
+    btnYes.focus();
+  });
+}
+</script>
 
   <!-- Top Navbar (desktop) -->
   <div class="top-navbar">
@@ -387,7 +488,7 @@
       setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
-      getFirestore, collection, query, where, getDocs, doc, setDoc
+      getFirestore, collection, query, where, getDocs, doc, setDoc, getDoc, updateDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // --- Konfiguracja ---
@@ -688,7 +789,7 @@
                   <button class="btn btn-primary btn-sm" onclick="window.location.href='dodaj.html?edit=${offerId}&plot=${originalIndex}'">
                     <i class="fas fa-edit"></i> Edytuj
                   </button>
-                  <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(title||'').replace(/'/g,"\\'")}')">
+                  <button class="btn btn-secondary btn-sm" onclick="window.deletePlot && window.deletePlot('${offerId}', ${originalIndex}, '${(title||'').replace(/'/g,"\\'")}')">
                     <i class="fas fa-trash"></i> Usuń
                   </button>
                 </div>
@@ -711,6 +812,42 @@
         userOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
       }
     }
+    async function deletePlot(offerId, plotIndex, plotTitle) {
+      const ok = await showConfirm({
+        title: 'Usunąć ofertę?',
+        message: `Czy na pewno chcesz usunąć ofertę „${plotTitle}”?`,
+        yesText: 'Usuń',
+        noText: 'Anuluj'
+      });
+      if (!ok) return;
+
+      try {
+        const offerDoc = await getDoc(doc(db, "propertyListings", offerId));
+        if (!offerDoc.exists()) {
+          showToast('Oferta nie istnieje.', 'warning');
+          return;
+        }
+        const offerData = offerDoc.data();
+        if (!Array.isArray(offerData.plots) || plotIndex >= offerData.plots.length) {
+          showToast('Wybrana działka nie istnieje.', 'warning');
+          return;
+        }
+
+        const updated = [...offerData.plots];
+        updated[plotIndex] = { ...updated[plotIndex], mock: false };
+        await updateDoc(doc(db, "propertyListings", offerId), { plots: updated });
+
+        const user = auth.currentUser;
+        if (user) await loadUserOffers(user.email || null, user.uid || null);
+
+        showToast(`Oferta „${plotTitle}” została usunięta.`, 'success');
+      } catch (err) {
+        console.error('Błąd podczas usuwania oferty:', err);
+        showToast('Wystąpił błąd podczas usuwania oferty.', 'error');
+      }
+    }
+
+    window.deletePlot = deletePlot;
   </script>
 </body>
 </html>

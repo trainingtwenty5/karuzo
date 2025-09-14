@@ -200,26 +200,44 @@
       });
     }
 
-    /* ===== UI: TOAST ===== */
-    function showToast(message, type = "info") {
-      let bgClass = "bg-primary";
-      if (type === "success") bgClass = "bg-success";
-      if (type === "warning") bgClass = "bg-warning text-dark";
-      if (type === "error")   bgClass = "bg-danger";
+    /* ===== UI: TOAST (Bootstrap) ===== */
+    function ensureToastContainer() {
+      let cont = document.querySelector('.toast-container');
+      if (!cont) {
+        cont = document.createElement('div');
+        cont.className = 'toast-container position-fixed top-0 end-0 p-3';
+        cont.style.zIndex = '1100';
+        document.body.appendChild(cont);
+      }
+      return cont;
+    }
 
-      const toast = $(`
-        <div class="toast align-items-center text-white ${bgClass} border-0" role="showToast" aria-live="assertive" aria-atomic="true">
-          <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-          </div>
+    function showToast(message, type = 'info') {
+      const cont = ensureToastContainer();
+
+      let bgClass = 'bg-primary';
+      if (type === 'success') bgClass = 'bg-success';
+      if (type === 'warning') bgClass = 'bg-warning text-dark';
+      if (type === 'error')   bgClass = 'bg-danger';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = `toast align-items-center text-white ${bgClass} border-0`;
+      wrapper.setAttribute('role', 'alert');
+      wrapper.setAttribute('aria-live', 'assertive');
+      wrapper.setAttribute('aria-atomic', 'true');
+
+      wrapper.innerHTML = `
+        <div class="d-flex">
+          <div class="toast-body">${message}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>
-      `);
+      `;
 
-      $(".toast-container").append(toast);
-      const bsToast = new bootstrap.Toast(toast[0], { delay: 4000 });
+      cont.appendChild(wrapper);
+
+      const bsToast = new bootstrap.Toast(wrapper, { delay: 4000 });
       bsToast.show();
-      toast.on("hidden.bs.toast", () => toast.remove());
+      wrapper.addEventListener('hidden.bs.toast', () => wrapper.remove());
     }
 
     /* ===== WALIDACJA FORMULARZA ===== */
