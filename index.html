@@ -112,6 +112,17 @@
   </header>
 <!-- Toasts -->
 <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+<!-- Confirm Modal -->
+<div class="confirm-modal" id="confirmModal" role="dialog" aria-modal="true">
+  <div class="confirm-box">
+    <h3 class="confirm-title">Potwierdzenie</h3>
+    <p class="confirm-message"></p>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel">Anuluj</button>
+      <button class="confirm-btn confirm-yes">Usuń</button>
+    </div>
+  </div>
+</div>
 <script>
 /* ===== UI: TOAST (vanilla) =====
    showToast('Oferta „...” została usunięta.', 'success')
@@ -151,6 +162,38 @@ function showToast(message, type = 'info') {
   const t = setTimeout(close, 4000);
   wrap.addEventListener('mouseenter', () => clearTimeout(t), { once: true });
 }
+</script>
+
+<!-- Confirm Modal Script -->
+<script>
+function showConfirmModal(message) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('confirmModal');
+    if (!modal) return resolve(false);
+
+    modal.querySelector('.confirm-message').textContent = message;
+    modal.classList.add('show');
+
+    const yesBtn = modal.querySelector('.confirm-yes');
+    const cancelBtn = modal.querySelector('.confirm-cancel');
+
+    const cleanup = () => {
+      modal.classList.remove('show');
+      yesBtn.removeEventListener('click', onYes);
+      cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onOutside);
+    };
+
+    const onYes = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+    const onOutside = (e) => { if (e.target === modal) { cleanup(); resolve(false); } };
+
+    yesBtn.addEventListener('click', onYes, { once: true });
+    cancelBtn.addEventListener('click', onCancel, { once: true });
+    modal.addEventListener('click', onOutside, { once: true });
+  });
+}
+window.showConfirmModal = showConfirmModal;
 </script>
 
   <!-- Skrypt: menu mobilne (toggle + zamykanie przy zmianie rozmiaru) -->
@@ -755,7 +798,7 @@ function showToast(message, type = 'info') {
       }
     }
     async function deletePlot(offerId, plotIndex, title) {
-      if (!confirm(`Czy na pewno chcesz usunąć działkę "${title}"?`)) return;
+      if (!(await showConfirmModal(`Czy na pewno chcesz usunąć działkę "${title}"?`))) return;
       try {
         const offerRef = doc(db, 'propertyListings', offerId);
         const snap = await getDoc(offerRef);
