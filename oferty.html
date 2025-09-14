@@ -359,6 +359,7 @@ window.showConfirmModal = showConfirmModal;
   let markers = [];
   let markerCluster;
   let allOffers = [];
+  let clusterBoundsRect = null;
 
   // jedno, globalne InfoWindow – NIGDY nie tworzymy wielu
   window.infoWin = null;
@@ -463,9 +464,11 @@ window.showConfirmModal = showConfirmModal;
 
           // polygon (pokazywany od określonego zoomu)
           let polygon = null;
+          let polyBounds = null;
           if (geometry) {
             const coords = parseGeometry(geometry);
             if (coords.length) {
+              polyBounds = getPolygonBounds(coords);
               polygon = new google.maps.Polygon({
                 paths: coords,
                 strokeColor: "#FF0000",
@@ -480,19 +483,20 @@ window.showConfirmModal = showConfirmModal;
                 const fakeMarker = new google.maps.Marker({ position: evt.latLng, map: null });
                 openInfo(fakeMarker, infoHTML(plot, data, offerId, index));
               });
-              plotPolygons.push({ polygon, bounds: getPolygonBounds(coords), marker });
+              plotPolygons.push({ polygon, bounds: polyBounds, marker });
             }
           }
 
           // zapisz wpis
-          allOffers.push({ id: offerId, data, plot, index, marker, polygon });
+          allOffers.push({ id: offerId, data, plot, index, marker, polygon, bounds: polyBounds });
         });
       });
 
       // klastrowanie
       if (markerCluster) markerCluster.clearMarkers();
       markerCluster = new markerClusterer.MarkerClusterer({
-        map, markers,
+        map,
+        markers,
         renderer: {
           render: ({ count, position }) => {
             return new google.maps.Marker({
@@ -508,6 +512,30 @@ window.showConfirmModal = showConfirmModal;
               }
             });
           }
+        },
+        onClusterClick: ({ cluster }) => {
+          if (clusterBoundsRect) {
+            clusterBoundsRect.setMap(null);
+          }
+          const bounds = new google.maps.LatLngBounds();
+          cluster.markers.forEach(m => {
+            const entry = allOffers.find(o => o.marker === m);
+            if (entry?.bounds) {
+              bounds.union(entry.bounds);
+            } else {
+              bounds.extend(m.getPosition());
+            }
+          });
+          map.fitBounds(bounds);
+          clusterBoundsRect = new google.maps.Rectangle({
+            bounds,
+            map,
+            strokeColor: "#FF0000",
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            fillColor: "#FF0000",
+            fillOpacity: 0.1
+          });
         }
       });
 
