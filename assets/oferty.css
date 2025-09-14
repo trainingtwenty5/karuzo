@@ -182,9 +182,9 @@
 .gm-ui-hover-effect { transform:scale(.8) !important; }
 
 @media (max-width:768px){
-  .map-info-window { font-size:.9rem; max-width:300px; }
-  .map-info-window h3 { font-size:1rem; }
-  .map-info-window p { font-size:.85rem; }
+  .map-info-window { font-size:.9rem; max-width:400px; }
+  .map-info-window h3 { font-size:1rem; white-space:nowrap; }
+  .map-info-window p { font-size:.85rem; white-space:nowrap; }
   .map-info-window .mini-actions { flex-wrap:wrap; }
   .gm-ui-hover-effect {
     transform:scale(.8) !important;
