@@ -54,6 +54,55 @@
 </head>
 
 <body onload="loadGoogleMaps()">
+  <div class="top-navbar">
+    <div class="contact-info">
+      <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+      <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+    </div>
+
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
+        <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+      </button>
+      <button class="btn btn-primary btn-sm" id="registerBtn">
+        <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+      </button>
+    </div>
+
+    <div class="user-menu" id="userMenu" style="display:none;">
+      <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
+        <i class="fas fa-user me-1"></i> Moje konto
+      </button>
+      <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
+        <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+      </button>
+    </div>
+  </div>
+
+  <header>
+    <a href="index.html" class="logo">
+      <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png" alt="Grunteo">
+      <span>Grunteo</span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+    </nav>
+
+    <button class="mobile-menu-btn" aria-label="Otwórz menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+      <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+    </nav>
+  </header>
+
   <div class="toast-container position-fixed top-0 end-0 p-3"></div>
 
   <div class="container-main">
@@ -137,6 +186,77 @@
 
       <div class="privacy-text">
         Za przetwarzanie danych osobowych podanych w formularzu odpowiada Grunteo, ul. Edwarda Suchardy 4, 50-362 Wrocław. Współadministratorem pozostaje Grunteo, ul. Edwarda Suchardy 4, 50-362 Wrocław. Zasady przetwarzania opisaliśmy tutaj: <a href="https://www.grunteo.pl/polityka-prywatnosci" target="_blank">www.grunteo.pl/polityka-prywatnosci</a>. Masz prawo odwołać zgody w dowolnym momencie.
+      </div>
+  </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Zaloguj się</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Hasło</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Zaloguj się</button>
+      </form>
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+      <div class="form-footer">
+        <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Utwórz konto</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerName">Imię i nazwisko</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Hasło</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="registerConfirmPassword">Potwierdź hasło</label>
+          <input type="password" id="registerConfirmPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Zarejestruj się</button>
+      </form>
+      <div class="social-login mt-3 text-center">
+        <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
+          <i class="fab fa-google me-1"></i> Zaloguj przez Google
+        </button>
+      </div>
+      <div class="domain-warning" id="domainWarning">
+        <i class="fas fa-exclamation-triangle"></i>
+        Uwaga: Logowanie przez Google może nie działać na tej domenie.
+        Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase.
+      </div>
+      <div class="form-footer">
+        <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
       </div>
     </div>
   </div>
@@ -567,13 +687,218 @@
         }
       });
 
-      $("#clearPlotsBtn, #clearPlotsBtnMobile").on("click", function(){ clearAllPoints(); });
+  $("#clearPlotsBtn, #clearPlotsBtnMobile").on("click", function(){ clearAllPoints(); });
 
       toggleFieldsForAuth(window.currentUser || null);
     });
-	
-	
-	
+
+
+
+  </script>
+  <script type="module">
+    import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged, signOut,
+      signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+      GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+      setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
+      authDomain: "base-468e0.firebaseapp.com",
+      projectId: "base-468e0",
+      storageBucket: "base-468e0.firebasestorage.app",
+      messagingSenderId: "829161895559",
+      appId: "1:829161895559:web:d832541aac05b35847ea22"
+    };
+
+    const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    auth.languageCode = 'pl';
+
+    try { await setPersistence(auth, browserLocalPersistence); }
+    catch { try { await setPersistence(auth, browserSessionPersistence); }
+    catch { await setPersistence(auth, inMemoryPersistence); } }
+
+    const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+    const authButtons = document.getElementById('authButtons');
+    const userMenu    = document.getElementById('userMenu');
+    const loginBtn    = document.getElementById('loginBtn');
+    const registerBtn = document.getElementById('registerBtn');
+    const accountBtn  = document.getElementById('accountBtn');
+    const logoutBtn   = document.getElementById('logoutBtn');
+
+    const loginModal    = document.getElementById('loginModal');
+    const registerModal = document.getElementById('registerModal');
+    const closeBtns     = document.querySelectorAll('.modal-close');
+    const switchToRegister = document.getElementById('switchToRegister');
+    const switchToLogin    = document.getElementById('switchToLogin');
+
+    const loginForm    = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const googleBtnRegister = document.getElementById('googleLoginBtn');
+    const googleBtnLogin    = document.getElementById('googleLoginBtnLogin');
+
+    const openModal  = (m) => m && (m.style.display = 'flex');
+    const closeModal = (m) => m && (m.style.display = 'none');
+
+    function renderMobileAuth(user) {
+      const navMenu = document.querySelector('.nav-menu');
+      const mobileAuthC = document.getElementById('mobileAuth');
+      if (!mobileAuthC) return;
+
+      if (user) {
+        const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Użytkownik');
+        mobileAuthC.innerHTML = `
+          <div class="nav-link" style="font-weight:600;">
+            <i class="fas fa-user"></i> ${label}
+          </div>
+          <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
+            <i class="fas fa-sign-out-alt"></i> Wyloguj się
+          </button>
+        `;
+      } else {
+        mobileAuthC.innerHTML = `
+          <a href="#" id="loginLink" class="nav-link">Zaloguj się</a>
+          <a href="#" id="registerLink" class="nav-link">Zarejestruj się</a>
+        `;
+      }
+
+      const loginLink = document.getElementById('loginLink');
+      const registerLink = document.getElementById('registerLink');
+      const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
+
+      loginLink && loginLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(loginModal);
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      registerLink && registerLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        openModal(registerModal);
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      mobileLogoutBtn && mobileLogoutBtn.addEventListener('click', async () => {
+        try { await signOut(auth); } catch(e){ console.error(e); }
+        navMenu?.classList.remove('active');
+        mobileAuthC.style.display = 'none';
+      });
+
+      mobileAuthC.style.display = navMenu?.classList.contains('active') ? 'flex' : 'none';
+    }
+
+    loginBtn    && loginBtn.addEventListener('click', () => openModal(loginModal));
+    registerBtn && registerBtn.addEventListener('click', () => openModal(registerModal));
+    accountBtn  && accountBtn.addEventListener('click', () => { window.location.href = 'oferty.html#userDashboard'; });
+    closeBtns.forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal'))));
+    window.addEventListener('click', (e) => {
+      if (e.target.classList?.contains('modal')) closeModal(e.target);
+    });
+
+    const niceErr = (err) => {
+      switch (err?.code) {
+        case 'auth/invalid-email': return 'Nieprawidłowy adres e-mail.';
+        case 'auth/missing-password': return 'Podaj hasło.';
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential': return 'Nieprawidłowy e-mail lub hasło.';
+        case 'auth/too-many-requests': return 'Za dużo prób. Spróbuj później.';
+        case 'auth/unauthorized-domain': return `Domena ${location.hostname} nie jest dodana w Firebase (Authorized domains).`;
+        case 'auth/popup-blocked': return 'Przeglądarka zablokowała okno logowania Google.';
+        case 'auth/operation-not-supported-in-this-environment': return 'Uruchom stronę przez http/https (nie file://).';
+        default: return 'Błąd: ' + (err?.code || err?.message || 'nieznany');
+      }
+    };
+
+    loginForm && loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value.trim();
+      const pass  = document.getElementById('loginPassword').value;
+      try { await signInWithEmailAndPassword(auth, email, pass); closeModal(loginModal); }
+      catch (err) { showToast(niceErr(err)); }
+    });
+
+    registerForm && registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name  = document.getElementById('registerName').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const pass1 = document.getElementById('registerPassword').value;
+      const pass2 = document.getElementById('registerConfirmPassword').value;
+      if (pass1 !== pass2) return showToast('Hasła nie są identyczne!');
+      try {
+        const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
+        if (name) await updateProfile(user, { displayName: name });
+        await setDoc(doc(db, "users", user.uid), { name: name || null, email, createdAt: new Date(), provider: 'password' }, { merge: true });
+        closeModal(registerModal);
+      } catch (err) { showToast(niceErr(err)); }
+    });
+
+    async function signInWithGoogleSmart() {
+      if (!['http:', 'https:'].includes(location.protocol))
+        return showToast('Uruchom stronę przez http/https (nie file://).');
+      try {
+        const res = await signInWithPopup(auth, googleProvider);
+        const user = res.user;
+        await setDoc(doc(db, "users", user.uid), {
+          name: user.displayName || null,
+          email: user.email || null,
+          provider: 'google',
+          createdAt: new Date(),
+        }, { merge: true });
+        closeModal(loginModal); closeModal(registerModal);
+      } catch (err) {
+        if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+          await signInWithRedirect(auth, googleProvider);
+        } else {
+          showToast(niceErr(err));
+        }
+      }
+    }
+
+    googleBtnRegister && googleBtnRegister.addEventListener('click', signInWithGoogleSmart);
+    googleBtnLogin    && googleBtnLogin.addEventListener('click', signInWithGoogleSmart);
+    logoutBtn && logoutBtn.addEventListener('click', async () => { try { await signOut(auth); } catch(e){ console.error(e); } });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        authButtons && (authButtons.style.display = 'none');
+        userMenu && (userMenu.style.display = 'flex');
+      } else {
+        authButtons && (authButtons.style.display = 'flex');
+        userMenu && (userMenu.style.display = 'none');
+      }
+      renderMobileAuth(user);
+    });
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navMenu = document.querySelector('.nav-menu');
+      const mobileAuth = document.getElementById('mobileAuth');
+
+      mobileMenuBtn?.addEventListener('click', function () {
+        navMenu.classList.toggle('active');
+        if (mobileAuth) {
+          mobileAuth.style.display = navMenu.classList.contains('active') ? 'flex' : 'none';
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+          navMenu.classList.remove('active');
+          if (mobileAuth) mobileAuth.style.display = 'none';
+        }
+      });
+    });
   </script>
 </body>
 </html>
