@@ -179,7 +179,15 @@
 }
 
 /* zmniejszony przycisk zamknięcia w oknie mapy */
-.gm-ui-hover-effect { transform:scale(.8) !important; }
+.gm-ui-hover-effect {
+  transform:scale(.7) !important;
+  transform-origin:top right;
+  top:4px !important;
+  right:4px !important;
+}
+
+/* zmniejszenie marginesów w oknie informacji na mapie */
+.gm-style-iw-c { padding:8px !important; }
 
 @media (max-width:768px){
   .map-info-window { font-size:.9rem; max-width:400px; }
@@ -187,12 +195,11 @@
   .map-info-window p { font-size:.85rem; white-space:nowrap; }
   .map-info-window .mini-actions { flex-wrap:wrap; }
   .gm-ui-hover-effect {
-    transform:scale(.8) !important;
+    transform:scale(.7) !important;
     transform-origin:top right;
     top:2px !important;
     right:2px !important;
   }
-  .gm-style-iw-c { padding:8px !important; }
 }
 
 .confirm-modal {
