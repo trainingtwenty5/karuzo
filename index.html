@@ -19,7 +19,8 @@
   <link rel="icon" type="image/png" sizes="192x192" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
   <link rel="icon" type="image/png" sizes="512x512" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Dzialkofert_logo.png">
   
-<link rel="stylesheet" href="assets/main.css"/>  
+<link rel="stylesheet" href="assets/main.css"/>
+<link rel="stylesheet" href="assets/oferty.css"/>
 	
 	
 	
@@ -109,6 +110,48 @@
       <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
     </nav>
   </header>
+<!-- Toasts -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+<script>
+/* ===== UI: TOAST (vanilla) =====
+   showToast('Oferta „...” została usunięta.', 'success')
+   type: 'info' | 'success' | 'warning' | 'error'
+*/
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = `toast-lite toast-${type}`;
+  wrap.setAttribute('role', 'status');
+  wrap.setAttribute('aria-live', 'polite');
+
+  const icon = {
+    success: '✓',
+    info: 'ℹ',
+    warning: '!',
+    error: '✕'
+  }[type] || 'ℹ';
+
+  wrap.innerHTML = `
+    <div class="toast-icon" aria-hidden="true">${icon}</div>
+    <div class="toast-msg">${message}</div>
+    <button class="toast-close" aria-label="Zamknij">&times;</button>
+  `;
+
+  const close = () => {
+    wrap.classList.remove('show');
+    setTimeout(() => wrap.remove(), 160);
+  };
+  wrap.querySelector('.toast-close').addEventListener('click', close);
+
+  container.appendChild(wrap);
+  requestAnimationFrame(() => wrap.classList.add('show'));
+
+  const t = setTimeout(close, 4000);
+  wrap.addEventListener('mouseenter', () => clearTimeout(t), { once: true });
+}
+</script>
 
   <!-- Skrypt: menu mobilne (toggle + zamykanie przy zmianie rozmiaru) -->
   <script>
@@ -387,7 +430,7 @@
       setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
-      getFirestore, collection, query, where, getDocs, doc, setDoc
+      getFirestore, collection, query, where, getDocs, doc, setDoc, getDoc, deleteDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // --- Konfiguracja ---
@@ -711,6 +754,38 @@
         userOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
       }
     }
-  </script>
-</body>
-</html>
+    async function deletePlot(offerId, plotIndex, title) {
+      if (!confirm(`Czy na pewno chcesz usunąć działkę "${title}"?`)) return;
+      try {
+        const offerRef = doc(db, 'propertyListings', offerId);
+        const snap = await getDoc(offerRef);
+        if (!snap.exists()) {
+          showToast('Ogłoszenie nie istnieje.', 'error');
+          return;
+        }
+        const data = snap.data();
+        if (!Array.isArray(data.plots)) {
+          showToast('Brak działek do usunięcia.', 'error');
+          return;
+        }
+        const plots = data.plots;
+        plots.splice(plotIndex, 1);
+        if (plots.length === 0) {
+          await deleteDoc(offerRef);
+        } else {
+          await setDoc(offerRef, { plots }, { merge: true });
+        }
+        showToast('Działka usunięta', 'success');
+        if (auth.currentUser) {
+          loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
+        }
+      } catch (err) {
+        console.error('deletePlot', err);
+        showToast('Nie udało się usunąć działki.', 'error');
+      }
+    }
+
+    window.deletePlot = deletePlot;
+    </script>
+  </body>
+  </html>

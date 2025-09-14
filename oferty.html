@@ -133,114 +133,8 @@ function showToast(message, type = 'info') {
   // jeśli użytkownik najedzie, nie chowaj
   wrap.addEventListener('mouseenter', () => clearTimeout(t), { once: true });
 }
-
-window.deletePlot = async function(offerId, plotIndex, plotTitle) {
-  // ładne potwierdzenie (używa Twojego showConfirm)
-  const ok = await showConfirm({
-    title: 'Usunąć ofertę?',
-    message: `Czy na pewno chcesz usunąć ofertę „${plotTitle}”?`,
-    yesText: 'Usuń',
-    noText: 'Anuluj'
-  });
-  if (!ok) return;
-
-  try {
-    // pobierz dokument
-    const offerDoc = await getDoc(doc(db, "propertyListings", offerId));
-    if (!offerDoc.exists()) {
-      showToast("Oferta nie istnieje.", "warning");
-      return;
-    }
-
-    const offerData = offerDoc.data();
-    if (!Array.isArray(offerData.plots) || plotIndex >= offerData.plots.length) {
-      showToast("Wybrana działka nie istnieje.", "warning");
-      return;
-    }
-
-    // miękkie usunięcie: mock:false tylko dla wskazanej działki
-    const updated = [...offerData.plots];
-    updated[plotIndex] = { ...updated[plotIndex], mock: false };
-
-    await updateDoc(doc(db, "propertyListings", offerId), { plots: updated });
-
-    // odśwież listę + toast sukcesu
-	const user = auth.currentUser;
-	if (user) await loadUserOffers(user.email || null, user.uid || null);
-
-    showToast(`Oferta „${plotTitle}” została usunięta.`, "success");
-  } catch (err) {
-    console.error("Błąd podczas usuwania oferty:", err);
-    showToast("Wystąpił błąd podczas usuwania oferty.", "error");
-  }
-};
-
 </script>
 
-<!-- Confirm (Tak/Nie) -->
-<div id="confirmModal" class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-hidden="true">
-  <div class="confirm-box" role="document">
-    <h3 id="confirmTitle" class="confirm-title">Potwierdzenie</h3>
-    <p id="confirmMessage" class="confirm-message">Czy na pewno chcesz kontynuować?</p>
-    <div class="confirm-actions">
-      <button type="button" class="confirm-btn confirm-cancel" id="confirmNo">Nie</button>
-      <button type="button" class="confirm-btn confirm-yes" id="confirmYes">Tak</button>
-    </div>
-  </div>
-</div>
-
-
-<script>
-// Ładny modal potwierdzenia: zwraca Promise<boolean>
-function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz kontynuować?', yesText = 'Tak', noText = 'Nie' } = {}) {
-  return new Promise((resolve) => {
-    const modal   = document.getElementById('confirmModal');
-    const box     = modal.querySelector('.confirm-box');
-    const titleEl = document.getElementById('confirmTitle');
-    const msgEl   = document.getElementById('confirmMessage');
-    const btnNo   = document.getElementById('confirmNo');
-    const btnYes  = document.getElementById('confirmYes');
-
-    // Ustaw treści
-    titleEl.textContent = title;
-    msgEl.textContent   = message;
-    btnYes.textContent  = yesText;
-    btnNo.textContent   = noText;
-
-    // Pokazanie
-    modal.style.display = 'flex';
-    // timeout żeby CSS transition złapał klasę
-    requestAnimationFrame(() => modal.classList.add('show'));
-
-    // Handlery zamknięcia
-    const cleanup = (val) => {
-      modal.classList.remove('show');
-      setTimeout(() => { modal.style.display = 'none'; }, 120);
-      document.removeEventListener('keydown', onKey);
-      modal.removeEventListener('click', onBackdrop);
-      btnNo.removeEventListener('click', onNo);
-      btnYes.removeEventListener('click', onYes);
-      resolve(val);
-    };
-
-    const onNo = () => cleanup(false);
-    const onYes = () => cleanup(true);
-    const onBackdrop = (e) => { if (e.target === modal) cleanup(false); };
-    const onKey = (e) => {
-      if (e.key === 'Escape') cleanup(false);
-      if (e.key === 'Enter')  cleanup(true);
-    };
-
-    btnNo.addEventListener('click', onNo);
-    btnYes.addEventListener('click', onYes);
-    modal.addEventListener('click', onBackdrop);
-    document.addEventListener('keydown', onKey);
-
-    // Fokus na „Tak”
-    btnYes.focus();
-  });
-}
-</script>
 
   <!-- ===== GŁÓWNY UKŁAD Z MAPĄ I ZAWARTOŚCIĄ ===== -->
   <div class="main-layout">
@@ -723,7 +617,7 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
     setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getFirestore, doc, setDoc, getDoc, updateDoc,
+    getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc,
     collection, query, where, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -1062,6 +956,39 @@ async function loadUserOffers(email, uid) {
     userOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
   }
 }
+
+async function deletePlot(offerId, plotIndex, title) {
+  if (!confirm(`Czy na pewno chcesz usunąć działkę "${title}"?`)) return;
+  try {
+    const offerRef = doc(db, 'propertyListings', offerId);
+    const snap = await getDoc(offerRef);
+    if (!snap.exists()) {
+      showToast('Ogłoszenie nie istnieje.', 'error');
+      return;
+    }
+    const data = snap.data();
+    if (!Array.isArray(data.plots)) {
+      showToast('Brak działek do usunięcia.', 'error');
+      return;
+    }
+    const plots = data.plots;
+    plots.splice(plotIndex, 1);
+    if (plots.length === 0) {
+      await deleteDoc(offerRef);
+    } else {
+      await setDoc(offerRef, { plots }, { merge: true });
+    }
+    showToast('Działka usunięta', 'success');
+    if (auth.currentUser) {
+      loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
+    }
+  } catch (err) {
+    console.error('deletePlot', err);
+    showToast('Nie udało się usunąć działki.', 'error');
+  }
+}
+
+window.deletePlot = deletePlot;
 
 
 
