@@ -74,7 +74,6 @@
       <h1 class="text-center mb-3">Dodaj darmowe ogłoszenie</h1>
       <p class="lead text-center mb-4 d-none d-lg-block">Kliknij na mapę, aby wskazać lokalizację działki</p>
 
-      <div id="selectedPlots"><p class="text-muted">Brak wskazanych działek.</p></div>
       <hr />
 
       <form id="propertyForm" class="mt-3">
@@ -100,9 +99,11 @@
         </div>
 
         <div class="mb-3">
-          <label for="price" class="form-label">Cena (zł)</label>
+          <label for="price" class="form-label">Cena działki (zł)</label>
           <input type="number" class="form-control" id="price" />
         </div>
+
+        <div id="selectedPlots"><p class="text-muted">Brak wskazanych działek.</p></div>
 
         <!-- MOBILE MAPA -->
         <div class="map-container mb-3 d-lg-none full-bleed-mobile">
