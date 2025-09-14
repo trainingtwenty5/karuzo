@@ -162,10 +162,14 @@
   .toast-lite { padding:10px 12px; }
 }
 
-.map-info-window { font-size:.95rem; max-width:320px; }
+.map-info-window {
+  font-size:.95rem;
+  max-width:320px;
+  position:relative;
+  padding-top:28px;
+}
 .map-info-window h3 { font-size:1.05rem; margin:0 0 .4rem; }
 .map-info-window p { margin:.2rem 0; font-size:.9rem; }
-.map-info-window .mini-actions { margin-top:.55rem; display:flex; gap:.5rem; justify-content:center; }
 .map-info-window .btn-mini {
   display:inline-block;
   padding:.35rem .6rem;
@@ -176,6 +180,11 @@
   font-size:.8rem;
   cursor:pointer;
   text-decoration:none;
+}
+.map-info-window .details-btn {
+  position:absolute;
+  top:4px;
+  right:32px;
 }
 
 /* zmniejszony przycisk zamknięcia w oknie mapy */
@@ -193,7 +202,7 @@
   .map-info-window { font-size:.9rem; max-width:400px; }
   .map-info-window h3 { font-size:1rem; white-space:nowrap; }
   .map-info-window p { font-size:.85rem; white-space:nowrap; }
-  .map-info-window .mini-actions { flex-wrap:wrap; }
+  .map-info-window .details-btn { top:2px; right:30px; }
   .gm-ui-hover-effect {
     transform:scale(.7) !important;
     transform-origin:top right;

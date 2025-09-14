@@ -383,15 +383,13 @@ window.showConfirmModal = showConfirmModal;
 
     return `
       <div class="map-info-window">
+        <a class="btn-mini details-btn" target="_blank" href="${detailsUrl}">Szczegóły</a>
         <h3>${plot.Id || "Brak identyfikatora"}</h3>
         <p><b>Miejscowość:</b> ${city}</p>
-        ${price ? `<p><b>Cena:</b> ${price.toLocaleString('pl-PL')} zł${ppm2 ? ` <span style="color:#718096;">(${ppm2} zł/m²)</span>` : ''}</p>` : ''}
+        ${price ? `<p><b>Cena:</b> ${price.toLocaleString('pl-PL')} zł${ppm2 ? ` <span style=\"color:#718096;\">(${ppm2} zł/m²)</span>` : ''}</p>` : ''}
         ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
         ${data.firstName ? `<p><b>Imię:</b> ${data.firstName}</p>` : ''}
         <p><b>Telefon:</b> ${phone || 'brak'}</p>
-        <div class="mini-actions center">
-          <a class="btn-mini" target="_blank" href="${detailsUrl}">Szczegóły</a>
-        </div>
       </div>
     `;
   }
