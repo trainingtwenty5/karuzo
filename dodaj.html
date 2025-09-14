@@ -49,109 +49,12 @@
     });
   </script>
 
-  <style>
-    :root {
-      --primary: #1e6fba;
-      --secondary: #2c8ac9;
-      --accent: #3ba3e3;
-      --light: #f0f8ff;
-      --radius: 10px;
-      --shadow-md: 0 6px 12px rgba(0, 0, 0, 0.15);
-      --transition: all 0.3s ease;
-    }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background: var(--light);
-      margin: 0;
-    }
-
-    .container-main { display: flex; min-height: 100vh; }
-    .map-container { flex: 1; position: sticky; top: 0; height: 100vh; }
-    #map { height: 100%; width: 100%; }
-
-    .form-container {
-      width: 400px;
-      background: #fff;
-      padding: 20px;
-      overflow-y: auto;
-      height: 100vh;
-      box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
-    }
-
-    .map-overlay { position: absolute; top: 15px; right: 15px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-
-    .btn-overlay {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white; border: none; padding: 0.6rem 1rem; border-radius: var(--radius);
-      font-size: 0.85rem; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-md); transition: var(--transition);
-    }
-    .btn-overlay:hover { transform: translateY(-2px); box-shadow: 0 8px 14px rgba(0,0,0,0.2); }
-
-    .form-check.form-switch {
-      background: white; padding: 0.5rem 0.75rem; border-radius: var(--radius);
-      box-shadow: var(--shadow-md); font-size: 0.8rem; display: flex; align-items: center; justify-content: center; gap: .5rem;
-    }
-
-    #selectedPlots { margin-top: 1rem; }
-    #selectedPlots .plot-item {
-      background: var(--light); border-radius: var(--radius); padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
-      display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow-md);
-    }
-    #selectedPlots .plot-item button { background: transparent; border: none; color: #c62828; font-size: 1rem; cursor: pointer; transition: var(--transition); }
-    #selectedPlots .plot-item button:hover { color: red; transform: scale(1.1); }
-
-    .privacy-text { margin-top: 1rem; font-size: 0.8rem; color: #555; line-height: 1.4; text-align: justify; }
-
-    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; font-weight: 600; }
-    .btn-primary:hover { background: linear-gradient(135deg, var(--secondary), var(--primary)); }
-
-    @media (max-width: 992px) {
-      .container-main { flex-direction: column; }
-      .map-container { height: 50vh; order: 2; }
-      .form-container { width: 100%; height: auto; order: 1; }
-    }
-
-    /* MOBILE MAP */
-    #map-mobile { width: 100%; height: 40vh; border-radius: 0; }
-    @media (min-width: 992px) { #map-mobile { display: none; } }
-    .map-overlay-mobile { position: absolute; top: 15px; right: 15px; z-index: 2000; display: flex; gap: 10px; }
-
-    @media (max-width: 992px) {
-      #map { display: none !important; }
-      :root { --mobile-map-height: 82vh; }
-      .full-bleed-mobile { position: relative; left: 50%; transform: translateX(-50%); width: 100vw; max-width: 100vw; padding: 0; margin: 0 0 16px 0; overflow: hidden; z-index: 0; }
-      .lead-over-map { display: block !important; margin: 0 0 8px 0; padding: 0 16px; font-weight: 300; text-align: center; opacity: .95; }
-      #map-mobile { display: block; width: 100%; height: var(--mobile-map-height); border-radius: 0; }
-      @supports (height: 1dvh) { #map-mobile { height: 82dvh; } }
-      .map-overlay-mobile { top: calc(env(safe-area-inset-top, 0px) + 40px); right: calc(env(safe-area-inset-right, 0px) + 12px); z-index: 2; pointer-events: none; }
-      .map-overlay-mobile .btn-overlay { pointer-events: auto; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 9999px; line-height: 1; }
-      .consents-block { position: relative; z-index: 1; margin-top: 8px; }
-    }
-
-    /* ——— WYGASZONE POLA (dla zalogowanych) ——— */
-    .disabled-field .form-label { opacity: .6; }
-    .disabled-field .form-control { background-color: #f8f9fa; }
-
-    /* KLUCZOWE: tekst w polach musi pozostać ciemny i w 100% widoczny */
-    .form-control[readonly], .form-control:disabled,
-    input[readonly], input:disabled,
-    textarea[readonly], textarea:disabled {
-      -webkit-text-fill-color: #212529 !important; /* iOS/Safari */
-      color: #212529 !important;                   /* reszta */
-      opacity: 1 !important;                       /* nie przyciemniaj inputa */
-    }
-    .disabled-field .form-control::placeholder { opacity: .65; }
-	
-	
-	@media (max-width: 992px) {
-  .map-overlay-desktop { display: none !important; }
-}
-  </style>
+  <link rel="stylesheet" href="assets/main.css">
+  <link rel="stylesheet" href="assets/dodaj.css">
 </head>
 
 <body onload="loadGoogleMaps()">
-  <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100"></div>
+  <div class="toast-container position-fixed top-0 end-0 p-3"></div>
 
   <div class="container-main">
     <!-- Mapa desktop -->
