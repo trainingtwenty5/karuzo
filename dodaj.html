@@ -872,6 +872,10 @@
       if (user) {
         authButtons && (authButtons.style.display = 'none');
         userMenu && (userMenu.style.display = 'flex');
+        if (accountBtn) {
+          const label = user.displayName || user.email || 'Moje konto';
+          accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${label}`;
+        }
       } else {
         authButtons && (authButtons.style.display = 'flex');
         userMenu && (userMenu.style.display = 'none');
