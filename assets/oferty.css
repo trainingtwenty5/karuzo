@@ -165,7 +165,7 @@
 .map-info-window { font-size:.95rem; max-width:320px; }
 .map-info-window h3 { font-size:1.05rem; margin:0 0 .4rem; }
 .map-info-window p { margin:.2rem 0; font-size:.9rem; }
-.map-info-window .mini-actions { margin-top:.55rem; display:flex; gap:.5rem; }
+.map-info-window .mini-actions { margin-top:.55rem; display:flex; gap:.5rem; justify-content:center; }
 .map-info-window .btn-mini {
   display:inline-block;
   padding:.35rem .6rem;
@@ -177,6 +177,9 @@
   cursor:pointer;
   text-decoration:none;
 }
+
+/* zmniejszony przycisk zamknięcia w oknie mapy */
+.gm-ui-hover-effect { transform:scale(.8) !important; }
 
 @media (max-width:768px){
   .map-info-window { font-size:.9rem; max-width:260px; }
