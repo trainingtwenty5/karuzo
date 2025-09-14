@@ -270,3 +270,22 @@
 }
 
 .confirm-yes:hover { box-shadow:var(--shadow-md); }
+
+@media (max-width:480px){
+  .confirm-box{
+    padding:24px 20px;
+  }
+  .confirm-title{
+    font-size:1.25rem;
+  }
+  .confirm-message{
+    font-size:1rem;
+  }
+  .confirm-actions{
+    flex-direction:column;
+    gap:12px;
+  }
+  .confirm-btn{
+    width:100%;
+  }
+}
