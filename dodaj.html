@@ -530,8 +530,19 @@
 
       // Autowartości z profilu zalogowanego użytkownika
       if (user?.email) $('#email').val(user.email);
-      if (user?.displayName && !$('#firstName').val()) $('#firstName').val(user.displayName);
+      if (user?.displayName) $('#firstName').val(user.displayName);
       if (user) fetchAndPrefillPhone(user);
+
+      // Po zalogowaniu imię i e-mail są tylko do odczytu
+      if (user) {
+        ['#firstName', '#email'].forEach(sel => {
+          $(sel)
+            .prop('readonly', true)
+            .prop('disabled', true)
+            .closest('.mb-3')
+            .addClass('disabled-field');
+        });
+      }
     }
 
     window.addEventListener('auth-state-changed', (e) => toggleFieldsForAuth(e.detail));
