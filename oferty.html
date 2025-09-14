@@ -260,17 +260,14 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
       </div>
       
       <!-- Panel z Twoimi ofertami -->
-	  
-	  
-    
+      <div class="offers-section">
         <div class="section-title">
           <h2>Moje Oferty</h2>
         </div>
-        <div  id="userDashboard">
-     
+        <div id="userDashboard">
           <div class="offers-grid" id="userOffers"></div>
         </div>
-     </div>
+      </div>
     </div>
   </div>
 
@@ -1006,13 +1003,7 @@ async function loadUserOffers(email, uid) {
     userOffers.innerHTML = '';
 
     if (results.size === 0) {
-      userOffers.innerHTML = `
-        <p>Nie znaleziono Twoich ofert.</p>
-        <p style="font-size:.9em;color:#666">
-          Sprawdź, czy dokumenty w <code>propertyListings</code> mają któreś z pól:
-          <code>${['email','userEmail','ownerEmail','createdByEmail','contactEmail','userUid','uid','userId','ownerId','createdBy'].join(', ')}</code>
-          z Twoim e-mailem (najlepiej małymi literami) lub UID.
-        </p>`;
+      userOffers.innerHTML = '<p>Nie masz jeszcze żadnych aktywnych ofert.</p>';
       return;
     }
 
