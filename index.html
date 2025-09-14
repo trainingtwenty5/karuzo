@@ -602,7 +602,7 @@ window.showConfirmModal = showConfirmModal;
         authButtons && (authButtons.style.display = 'none');
         userMenu    && (userMenu.style.display = 'flex');
         if (accountBtn) {
-          const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Moje konto');
+          const label = user.displayName || user.email || 'Moje konto';
           accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${label}`;
         }
         userDashboard && (userDashboard.style.display = 'block');
