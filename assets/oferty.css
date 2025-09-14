@@ -197,6 +197,8 @@
   padding:16px;
 }
 
+.confirm-modal.show { display:flex; }
+
 .confirm-box {
   width:100%;
   max-width:420px;
