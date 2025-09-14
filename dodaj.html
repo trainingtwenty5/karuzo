@@ -221,14 +221,8 @@
       toast.on("hidden.bs.toast", () => toast.remove());
     }
 
-    /* ===== WALIDACJA (zależna od logowania) ===== */
+    /* ===== WALIDACJA FORMULARZA ===== */
     function validateForm() {
-      if (isLoggedIn) {
-        const city = $("#city").val().trim();
-        if (!city) { showToast("Podaj miejscowość.", "warning"); return false; }
-        return true;
-      }
-
       const firstName = $("#firstName").val().trim();
       const phone = $("#phone").val().trim();
       const email = $("#email").val().trim();
@@ -239,7 +233,10 @@
       const emailValid = email.length > 0 && email.includes("@");
 
       if (!firstName || !phone || !emailValid || !city || !termsConsent) return false;
-      if (!phoneRegex.test(phone)) { showToast("Numer telefonu musi być w formacie 505849404 lub +48505849404", "warning"); return false; }
+      if (!phoneRegex.test(phone)) {
+        showToast("Numer telefonu musi być w formacie 505849404 lub +48505849404", "warning");
+        return false;
+      }
       return true;
     }
 
@@ -434,35 +431,32 @@
       const marketingConsent = $('#marketingConsent').is(':checked');
 
       const base = {
-        price,
-        mock: true,
-        plots: points.map(p => ({
-          Id: "", idDzialki_uldk: "",
-          lat: p.lat, lng: p.lng,
+          price,
           mock: true,
-          geometry_uldk: null,
-          pow_dzialki_m2_uldk: null,
-          price: price || "",
-          termsConsent: isLoggedIn ? true : termsConsent,
-          timestamp: new Date()
-        })),
-        timestamp: new Date()
-      };
+          plots: points.map(p => ({
+            Id: "", idDzialki_uldk: "",
+            lat: p.lat, lng: p.lng,
+            mock: true,
+            geometry_uldk: null,
+            pow_dzialki_m2_uldk: null,
+            price: price || "",
+            termsConsent: termsConsent,
+            timestamp: new Date()
+          })),
+          timestamp: new Date(),
+          firstName,
+          phone,
+          email,
+          city,
+          termsConsent,
+          marketingConsent
+        };
 
-      if (isLoggedIn) {
-        base.userUid = user?.uid || '';
-        base.userEmail = user?.email || '';
-        base.city = city;
-        base.phone = phone; // zapis numeru przy ogłoszeniu
-      } else {
-        base.city = city;
-        base.firstName = firstName;
-        base.phone = phone;
-        base.email = email;
-        base.termsConsent = termsConsent;
-        base.marketingConsent = marketingConsent;
-      }
-      return base;
+        if (isLoggedIn) {
+          base.userUid = user?.uid || '';
+          base.userEmail = user?.email || '';
+        }
+        return base;
     }
 
     /* ===== ZAPIS DO FIRESTORE ===== */
@@ -518,49 +512,26 @@
     function toggleFieldsForAuth(user) {
       isLoggedIn = !!user;
 
-      const others = ['#firstName', '#email'];
+      // Wymagane pola zawsze aktywne
+      ['#firstName', '#phone', '#email', '#city'].forEach(sel => {
+        const $wrap = $(sel).closest('.mb-3');
+        $(sel).prop('readonly', false).prop('disabled', false).prop('required', true);
+        $wrap.removeClass('d-none disabled-field');
+      });
 
-      if (isLoggedIn) {
-        // TELEFON – widoczny i edytowalny (autouzupełnimy z profilu, jeśli jest)
-        $('#phone').prop('required', false).prop('readonly', false).closest('.mb-3').removeClass('d-none disabled-field');
+      // Pole ceny opcjonalne
+      $('#price').prop('readonly', false).prop('disabled', false).prop('required', false)
+        .closest('.mb-3').removeClass('d-none disabled-field');
 
-        // MIEJSCOWOŚĆ i CENA – aktywne
-        $('#city').prop('required', true).prop('readonly', false).closest('.mb-3').removeClass('d-none disabled-field');
-        $('#price').prop('required', false).prop('readonly', false).closest('.mb-3').removeClass('d-none disabled-field');
+      // Zgody zawsze widoczne i wymagane (RODO)
+      $('#selectAllConsents').closest('.form-check').removeClass('d-none');
+      $('#termsConsent').prop('required', true).closest('.form-check').removeClass('d-none');
+      $('#marketingConsent').closest('.form-check').removeClass('d-none');
 
-        // POZOSTAŁE – tylko wygaszamy (widoczne + czytelne wartości)
-        others.forEach(sel => {
-          const $wrap = $(sel).closest('.mb-3');
-          $(sel).prop('required', false).prop('readonly', true);
-          $wrap.removeClass('d-none').addClass('disabled-field');
-        });
-
-        // Autowartości: email i ewentualnie imię z profilu auth
-        if (user?.email) $('#email').val(user.email);
-        if (user?.displayName && !$('#firstName').val()) $('#firstName').val(user.displayName);
-
-        // Zgody ukryte dla zalogowanych
-        $('#selectAllConsents').closest('.form-check').addClass('d-none');
-        $('#termsConsent').prop('required', false).closest('.form-check').addClass('d-none');
-        $('#marketingConsent').closest('.form-check').addClass('d-none');
-
-        // Dociągnij numer z bazy (jeśli brak w localStorage)
-        fetchAndPrefillPhone(user);
-
-      } else {
-        // Niezalogowany: wszystko standardowo
-        ['#firstName', '#phone', '#email', '#city', '#price'].forEach(sel => {
-          const $wrap = $(sel).closest('.mb-3');
-          $(sel).prop('readonly', false).prop('disabled', false).prop('required', true);
-          $wrap.removeClass('d-none disabled-field');
-        });
-        $('#phone').prop('required', true);
-
-        // Zgody widoczne
-        $('#selectAllConsents').closest('.form-check').removeClass('d-none');
-        $('#termsConsent').prop('required', true).closest('.form-check').removeClass('d-none');
-        $('#marketingConsent').closest('.form-check').removeClass('d-none');
-      }
+      // Autowartości z profilu zalogowanego użytkownika
+      if (user?.email) $('#email').val(user.email);
+      if (user?.displayName && !$('#firstName').val()) $('#firstName').val(user.displayName);
+      if (user) fetchAndPrefillPhone(user);
     }
 
     window.addEventListener('auth-state-changed', (e) => toggleFieldsForAuth(e.detail));
