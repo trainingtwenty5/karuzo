@@ -97,7 +97,7 @@ function ensureToastContainer() {
   if (!cont) {
     cont = document.createElement('div');
     cont.className = 'toast-container position-fixed top-0 end-0 p-3';
-    cont.style.zIndex = '1100';
+    cont.style.zIndex = '2000';
     document.body.appendChild(cont);
   }
   return cont;
@@ -205,13 +205,17 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
     btnNo.textContent   = noText;
 
     // Pokazanie
+    const prevActive = document.activeElement;
     modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden','false');
     // timeout żeby CSS transition złapał klasę
     requestAnimationFrame(() => modal.classList.add('show'));
 
     // Handlery zamknięcia
     const cleanup = (val) => {
       modal.classList.remove('show');
+      prevActive?.focus();
+      modal.setAttribute('aria-hidden','true');
       setTimeout(() => { modal.style.display = 'none'; }, 120);
       document.removeEventListener('keydown', onKey);
       modal.removeEventListener('click', onBackdrop);
@@ -415,32 +419,6 @@ function showConfirm({ title = 'Potwierdzenie', message = 'Czy na pewno chcesz k
     </div>
   </div>
 </footer>
-
-
-  <!-- Firebase -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getFirestore, collection, getDocs, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
-      authDomain: "base-468e0.firebaseapp.com",
-      projectId: "base-468e0",
-      storageBucket: "base-468e0.firebasestorage.app",
-      messagingSenderId: "829161895559",
-      appId: "1:829161895559:web:d832541aac05b35847ea22"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-
-    window.db = db;
-    window.collection = collection;
-    window.getDocs = getDocs;
-    window.doc = doc;
-    window.getDoc = getDoc;
-    window.updateDoc = updateDoc;
-  </script>
 
 
 
@@ -1072,7 +1050,10 @@ async function loadUserOffers(email, uid) {
   window.query = query;
   window.where = where;
   window.doc       = doc;
+  window.getDoc    = getDoc;
   window.updateDoc = updateDoc;
+  window.auth      = auth;
+  window.loadUserOffers = loadUserOffers;
 </script>
 
 
