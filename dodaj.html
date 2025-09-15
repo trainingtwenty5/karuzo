@@ -47,6 +47,7 @@
   <link rel="stylesheet" href="assets/main.css">
   <link rel="stylesheet" href="assets/header.css">
   <link rel="stylesheet" href="assets/dodaj.css">
+  <link rel="stylesheet" href="assets/form.css">
 </head>
 
   <body style="padding-top: calc(var(--topbar-height) + var(--header-height));" onload="loadGoogleMaps()">
@@ -104,6 +105,20 @@
         <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
       </nav>
     </header>
+    <!-- Toasts -->
+    <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Confirm Modal -->
+    <div class="confirm-modal" id="confirmModal" role="dialog" aria-modal="true">
+      <div class="confirm-box">
+        <h3 class="confirm-title">Potwierdzenie</h3>
+        <p class="confirm-message"></p>
+        <div class="confirm-actions">
+          <button class="confirm-btn confirm-cancel">Anuluj</button>
+          <button class="confirm-btn confirm-yes">Usuń</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Login Modal -->
     <div class="modal" id="loginModal">
@@ -121,7 +136,7 @@
             <label for="loginPassword">Hasło</label>
             <input type="password" id="loginPassword" required>
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;">Zaloguj się</button>
+          <button type="submit" class="btn btn-primary w-100">Zaloguj się</button>
         </form>
 
         <div class="social-login">
@@ -160,7 +175,7 @@
             <label for="registerConfirmPassword">Potwierdź hasło</label>
             <input type="password" id="registerConfirmPassword" required>
           </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;">Zarejestruj się</button>
+          <button type="submit" class="btn btn-primary w-100">Zarejestruj się</button>
         </form>
 
         <div class="social-login mt-3 text-center">
@@ -493,27 +508,74 @@
       });
     }
 
-    /* ===== UI: TOAST ===== */
-    function showToast(message, type = "info") {
-      let bgClass = "bg-primary";
-      if (type === "success") bgClass = "bg-success";
-      if (type === "warning") bgClass = "bg-warning text-dark";
-      if (type === "error")   bgClass = "bg-danger";
 
-      const toast = $(`
-        <div class="toast align-items-center text-white ${bgClass} border-0" role="showToast" aria-live="assertive" aria-atomic="true">
-          <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-          </div>
-        </div>
-      `);
+      /* ===== UI: TOAST (vanilla) =====
+         showToast('Oferta „...” została usunięta.', 'success')
+         type: 'info' | 'success' | 'warning' | 'error'
+      */
+      function showToast(message, type = 'info') {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
 
-      $(".toast-container").append(toast);
-      const bsToast = new bootstrap.Toast(toast[0], { delay: 4000 });
-      bsToast.show();
-      toast.on("hidden.bs.toast", () => toast.remove());
-    }
+        const wrap = document.createElement('div');
+        wrap.className = `toast-lite toast-${type}`;
+        wrap.setAttribute('role', 'status');
+        wrap.setAttribute('aria-live', 'polite');
+
+        const icon = {
+          success: '✓',
+          info: 'ℹ',
+          warning: '!',
+          error: '✕'
+        }[type] || 'ℹ';
+
+        wrap.innerHTML = `
+          <div class="toast-icon" aria-hidden="true">${icon}</div>
+          <div class="toast-msg">${message}</div>
+          <button class="toast-close" aria-label="Zamknij">&times;</button>
+        `;
+
+        const close = () => {
+          wrap.classList.remove('show');
+          setTimeout(() => wrap.remove(), 160);
+        };
+        wrap.querySelector('.toast-close').addEventListener('click', close);
+
+        container.appendChild(wrap);
+        requestAnimationFrame(() => wrap.classList.add('show'));
+
+        const t = setTimeout(close, 4000);
+        wrap.addEventListener('mouseenter', () => clearTimeout(t), { once: true });
+      }
+
+      function showConfirmModal(message) {
+        return new Promise(resolve => {
+          const modal = document.getElementById('confirmModal');
+          if (!modal) return resolve(false);
+
+          modal.querySelector('.confirm-message').textContent = message;
+          modal.classList.add('show');
+
+          const yesBtn = modal.querySelector('.confirm-yes');
+          const cancelBtn = modal.querySelector('.confirm-cancel');
+
+          const cleanup = () => {
+            modal.classList.remove('show');
+            yesBtn.removeEventListener('click', onYes);
+            cancelBtn.removeEventListener('click', onCancel);
+            modal.removeEventListener('click', onOutside);
+          };
+
+          const onYes = () => { cleanup(); resolve(true); };
+          const onCancel = () => { cleanup(); resolve(false); };
+          const onOutside = (e) => { if (e.target === modal) { cleanup(); resolve(false); } };
+
+          yesBtn.addEventListener('click', onYes, { once: true });
+          cancelBtn.addEventListener('click', onCancel, { once: true });
+          modal.addEventListener('click', onOutside, { once: true });
+        });
+      }
+      window.showConfirmModal = showConfirmModal;
 
     /* ===== WALIDACJA FORMULARZA ===== */
     function validateForm() {
