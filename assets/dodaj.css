@@ -100,9 +100,3 @@ textarea[readonly], textarea:disabled {
 @media (max-width: 992px) {
   .map-overlay-desktop { display: none !important; }
 }
-
-@media (min-width: 768px) {
-  header { justify-content: flex-start; }
-  .desktop-nav { flex: 1; justify-content: center; }
-}
-
