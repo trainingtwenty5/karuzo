@@ -15,10 +15,10 @@
 
   <!-- Firebase SDK (APP, Firestore, Analytics, Auth) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics.js";
-    import { getFirestore, collection, addDoc, getDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
+    import { getFirestore, collection, addDoc, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
@@ -30,7 +30,7 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
+    getAnalytics(app);
     const db = getFirestore(app);
     const auth = getAuth(app);
 
@@ -40,27 +40,294 @@
     window.collection = collection;
     window.getDoc = getDoc;
     window.doc = doc;
+    window.setDoc = setDoc;
     window.auth = auth;
-
-    // Emituj event o stanie logowania
-    onAuthStateChanged(auth, (user) => {
-      window.currentUser = user || null;
-      window.dispatchEvent(new CustomEvent('auth-state-changed', { detail: user }));
-    });
   </script>
 
   <link rel="stylesheet" href="assets/main.css">
   <link rel="stylesheet" href="assets/dodaj.css">
 </head>
 
-<body onload="loadGoogleMaps()">
-  <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+  <body style="padding-top: calc(var(--topbar-height) + var(--header-height));" onload="loadGoogleMaps()">
+    <!-- Top Navbar (desktop) -->
+    <div class="top-navbar">
+      <div class="contact-info">
+        <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+        <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+      </div>
 
-  <div class="container-main">
-    <!-- Mapa desktop -->
-    <div class="map-container">
-      <div id="map"></div>
-      <div class="map-overlay map-overlay-desktop">
+      <div class="auth-buttons" id="authButtons">
+        <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
+          <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+        </button>
+        <button class="btn btn-primary btn-sm" id="registerBtn">
+          <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+        </button>
+      </div>
+
+      <div class="user-menu" id="userMenu" style="display:none;">
+        <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
+          <i class="fas fa-user me-1"></i> Moje konto
+        </button>
+        <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
+          <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+        </button>
+      </div>
+    </div>
+
+    <!-- Header + Nawigacja -->
+    <header>
+      <a href="index.html" class="logo">
+        <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png" alt="Grunteo">
+        <span>Grunteo</span>
+      </a>
+
+      <nav class="desktop-nav">
+        <a href="index.html" class="nav-link">Strona główna</a>
+        <a href="oferty.html" class="nav-link">Oferty</a>
+        <a href="#contact" class="nav-link">Kontakt</a>
+      </nav>
+
+      <button class="mobile-menu-btn" aria-label="Otwórz menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <nav class="nav-menu">
+        <a href="index.html" class="nav-link">Strona główna</a>
+        <a href="oferty.html" class="nav-link">Oferty</a>
+        <a href="#contact" class="nav-link">Kontakt</a>
+
+        <!-- Miejsce na elementy auth w menu mobilnym -->
+        <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+      </nav>
+    </header>
+
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Zaloguj się</h3>
+          <button class="modal-close" aria-label="Zamknij">&times;</button>
+        </div>
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="loginEmail">Email</label>
+            <input type="email" id="loginEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Hasło</label>
+            <input type="password" id="loginPassword" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Zaloguj się</button>
+        </form>
+
+        <div class="social-login">
+          <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+            <i class="fab fa-google"></i> Kontynuuj z Google
+          </button>
+        </div>
+
+        <div class="form-footer">
+          <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Register Modal -->
+    <div class="modal" id="registerModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Utwórz konto</h3>
+          <button class="modal-close" aria-label="Zamknij">&times;</button>
+        </div>
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="registerName">Imię i nazwisko</label>
+            <input type="text" id="registerName" required>
+          </div>
+          <div class="form-group">
+            <label for="registerEmail">Email</label>
+            <input type="email" id="registerEmail" required>
+          </div>
+          <div class="form-group">
+            <label for="registerPassword">Hasło</label>
+            <input type="password" id="registerPassword" required>
+          </div>
+          <div class="form-group">
+            <label for="registerConfirmPassword">Potwierdź hasło</label>
+            <input type="password" id="registerConfirmPassword" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Zarejestruj się</button>
+        </form>
+
+        <div class="social-login mt-3 text-center">
+          <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
+            <i class="fab fa-google"></i> Kontynuuj z Google
+          </button>
+        </div>
+
+        <div class="form-footer">
+          <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {
+        getAuth, onAuthStateChanged, signOut,
+        signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+        GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+        setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+      } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+      import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+      const auth = getAuth();
+      const db = getFirestore();
+
+      async function useBestPersistence() {
+        try { await setPersistence(auth, browserLocalPersistence); }
+        catch { try { await setPersistence(auth, browserSessionPersistence); }
+          catch { await setPersistence(auth, inMemoryPersistence); } }
+      }
+      await useBestPersistence();
+
+      const googleProvider = new GoogleAuthProvider();
+      googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+      const authButtons = document.getElementById('authButtons');
+      const userMenu    = document.getElementById('userMenu');
+      const loginBtn    = document.getElementById('loginBtn');
+      const registerBtn = document.getElementById('registerBtn');
+      const accountBtn  = document.getElementById('accountBtn');
+      const logoutBtn   = document.getElementById('logoutBtn');
+      const loginModal  = document.getElementById('loginModal');
+      const registerModal = document.getElementById('registerModal');
+      const closeBtns   = document.querySelectorAll('.modal-close');
+      const switchToReg = document.getElementById('switchToRegister');
+      const switchToLog = document.getElementById('switchToLogin');
+      const loginForm   = document.getElementById('loginForm');
+      const registerForm= document.getElementById('registerForm');
+      const mobileAuthC = document.getElementById('mobileAuth');
+      const navMenu     = document.querySelector('.nav-menu');
+
+      const openModal  = (m) => m && (m.style.display = 'flex');
+      const closeModal = (m) => m && (m.style.display = 'none');
+
+      function renderMobileAuth(user) {
+        if (!mobileAuthC) return;
+        if (user) {
+          const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Użytkownik');
+          mobileAuthC.innerHTML = `
+            <div class="nav-link" style="font-weight:600;">
+              <i class="fas fa-user"></i> ${label}
+            </div>
+            <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
+              <i class="fas fa-sign-out-alt"></i> Wyloguj się
+            </button>
+          `;
+          document.getElementById('mobileLogoutBtn')?.addEventListener('click', async () => {
+            try { await signOut(auth); } catch(e){ console.error(e); }
+            navMenu?.classList.remove('active');
+            mobileAuthC.style.display = 'none';
+          });
+        } else {
+          mobileAuthC.innerHTML = `
+            <a href="#" id="loginLink" class="nav-link">Zaloguj się</a>
+            <a href="#" id="registerLink" class="nav-link">Zarejestruj się</a>
+          `;
+          document.getElementById('loginLink')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal(loginModal);
+            navMenu?.classList.remove('active');
+            mobileAuthC.style.display = 'none';
+          });
+          document.getElementById('registerLink')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal(registerModal);
+            navMenu?.classList.remove('active');
+            mobileAuthC.style.display = 'none';
+          });
+        }
+        mobileAuthC.style.display = navMenu?.classList.contains('active') ? 'flex' : 'none';
+      }
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          authButtons && (authButtons.style.display = 'none');
+          userMenu    && (userMenu.style.display = 'flex');
+          if (accountBtn) {
+            const label = user.displayName || user.email || 'Moje konto';
+            accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${label}`;
+          }
+          closeModal(loginModal); closeModal(registerModal);
+        } else {
+          authButtons && (authButtons.style.display = 'flex');
+          userMenu    && (userMenu.style.display = 'none');
+        }
+        renderMobileAuth(user);
+        window.currentUser = user || null;
+        window.dispatchEvent(new CustomEvent('auth-state-changed', { detail: user }));
+      });
+
+      loginBtn?.addEventListener('click', () => openModal(loginModal));
+      registerBtn?.addEventListener('click', () => openModal(registerModal));
+      switchToReg?.addEventListener('click', (e) => { e.preventDefault(); closeModal(loginModal);  openModal(registerModal); });
+      switchToLog?.addEventListener('click', (e) => { e.preventDefault(); closeModal(registerModal); openModal(loginModal); });
+      closeBtns.forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal'))));
+      window.addEventListener('click', (e) => { if (e.target.classList?.contains('modal')) closeModal(e.target); });
+      logoutBtn?.addEventListener('click', async () => { try { await signOut(auth); } catch(e){ console.error(e); } });
+
+      loginForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const pass  = document.getElementById('loginPassword').value;
+        try { await signInWithEmailAndPassword(auth, email, pass); }
+        catch (err) { alert(err.message); }
+      });
+
+      registerForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name  = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        const pass1 = document.getElementById('registerPassword').value;
+        const pass2 = document.getElementById('registerConfirmPassword').value;
+        if (pass1 !== pass2) return alert('Hasła nie są identyczne!');
+        try {
+          const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
+          if (name) await updateProfile(user, { displayName: name });
+          await setDoc(doc(db, 'users', user.uid), { name: name || null, email }, { merge: true });
+        } catch (err) {
+          alert(err.message);
+        }
+      });
+
+      async function signInWithGoogleSmart() {
+        const ok = ['http:', 'https:'].includes(location.protocol);
+        if (!ok) return alert('Uruchom stronę przez http/https (nie file://).');
+        try {
+          await signInWithPopup(auth, googleProvider);
+          closeModal(loginModal); closeModal(registerModal);
+          navMenu?.classList.remove('active');
+          mobileAuthC?.setAttribute('style', 'display:none;');
+        } catch (err) {
+          if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
+            await signInWithRedirect(auth, googleProvider);
+          } else {
+            alert(err.message);
+          }
+        }
+      }
+      document.getElementById('googleLoginBtn')?.addEventListener('click', (e) => { e.preventDefault(); signInWithGoogleSmart(); });
+      document.getElementById('googleLoginBtnLogin')?.addEventListener('click', (e) => { e.preventDefault(); signInWithGoogleSmart(); });
+    </script>
+
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <div class="container-main">
+      <!-- Mapa desktop -->
+      <div class="map-container">
+        <div id="map"></div>
+        <div class="map-overlay map-overlay-desktop">
         <button id="clearPlotsBtn" class="btn-overlay">🗑️ Wyczyść punkty</button>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="autoSave" />
@@ -69,10 +336,10 @@
       </div>
     </div>
 
-    <!-- Formularz -->
-    <div class="form-container">
-      <h1 class="text-center mb-3">Dodaj darmowe ogłoszenie</h1>
-      <p class="lead text-center mb-4 d-none d-lg-block">Kliknij na mapę, aby wskazać lokalizację działki</p>
+      <!-- Formularz -->
+      <div class="form-container">
+        <p class="form-heading">Dodaj darmowe ogłoszenie</p>
+        <p class="lead text-center mb-4 d-none d-lg-block">Kliknij na mapę, aby wskazać lokalizację działki</p>
 
       <hr />
 
@@ -141,13 +408,36 @@
     </div>
   </div>
 
-  <!-- Bootstrap + jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap + jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <script>
-    /* ===== PERSISTENCJA FORMULARZA I PUNKTÓW ===== */
-    const FORM_KEY = 'df.form.v1';
+    <!-- Skrypt: menu mobilne (toggle + zamykanie przy zmianie rozmiaru) -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+        const navMenu = document.querySelector('.nav-menu');
+        const mobileAuth = document.getElementById('mobileAuth');
+
+        mobileMenuBtn?.addEventListener('click', function () {
+          navMenu.classList.toggle('active');
+          if (mobileAuth) {
+            mobileAuth.style.display = navMenu.classList.contains('active') ? 'flex' : 'none';
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) {
+            navMenu.classList.remove('active');
+            if (mobileAuth) mobileAuth.style.display = 'none';
+          }
+        });
+      });
+    </script>
+
+    <script>
+      /* ===== PERSISTENCJA FORMULARZA I PUNKTÓW ===== */
+      const FORM_KEY = 'df.form.v1';
     const POINTS_KEY = 'df.points.v1';
     let isLoggedIn = false;
 
