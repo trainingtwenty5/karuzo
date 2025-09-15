@@ -110,6 +110,7 @@ header{
   background:var(--gradient-primary);transition:var(--transition);
 }
 .nav-link:hover::after{width:100%;}
+.nav-link.active::after{width:100%;}
 
 .desktop-add-offer,.mobile-add-offer{
   display:inline-flex;align-items:center;padding:.35rem .7rem;border-radius:6px;
