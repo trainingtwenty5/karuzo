@@ -33,21 +33,21 @@
     </div>
 
     <div class="auth-buttons" id="authButtons">
-      <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
-        <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+      <button class="btn btn-outline-primary btn-sm" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i> Zaloguj się
       </button>
       <button class="btn btn-primary btn-sm" id="registerBtn">
-        <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+        <i class="fas fa-user-plus"></i> Zarejestruj się
       </button>
     </div>
 
     <div class="user-menu" id="userMenu" style="display:none;">
-      <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
-        <i class="fas fa-user me-1"></i> Moje konto
+      <button class="btn btn-outline-primary btn-sm" id="accountBtn">
+        <i class="fas fa-user"></i> Moje konto
       </button>
 
-      <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
-        <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+      <button class="btn btn-secondary btn-sm" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Wyloguj
       </button>
     </div>
   </div>
@@ -61,6 +61,7 @@
     <nav class="desktop-nav">
       <a href="index.html" class="nav-link">Strona główna</a>
       <a href="oferty.html" class="nav-link active">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj ofertę</a>
       <a href="#contact" class="nav-link">Kontakt</a>
     </nav>
 
@@ -268,7 +269,7 @@ window.showConfirmModal = showConfirmModal;
 	  
       <div class="social-login mt-3 text-center">
         <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
-          <i class="fab fa-google me-1"></i> Zaloguj przez Google
+          <i class="fab fa-google"></i> Zaloguj przez Google
         </button>
 
       </div>
@@ -843,7 +844,7 @@ window.showConfirmModal = showConfirmModal;
       userMenu    && (userMenu.style.display   = 'flex');
       userDashboard && (userDashboard.style.display = 'block');
 
-      accountBtn  && (accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${user.displayName || user.email}`);
+      accountBtn  && (accountBtn.innerHTML = `<i class="fas fa-user"></i> ${user.displayName || user.email}`);
       accountBtn  && accountBtn.addEventListener('click', () => {
         location.hash = '#userDashboard';
         userDashboard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
