@@ -302,8 +302,8 @@
       });
 
       async function signInWithGoogleSmart() {
-        const ok = ['http:', 'https:'].includes(location.protocol);
-        if (!ok) return alert('Uruchom stronę przez http/https (nie file://).');
+        const ok = location.protocol === 'https:';
+        if (!ok) return alert('Uruchom stronę przez https (nie file://).');
         try {
           await signInWithPopup(auth, googleProvider);
           closeModal(loginModal); closeModal(registerModal);
