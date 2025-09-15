@@ -2,6 +2,12 @@ body {
   background: var(--light);
 }
 
+/* Na stronie dodaj ukrywamy przycisk dodawania oferty, zachowując układ */
+.desktop-add-offer,
+.mobile-add-offer {
+  visibility: hidden;
+}
+
 /* Toast notifications */
 .toast-container {
   position: fixed;
