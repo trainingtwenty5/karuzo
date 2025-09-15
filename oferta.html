@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grunteo - Szczegóły działki</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+
+  <link rel="stylesheet" href="assets/main.css">
+  <link rel="stylesheet" href="assets/header.css">
+  <link rel="stylesheet" href="assets/oferta.css">
+</head>
+<body class="property-details-page">
+  <div class="top-navbar">
+    <div class="contact-info">
+      <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+      <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+    </div>
+
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-outline-primary btn-sm" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i> Zaloguj się
+      </button>
+      <button class="btn btn-primary btn-sm" id="registerBtn">
+        <i class="fas fa-user-plus"></i> Zarejestruj się
+      </button>
+    </div>
+
+    <div class="user-menu" id="userMenu" style="display:none;">
+      <button class="btn btn-outline-primary btn-sm" id="accountBtn">
+        <i class="fas fa-user"></i> Moje konto
+      </button>
+      <button class="btn btn-secondary btn-sm" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Wyloguj
+      </button>
+    </div>
+  </div>
+
+  <header>
+    <a href="index.html" class="logo">
+      <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png" alt="Grunteo">
+      <span>Grunteo</span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+    </nav>
+
+    <a href="dodaj.html" class="desktop-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <a href="dodaj.html" class="mobile-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <button class="mobile-menu-btn" aria-label="Otwórz menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+      <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+    </nav>
+  </header>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <main class="property-main">
+    <div class="container">
+      <div class="page-state" id="loadingState">Ładuję dane działki...</div>
+      <div class="page-state hidden" id="errorState">
+        <p>Nie udało się wczytać szczegółów tej działki.</p>
+        <a class="btn btn-secondary" href="oferty.html">
+          <i class="fas fa-arrow-left"></i> Powrót do listy ofert
+        </a>
+      </div>
+
+      <section id="propertyContent" class="hidden">
+        <section class="property-hero" aria-labelledby="propertyTitle">
+          <div class="property-heading">
+            <div class="title-group">
+              <h1 id="propertyTitle">Działka</h1>
+              <div class="property-meta">
+                <span class="meta-chip"><i class="fas fa-map-marker-alt"></i> <span id="propertyLocation">Polska</span></span>
+                <span class="meta-chip"><i class="fas fa-ruler-combined"></i> <span id="propertyArea">0 m²</span></span>
+                <span class="meta-chip"><i class="fas fa-layer-group"></i> <span id="propertyType">Rodzaj</span></span>
+                <span class="meta-chip"><i class="fas fa-landmark"></i> <span id="ownershipStatus">Własność</span></span>
+              </div>
+            </div>
+            <div class="price-editor" aria-live="polite">
+              <label for="priceValue">Cena całkowita</label>
+              <div class="price-input">
+                <input type="text" id="priceValue" inputmode="decimal" autocomplete="off">
+                <select id="priceCurrency">
+                  <option value="PLN">PLN</option>
+                  <option value="EUR">EUR</option>
+                </select>
+                <button type="button" id="resetPrice" class="btn btn-secondary btn-sm">Reset</button>
+              </div>
+              <div class="price-meta">
+                <span>cena za m²: <strong id="pricePerSqm">0 zł/m²</strong></span>
+                <span id="priceUpdatedAt">Aktualizacja: —</span>
+              </div>
+            </div>
+          </div>
+          <div class="property-stats">
+            <div class="stat-card">
+              <h4>Numer działki</h4>
+              <p id="plotNumber">—</p>
+            </div>
+            <div class="stat-card">
+              <h4>Numer księgi wieczystej</h4>
+              <p id="landRegister">—</p>
+            </div>
+            <div class="stat-card">
+              <h4>Powierzchnia</h4>
+              <p id="plotAreaStat">—</p>
+            </div>
+            <div class="stat-card">
+              <h4>Status</h4>
+              <p id="plotStatus">—</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="property-layout" id="mapSection">
+          <div class="map-panel">
+            <div class="map-toolbar">
+              <h3>Mapa i lokalizacja</h3>
+              <div class="map-modes" role="group" aria-label="Warstwy mapy">
+                <button class="map-mode-btn active" data-mode="base">Mapa</button>
+                <button class="map-mode-btn" data-mode="mpzp">MPZP</button>
+                <button class="map-mode-btn" data-mode="studium">Studium</button>
+              </div>
+            </div>
+            <div id="propertyMap" role="region" aria-label="Mapa działki"></div>
+            <div class="location-details">
+              <div class="location-card">
+                <h4>Adres</h4>
+                <p id="locationAddress">Dodaj adres działki</p>
+              </div>
+              <div class="location-card">
+                <h4>Dojazd i otoczenie</h4>
+                <p id="locationAccess">Opisz komunikację, dostęp do drogi, najbliższe punkty orientacyjne.</p>
+              </div>
+            </div>
+          </div>
+
+          <aside class="plan-panel">
+            <div class="section-header">
+              <h3>Plan zagospodarowania</h3>
+            </div>
+            <div class="plan-badges" id="planBadges"></div>
+            <div class="plan-info-grid">
+              <dl>
+                <dt>Przeznaczenie</dt>
+                <dd id="planDesignation">Brak informacji</dd>
+              </dl>
+              <dl>
+                <dt>Maks. wysokość</dt>
+                <dd id="planHeight">—</dd>
+              </dl>
+              <dl>
+                <dt>Intensywność zabudowy</dt>
+                <dd id="planIntensity">—</dd>
+              </dl>
+              <dl>
+                <dt>Pow. biologicznie czynna</dt>
+                <dd id="planGreen">—</dd>
+              </dl>
+            </div>
+            <div class="plan-notes" id="planNotes">Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.</div>
+          </aside>
+        </section>
+
+        <section class="utilities-section" aria-labelledby="utilitiesTitle">
+          <div class="section-header">
+            <h2 id="utilitiesTitle">Uzbrojenie terenu</h2>
+            <span style="font-size:0.85rem;color:var(--gray);">Kliknij ikonę, aby zmienić status</span>
+          </div>
+          <div class="utilities-grid" id="utilitiesGrid">
+            <div class="utility-card" data-utility="electricity" data-status="missing">
+              <div class="utility-icon">⚡</div>
+              <div class="utility-content">
+                <h4>Prąd</h4>
+                <div class="utility-status">Brak informacji</div>
+              </div>
+            </div>
+            <div class="utility-card" data-utility="water" data-status="missing">
+              <div class="utility-icon">💧</div>
+              <div class="utility-content">
+                <h4>Woda</h4>
+                <div class="utility-status">Brak informacji</div>
+              </div>
+            </div>
+            <div class="utility-card" data-utility="gas" data-status="missing">
+              <div class="utility-icon">🔥</div>
+              <div class="utility-content">
+                <h4>Gaz</h4>
+                <div class="utility-status">Brak informacji</div>
+              </div>
+            </div>
+            <div class="utility-card" data-utility="sewage" data-status="missing">
+              <div class="utility-icon">♻️</div>
+              <div class="utility-content">
+                <h4>Kanalizacja</h4>
+                <div class="utility-status">Brak informacji</div>
+              </div>
+            </div>
+            <div class="utility-card" data-utility="fiber" data-status="missing">
+              <div class="utility-icon">🌐</div>
+              <div class="utility-content">
+                <h4>Światłowód</h4>
+                <div class="utility-status">Brak informacji</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="gallery-section" aria-labelledby="galleryTitle">
+          <div class="section-header">
+            <h2 id="galleryTitle">Galeria i wizualizacje</h2>
+            <div>
+              <input type="file" id="galleryUpload" accept="image/*" multiple hidden>
+              <button class="btn btn-secondary btn-sm" type="button" id="addGalleryItem">
+                <i class="fas fa-upload"></i> Dodaj pliki
+              </button>
+            </div>
+          </div>
+          <div class="gallery-grid" id="galleryGrid"></div>
+          <div class="empty-gallery" id="galleryEmpty">Dodaj zdjęcia działki, mapy lub wizualizacje planowanej zabudowy.</div>
+        </section>
+
+        <section class="description-section" aria-labelledby="descriptionTitle">
+          <div class="section-header">
+            <h2 id="descriptionTitle">Opis szczegółowy</h2>
+          </div>
+          <div class="description-card">
+            <textarea id="descriptionInput" placeholder="Opisz potencjał działki, dotychczasowe wykorzystanie, plan inwestycji oraz otoczenie."></textarea>
+            <div class="description-highlights">
+              <button type="button" class="highlight-btn" data-highlight="✅ W pobliżu szkoła">✅ W pobliżu szkoła</button>
+              <button type="button" class="highlight-btn" data-highlight="✅ Blisko las">✅ Blisko las</button>
+              <button type="button" class="highlight-btn" data-highlight="✅ Dostępne media">✅ Dostępne media</button>
+              <button type="button" class="highlight-btn" data-highlight="✅ Dojazd asfaltowy">✅ Dojazd asfaltowy</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="tags-section" aria-labelledby="tagsTitle">
+          <div class="section-header">
+            <h2 id="tagsTitle">Parametry dodatkowe</h2>
+          </div>
+          <div class="tags-card">
+            <div class="tags-list" id="tagsList"></div>
+            <div class="tag-form">
+              <input type="text" id="tagInput" placeholder="Dodaj własny znacznik, np. #Budowlana">
+              <button class="btn btn-primary" type="button" id="addTagBtn"><i class="fas fa-plus"></i> Dodaj</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="contact-section" id="contact" aria-labelledby="contactTitle">
+          <div class="section-header">
+            <h2 id="contactTitle">Skontaktuj się</h2>
+          </div>
+          <div class="contact-wrapper">
+            <div class="contact-card">
+              <h3 id="contactName">Właściciel</h3>
+              <div class="contact-details">
+                <span><i class="fas fa-phone"></i> <a href="#" id="contactPhoneLink">Brak numeru</a></span>
+                <span><i class="fas fa-envelope"></i> <a href="#" id="contactEmailLink">Brak adresu</a></span>
+              </div>
+              <div class="contact-actions">
+                <button class="btn btn-secondary" type="button" id="savePlotBtn">
+                  <i class="fas fa-bookmark"></i> Zapisz działkę
+                </button>
+                <button class="btn btn-primary" type="button" id="contactCTA">
+                  <i class="fas fa-comment-dots"></i> Wyślij wiadomość
+                </button>
+              </div>
+            </div>
+            <form class="contact-form" id="contactForm">
+              <div class="form-row">
+                <input type="text" id="inqName" placeholder="Twoje imię" required>
+                <input type="tel" id="inqPhone" placeholder="Telefon (opcjonalnie)">
+              </div>
+              <input type="email" id="inqEmail" placeholder="Adres e-mail" required>
+              <textarea id="inqMessage" placeholder="Twoja wiadomość do właściciela" required></textarea>
+              <button type="submit" class="btn btn-primary">Wyślij zapytanie</button>
+            </form>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navMenu = document.querySelector('.nav-menu');
+      const mobileAuth = document.getElementById('mobileAuth');
+
+      mobileMenuBtn?.addEventListener('click', function () {
+        navMenu.classList.toggle('active');
+        if (mobileAuth) {
+          mobileAuth.style.display = navMenu.classList.contains('active') ? 'flex' : 'none';
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+          navMenu.classList.remove('active');
+          if (mobileAuth) mobileAuth.style.display = 'none';
+        }
+      });
+    });
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = `toast-lite toast-${type}`;
+      wrap.setAttribute('role', 'status');
+      wrap.setAttribute('aria-live', 'polite');
+
+      const icon = {
+        success: '✓',
+        info: 'ℹ',
+        warning: '!',
+        error: '✕'
+      }[type] || 'ℹ';
+
+      wrap.innerHTML = `
+        <div class="toast-icon" aria-hidden="true">${icon}</div>
+        <div class="toast-msg">${message}</div>
+        <button class="toast-close" aria-label="Zamknij">&times;</button>
+      `;
+
+      const close = () => {
+        wrap.classList.remove('show');
+        setTimeout(() => wrap.remove(), 180);
+      };
+
+      wrap.querySelector('.toast-close').addEventListener('click', close);
+      container.appendChild(wrap);
+
+      requestAnimationFrame(() => wrap.classList.add('show'));
+      setTimeout(close, 4000);
+    }
+  </script>
+
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Zaloguj się</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Hasło</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zaloguj się</button>
+      </form>
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+      <div class="form-footer">
+        <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Utwórz konto</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerName">Imię i nazwisko</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Hasło</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="registerConfirmPassword">Potwierdź hasło</label>
+          <input type="password" id="registerConfirmPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zarejestruj się</button>
+      </form>
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtn">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+      <div class="domain-warning" id="domainWarning" style="display:none;">
+        <i class="fas fa-exclamation-triangle"></i>
+        Uwaga: dodaj swoją domenę do listy zaufanych w Firebase, aby logowanie działało poprawnie.
+      </div>
+      <div class="form-footer">
+        <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mapScriptLoader = (() => {
+      let loaded = false;
+      return function loadGoogleMaps() {
+        if (loaded) return;
+        loaded = true;
+        const apiKey = localStorage.getItem('googleMapsApiKey') || 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
+        const script = document.createElement('script');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initPropertyMap`;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      };
+    })();
+    document.addEventListener('DOMContentLoaded', mapScriptLoader);
+  </script>
+
+  <script type="module">
+    import { initializeApp, getApp, getApps } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+    import {
+      getFirestore, doc, getDoc
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+    import {
+      getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+      updateProfile, signOut, GoogleAuthProvider, signInWithPopup, setPersistence,
+      browserLocalPersistence, browserSessionPersistence
+    } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: 'AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE',
+      authDomain: 'base-468e0.firebaseapp.com',
+      projectId: 'base-468e0',
+      storageBucket: 'base-468e0.firebasestorage.app',
+      messagingSenderId: '829161895559',
+      appId: '1:829161895559:web:d832541aac05b35847ea22'
+    };
+
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    auth.languageCode = 'pl';
+
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+    } catch (err) {
+      try {
+        await setPersistence(auth, browserSessionPersistence);
+      } catch (_) {}
+    }
+
+    const state = {
+      offerId: null,
+      plotIndex: 0,
+      offerData: null,
+      plotData: null,
+      favorites: new Set(),
+      tags: []
+    };
+
+    window.__propertyPage = {
+      mapData: null,
+      mapInstance: null,
+      polygon: null,
+      marker: null,
+      overlays: {},
+      activeMode: 'base'
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const offerId = params.get('id');
+    const plotIndex = Number(params.get('plot') || '0');
+    state.offerId = offerId;
+    state.plotIndex = Number.isNaN(plotIndex) ? 0 : plotIndex;
+
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+    const contentSection = document.getElementById('propertyContent');
+    const priceInput = document.getElementById('priceValue');
+    const priceCurrency = document.getElementById('priceCurrency');
+    const resetPriceBtn = document.getElementById('resetPrice');
+    const pricePerSqmEl = document.getElementById('pricePerSqm');
+    const priceUpdatedAt = document.getElementById('priceUpdatedAt');
+    const galleryGrid = document.getElementById('galleryGrid');
+    const galleryEmpty = document.getElementById('galleryEmpty');
+    const galleryUpload = document.getElementById('galleryUpload');
+    const tagsList = document.getElementById('tagsList');
+    const tagInput = document.getElementById('tagInput');
+    const addTagBtn = document.getElementById('addTagBtn');
+    const descriptionInput = document.getElementById('descriptionInput');
+    const highlights = document.querySelectorAll('.highlight-btn');
+    const utilitiesGrid = document.getElementById('utilitiesGrid');
+    const mapModeButtons = document.querySelectorAll('.map-mode-btn');
+    const contactForm = document.getElementById('contactForm');
+    const contactCTA = document.getElementById('contactCTA');
+    const savePlotBtn = document.getElementById('savePlotBtn');
+    const addGalleryBtn = document.getElementById('addGalleryItem');
+
+    function toggleState(showContent) {
+      loadingState.classList.toggle('hidden', showContent || errorState.classList.contains('hidden') === false);
+      contentSection.classList.toggle('hidden', !showContent);
+    }
+
+    function showError(message = 'Nie udało się wczytać szczegółów tej działki.') {
+      loadingState.classList.add('hidden');
+      contentSection.classList.add('hidden');
+      errorState.classList.remove('hidden');
+      errorState.querySelector('p').textContent = message;
+    }
+
+    function formatNumber(value, options = {}) {
+      if (value === null || value === undefined || value === '') return '';
+      const number = Number(value);
+      if (Number.isNaN(number)) return String(value);
+      return number.toLocaleString('pl-PL', options);
+    }
+
+    function formatPhone(phone) {
+      const digits = String(phone || '').replace(/\D/g, '');
+      if (digits.length === 9) {
+        return `+48 ${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`;
+      }
+      if (digits.length === 11 && digits.startsWith('48')) {
+        return `+48 ${digits.slice(2,5)}-${digits.slice(5,8)}-${digits.slice(8)}`;
+      }
+      return phone || '';
+    }
+
+    function normalizeStatus(value) {
+      if (!value) return 'missing';
+      const normalized = String(value).toLowerCase();
+      if (['dostepne', 'dostępne', 'available', 'tak', 'yes', 'jest', 'podlaczona', 'podłączona'].some(v => normalized.includes(v))) {
+        return 'available';
+      }
+      if (['w drodze', 'planowane', 'planned', 'projekt', 'w trakcie'].some(v => normalized.includes(v))) {
+        return 'planned';
+      }
+      if (['brak', 'nie', 'none'].some(v => normalized.includes(v))) {
+        return 'missing';
+      }
+      return 'missing';
+    }
+
+    function renderUtilities(data = {}) {
+      const defaultUtilities = {
+        electricity: data.electricity ?? data.power ?? data.prad,
+        water: data.water ?? data.woda,
+        gas: data.gas ?? data.gaz,
+        sewage: data.sewage ?? data.kanalizacja,
+        fiber: data.fiber ?? data.internet ?? data.swiatlowod
+      };
+
+      utilitiesGrid.querySelectorAll('.utility-card').forEach(card => {
+        const key = card.getAttribute('data-utility');
+        const status = normalizeStatus(defaultUtilities[key]);
+        card.dataset.status = status;
+        card.querySelector('.utility-status').textContent = {
+          available: 'Dostępne',
+          planned: 'W drodze',
+          missing: 'Brak'
+        }[status] || 'Brak informacji';
+      });
+    }
+
+    function cycleUtility(card) {
+      const order = ['missing', 'planned', 'available'];
+      const current = card.dataset.status || 'missing';
+      const next = order[(order.indexOf(current) + 1) % order.length];
+      card.dataset.status = next;
+      card.querySelector('.utility-status').textContent = {
+        available: 'Dostępne',
+        planned: 'W drodze',
+        missing: 'Brak'
+      }[next];
+      showToast(`Zmieniono status: ${card.querySelector('h4').textContent} → ${card.querySelector('.utility-status').textContent}`, 'info');
+    }
+
+    utilitiesGrid?.addEventListener('click', (event) => {
+      const card = event.target.closest('.utility-card');
+      if (!card) return;
+      cycleUtility(card);
+    });
+
+    function renderTags(tags = []) {
+      state.tags = Array.from(new Set(tags.filter(Boolean)));
+      tagsList.innerHTML = '';
+      if (!state.tags.length) {
+        const defaults = ['#Budowlana', '#Dostępne-media', '#Dojazd-asfaltowy'];
+        state.tags = [...defaults];
+      }
+      state.tags.forEach(tag => {
+        const el = document.createElement('span');
+        el.className = 'tag-chip';
+        el.innerHTML = `${tag}<button type="button" aria-label="Usuń znacznik">&times;</button>`;
+        el.querySelector('button').addEventListener('click', () => {
+          state.tags = state.tags.filter(t => t !== tag);
+          renderTags(state.tags);
+        });
+        tagsList.appendChild(el);
+      });
+    }
+
+    addTagBtn?.addEventListener('click', () => {
+      const value = tagInput.value.trim();
+      if (!value) {
+        showToast('Podaj nazwę znacznika.', 'warning');
+        return;
+      }
+      if (!value.startsWith('#')) {
+        state.tags.push(`#${value}`);
+      } else {
+        state.tags.push(value);
+      }
+      renderTags(state.tags);
+      tagInput.value = '';
+    });
+
+    tagInput?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addTagBtn.click();
+      }
+    });
+
+    highlights.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const text = btn.getAttribute('data-highlight');
+        if (!text) return;
+        const current = descriptionInput.value.trim();
+        descriptionInput.value = current ? `${current}\n${text}` : text;
+        showToast('Dodano wyróżnienie do opisu.', 'success');
+      });
+    });
+
+    addGalleryBtn?.addEventListener('click', () => galleryUpload?.click());
+
+    galleryUpload?.addEventListener('change', (event) => {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+      const promises = files.map(file => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, src: reader.result });
+        reader.readAsDataURL(file);
+      }));
+
+      Promise.all(promises).then(results => {
+        const images = (state.gallery || []).concat(results);
+        renderGallery(images);
+        state.gallery = images;
+        showToast('Dodano pliki do galerii (podgląd lokalny).', 'info');
+      });
+    });
+
+    function renderGallery(images = []) {
+      galleryGrid.innerHTML = '';
+      if (!images.length) {
+        galleryEmpty.classList.remove('hidden');
+        return;
+      }
+      galleryEmpty.classList.add('hidden');
+      images.forEach(img => {
+        const item = document.createElement('div');
+        item.className = 'gallery-item';
+        item.innerHTML = `
+          <img src="${img.src}" alt="Zdjęcie działki">
+          <div class="caption">${img.caption || img.name || 'Dodane zdjęcie'}</div>
+        `;
+        galleryGrid.appendChild(item);
+      });
+    }
+
+    function parseGeometry(geometryString) {
+      const coords = [];
+      if (!geometryString) return coords;
+      try {
+        proj4.defs('EPSG:2180', '+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +units=m +no_defs');
+        const match = geometryString.match(/\(\(([^)]+)\)\)/);
+        if (!match) return coords;
+        const points = match[1].split(',');
+        points.forEach(point => {
+          const [xStr, yStr] = point.trim().split(' ');
+          const x = parseFloat(xStr);
+          const y = parseFloat(yStr);
+          if (!Number.isNaN(x) && !Number.isNaN(y)) {
+            const [lng, lat] = proj4('EPSG:2180', 'WGS84', [x, y]);
+            coords.push({ lat, lng });
+          }
+        });
+      } catch (error) {
+        console.error('Błąd parsowania geometrii', error);
+      }
+      return coords;
+    }
+
+    function geometryCenter(coords = []) {
+      if (!coords.length) return null;
+      const sum = coords.reduce((acc, c) => {
+        acc.lat += c.lat;
+        acc.lng += c.lng;
+        return acc;
+      }, { lat: 0, lng: 0 });
+      return { lat: sum.lat / coords.length, lng: sum.lng / coords.length };
+    }
+
+    function updateMapData(plot) {
+      const coords = parseGeometry(plot.geometry_uldk || plot.geometry || plot.geom);
+      let center = null;
+      if (plot.lat && plot.lng) {
+        center = { lat: Number(plot.lat), lng: Number(plot.lng) };
+      } else if (coords.length) {
+        center = geometryCenter(coords);
+      }
+
+      window.__propertyPage.mapData = {
+        center,
+        coords,
+        zoom: plot.zoom ? Number(plot.zoom) : 17,
+        title: plot.Id || plot.title || 'Działka',
+        area: plot.pow_dzialki_m2_uldk || plot.area || plot.areaM2
+      };
+
+      if (window.google?.maps && typeof window.initPropertyMap === 'function') {
+        window.initPropertyMap();
+      }
+    }
+
+    window.initPropertyMap = function initPropertyMap() {
+      const ctx = window.__propertyPage;
+      const mapContainer = document.getElementById('propertyMap');
+      if (!mapContainer || !window.google?.maps || !ctx?.mapData) return;
+
+      if (!ctx.mapInstance) {
+        ctx.mapInstance = new google.maps.Map(mapContainer, {
+          center: ctx.mapData.center || { lat: 52.0, lng: 19.0 },
+          zoom: ctx.mapData.center ? ctx.mapData.zoom : 6,
+          mapTypeId: google.maps.MapTypeId.HYBRID,
+          gestureHandling: 'greedy'
+        });
+      } else if (ctx.mapData.center) {
+        ctx.mapInstance.setCenter(ctx.mapData.center);
+        ctx.mapInstance.setZoom(ctx.mapData.zoom || 17);
+      }
+
+      const map = ctx.mapInstance;
+      if (ctx.marker) {
+        ctx.marker.setMap(null);
+        ctx.marker = null;
+      }
+      if (ctx.mapData.center) {
+        ctx.marker = new google.maps.Marker({
+          position: ctx.mapData.center,
+          map,
+          title: ctx.mapData.title || 'Działka'
+        });
+      }
+
+      if (ctx.polygon) {
+        ctx.polygon.setMap(null);
+        ctx.polygon = null;
+      }
+      if (ctx.mapData.coords?.length) {
+        ctx.polygon = new google.maps.Polygon({
+          paths: ctx.mapData.coords,
+          strokeColor: '#1e6fba',
+          strokeOpacity: 0.9,
+          strokeWeight: 3,
+          fillColor: '#1e6fba',
+          fillOpacity: 0.18,
+          map
+        });
+        const bounds = new google.maps.LatLngBounds();
+        ctx.mapData.coords.forEach(c => bounds.extend(c));
+        map.fitBounds(bounds, 60);
+      }
+
+      applyMapMode(ctx.activeMode || 'base');
+    };
+
+    function createWmsOverlay(url, layerName, opacity = 0.6) {
+      return new google.maps.ImageMapType({
+        getTileUrl: function(coord, zoom) {
+          const proj = window.__propertyPage.mapInstance.getProjection();
+          const zfactor = Math.pow(2, zoom);
+          const ul = proj.fromPointToLatLng(new google.maps.Point(coord.x * 256 / zfactor, coord.y * 256 / zfactor));
+          const lr = proj.fromPointToLatLng(new google.maps.Point((coord.x + 1) * 256 / zfactor, (coord.y + 1) * 256 / zfactor));
+          const bbox = `${ul.lng()},${lr.lat()},${lr.lng()},${ul.lat()}`;
+          return `${url}?service=WMS&version=1.1.1&request=GetMap&layers=${layerName}&styles=&bbox=${bbox}&width=256&height=256&srs=EPSG:4326&format=image/png&transparent=true`;
+        },
+        tileSize: new google.maps.Size(256, 256),
+        opacity,
+        name: layerName
+      });
+    }
+
+    function applyMapMode(mode) {
+      const ctx = window.__propertyPage;
+      if (!ctx) return;
+      ctx.activeMode = mode;
+
+      mapModeButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+
+      if (!ctx.mapInstance) return;
+      ctx.mapInstance.overlayMapTypes.clear();
+
+      if (mode === 'mpzp') {
+        if (!ctx.overlays.mpzp && window.google?.maps) {
+          ctx.overlays.mpzp = createWmsOverlay('https://mapy.geoportal.gov.pl/wss/service/pub/guest/G2_UPZP/MapServer/WMSServer', '0');
+        }
+        if (ctx.overlays.mpzp) ctx.mapInstance.overlayMapTypes.push(ctx.overlays.mpzp);
+      } else if (mode === 'studium') {
+        if (!ctx.overlays.studium && window.google?.maps) {
+          ctx.overlays.studium = createWmsOverlay('https://mapy.geoportal.gov.pl/wss/service/pub/guest/G2_SUIPP/MapServer/WMSServer', '0', 0.55);
+        }
+        if (ctx.overlays.studium) ctx.mapInstance.overlayMapTypes.push(ctx.overlays.studium);
+      }
+    }
+
+    mapModeButtons.forEach(btn => {
+      btn.addEventListener('click', () => applyMapMode(btn.dataset.mode));
+    });
+
+    function renderPlanInfo(offer, plot) {
+      const plan = plot.plan || plot.mpzp || offer?.plan || {};
+      const designation = plan.designation || plan.przeznaczenie || plot.mpzp_przeznaczenie || 'Brak informacji';
+      const height = plan.maxHeight || plan.wysokosc || plan.wysokość || '—';
+      const intensity = plan.intensity || plan.intensywnosc || plan.intensywność || '—';
+      const green = plan.green || plan.bio || plan.powierzchniaBiologicznieCzynna || '—';
+      const notes = plan.notes || plan.opis || plot.planOpis || offer?.planNotes;
+      const badges = [];
+      if (plan.type) badges.push(plan.type);
+      if (plan.symbol) badges.push(plan.symbol);
+      if (!badges.length && designation && designation !== 'Brak informacji') badges.push('MPZP');
+      if (!badges.length && (offer?.studium || plan.studium)) badges.push('Studium');
+
+      document.getElementById('planDesignation').textContent = designation;
+      document.getElementById('planHeight').textContent = height;
+      document.getElementById('planIntensity').textContent = intensity;
+      document.getElementById('planGreen').textContent = green;
+      document.getElementById('planNotes').textContent = notes || 'Dodaj notatki dotyczące przeznaczenia terenu i ograniczeń zabudowy.';
+
+      const badgesWrap = document.getElementById('planBadges');
+      badgesWrap.innerHTML = '';
+      (badges.length ? badges : ['Brak MPZP - obowiązuje Studium']).forEach(item => {
+        const el = document.createElement('span');
+        el.className = 'plan-badge';
+        el.textContent = item;
+        badgesWrap.appendChild(el);
+      });
+    }
+
+    function renderBasics(offer, plot) {
+      document.getElementById('propertyTitle').textContent = plot.title || plot.Id || offer.title || 'Oferta działki';
+      const city = plot.city || offer.city || offer.location?.city || 'Polska';
+      const municipality = plot.municipality || offer.location?.gmina;
+      const voivodeship = plot.voivodeship || offer.location?.voivodeship;
+      const locationParts = [city, municipality, voivodeship].filter(Boolean);
+      document.getElementById('propertyLocation').textContent = locationParts.join(', ') || city;
+
+      const area = Number(plot.pow_dzialki_m2_uldk || plot.area || plot.areaM2 || offer.area || 0);
+      document.getElementById('propertyArea').textContent = area ? `${formatNumber(area)} m²` : '—';
+      document.getElementById('plotAreaStat').textContent = area ? `${formatNumber(area)} m²` : '—';
+
+      const type = plot.plotType || plot.type || plot.category || offer.category || 'Brak danych';
+      document.getElementById('propertyType').textContent = type;
+
+      const ownership = plot.ownershipStatus || plot.ownership || offer.ownership || 'Brak informacji';
+      document.getElementById('ownershipStatus').textContent = ownership;
+      document.getElementById('plotStatus').textContent = plot.status || offer.status || 'Aktywna';
+
+      const plotNumber = plot.Id || plot.idDzialki_uldk || plot.number || '—';
+      document.getElementById('plotNumber').textContent = plotNumber;
+
+      const kw = plot.landRegister || plot.kw || plot.kwNumber || offer.landRegister || '—';
+      document.getElementById('landRegister').textContent = kw;
+
+      const addressParts = [plot.street || offer.location?.street, city, plot.postalCode || offer.location?.postalCode, voivodeship];
+      const address = (plot.address || offer.address || addressParts.filter(Boolean).join(', ') || 'Dodaj adres działki');
+      document.getElementById('locationAddress').textContent = address;
+
+      const access = plot.access || plot.roadAccess || offer.access || offer.accessDescription;
+      document.getElementById('locationAccess').textContent = access || 'Opisz dojazd do działki oraz okoliczne udogodnienia.';
+
+      const description = plot.description || offer.description || '';
+      descriptionInput.value = description;
+
+      const gallerySources = [];
+      const fromPlot = plot.gallery || plot.photos || plot.images;
+      const fromOffer = offer.gallery || offer.images;
+      if (Array.isArray(fromPlot)) gallerySources.push(...fromPlot);
+      if (Array.isArray(fromOffer)) gallerySources.push(...fromOffer);
+      const normalizedGallery = gallerySources.map(src => typeof src === 'string' ? { src } : src).filter(Boolean);
+      state.gallery = normalizedGallery;
+      renderGallery(normalizedGallery);
+
+      const tags = [];
+      if (Array.isArray(plot.tags)) tags.push(...plot.tags);
+      if (Array.isArray(offer.tags)) tags.push(...offer.tags);
+      renderTags(tags);
+
+      const utilities = plot.utilities || offer.utilities || plot.media || offer.media || {};
+      renderUtilities(utilities);
+
+      const price = plot.price ?? offer.price ?? '';
+      if (priceInput) priceInput.value = price ? formatNumber(price) : '';
+      if (plot.currency || offer.currency) priceCurrency.value = (plot.currency || offer.currency).toUpperCase();
+      updatePricePerSqm();
+
+      const updatedAt = plot.updatedAt || offer.updatedAt;
+      if (updatedAt) {
+        const date = updatedAt.toDate ? updatedAt.toDate() : new Date(updatedAt);
+        priceUpdatedAt.textContent = `Aktualizacja: ${date.toLocaleDateString('pl-PL')}`;
+      } else {
+        priceUpdatedAt.textContent = 'Aktualizacja: —';
+      }
+
+      renderPlanInfo(offer, plot);
+      updateMapData(plot);
+      updateContactSection(offer);
+    }
+
+    function updatePricePerSqm() {
+      if (!priceInput) return;
+      const raw = priceInput.value.replace(/\s/g, '').replace(',', '.');
+      const price = Number(raw);
+      const area = Number(state.plotData?.pow_dzialki_m2_uldk || state.plotData?.area || state.plotData?.areaM2 || 0);
+      if (!price || !area) {
+        pricePerSqmEl.textContent = '0 zł/m²';
+        return;
+      }
+      const perSqm = Math.round(price / area);
+      pricePerSqmEl.textContent = `${formatNumber(perSqm)} ${priceCurrency.value}/m²`;
+    }
+
+    priceInput?.addEventListener('input', () => {
+      const cleaned = priceInput.value.replace(/[^0-9,\.]/g, '');
+      priceInput.value = cleaned.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1 ');
+      updatePricePerSqm();
+    });
+
+    priceCurrency?.addEventListener('change', updatePricePerSqm);
+
+    resetPriceBtn?.addEventListener('click', () => {
+      if (!state.plotData) return;
+      const originalPrice = state.plotData.price || state.offerData.price || '';
+      priceInput.value = originalPrice ? formatNumber(originalPrice) : '';
+      priceCurrency.value = (state.plotData.currency || state.offerData.currency || 'PLN').toUpperCase();
+      updatePricePerSqm();
+      showToast('Przywrócono pierwotną cenę z ogłoszenia.', 'info');
+    });
+
+    function updateContactSection(offer) {
+      const name = offer.owner || offer.firstName || offer.contactName || 'Właściciel';
+      const phone = offer.phone || offer.contactPhone || '';
+      const email = offer.email || offer.contactEmail || '';
+      document.getElementById('contactName').textContent = name;
+
+      const phoneLink = document.getElementById('contactPhoneLink');
+      const formattedPhone = formatPhone(phone);
+      if (phone) {
+        phoneLink.textContent = formattedPhone;
+        phoneLink.href = `tel:${phone.replace(/\s/g, '')}`;
+      } else {
+        phoneLink.textContent = 'Brak numeru';
+        phoneLink.href = '#';
+      }
+
+      const emailLink = document.getElementById('contactEmailLink');
+      if (email) {
+        emailLink.textContent = email;
+        emailLink.href = `mailto:${email}`;
+      } else {
+        emailLink.textContent = 'Brak adresu';
+        emailLink.href = '#';
+      }
+    }
+
+    contactForm?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      showToast('Wiadomość została zapisana lokalnie. Skontaktujemy się z Tobą wkrótce.', 'success');
+      contactForm.reset();
+    });
+
+    contactCTA?.addEventListener('click', () => {
+      document.getElementById('inqMessage')?.focus();
+      showToast('Wypełnij formularz, aby przesłać zapytanie.', 'info');
+    });
+
+    const FAVORITES_KEY = 'savedPlots';
+    try {
+      const stored = JSON.parse(localStorage.getItem(FAVORITES_KEY) || '[]');
+      state.favorites = new Set(Array.isArray(stored) ? stored : []);
+    } catch (_) {
+      state.favorites = new Set();
+    }
+
+    function favoriteKey(id, index) {
+      return `${id}__${index}`;
+    }
+
+    function updateFavoriteButton() {
+      if (!state.offerId) return;
+      const key = favoriteKey(state.offerId, state.plotIndex);
+      const saved = state.favorites.has(key);
+      savePlotBtn.classList.toggle('btn-secondary', !saved);
+      savePlotBtn.classList.toggle('btn-accent', saved);
+      savePlotBtn.innerHTML = saved
+        ? '<i class="fas fa-bookmark"></i> Zapisano'
+        : '<i class="fas fa-bookmark"></i> Zapisz działkę';
+    }
+
+    savePlotBtn?.addEventListener('click', () => {
+      if (!state.offerId) return;
+      const key = favoriteKey(state.offerId, state.plotIndex);
+      if (state.favorites.has(key)) {
+        state.favorites.delete(key);
+        showToast('Usunięto działkę z zapisanych.', 'info');
+      } else {
+        state.favorites.add(key);
+        showToast('Dodano działkę do zapisanych.', 'success');
+      }
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(state.favorites)));
+      updateFavoriteButton();
+    });
+
+    async function loadOfferDetails() {
+      if (!offerId) {
+        showError('Brak identyfikatora oferty.');
+        return;
+      }
+      try {
+        const ref = doc(db, 'propertyListings', offerId);
+        const snapshot = await getDoc(ref);
+        if (!snapshot.exists()) {
+          showError('Nie znaleziono wskazanej oferty.');
+          return;
+        }
+        const offer = snapshot.data();
+        const plots = Array.isArray(offer.plots)
+          ? offer.plots
+              .map((plot, originalIndex) => ({ plot, originalIndex }))
+              .filter(({ plot }) => plot?.mock !== false)
+          : [];
+        if (!plots.length) {
+          showError('Oferta nie posiada aktywnych działek.');
+          return;
+        }
+        const selected = plots.find(p => p.originalIndex === state.plotIndex) || plots[0];
+        state.offerData = offer;
+        state.plotData = selected.plot;
+        state.plotIndex = selected.originalIndex;
+        toggleState(true);
+        renderBasics(offer, selected.plot);
+        updateFavoriteButton();
+      } catch (error) {
+        console.error(error);
+        showError('Wystąpił problem podczas pobierania danych.');
+      }
+    }
+
+    await loadOfferDetails();
+
+    function setupAuthUI() {
+      const authButtons = document.getElementById('authButtons');
+      const userMenu = document.getElementById('userMenu');
+      const loginBtn = document.getElementById('loginBtn');
+      const registerBtn = document.getElementById('registerBtn');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const accountBtn = document.getElementById('accountBtn');
+      const loginModal = document.getElementById('loginModal');
+      const registerModal = document.getElementById('registerModal');
+      const loginForm = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const closeBtns = document.querySelectorAll('.modal-close');
+      const switchToRegister = document.getElementById('switchToRegister');
+      const switchToLogin = document.getElementById('switchToLogin');
+      const googleLoginBtn = document.getElementById('googleLoginBtn');
+      const googleLoginBtnLogin = document.getElementById('googleLoginBtnLogin');
+      const domainWarning = document.getElementById('domainWarning');
+
+      const allowedDomains = ['localhost', '127.0.0.1', 'trainingtwenty5.github.io', 'twojadomena.pl'];
+      if (domainWarning && !allowedDomains.includes(window.location.hostname)) {
+        domainWarning.style.display = 'block';
+      }
+
+      const openModal = (modal) => modal && (modal.style.display = 'flex');
+      const closeModal = (modal) => modal && (modal.style.display = 'none');
+
+      loginBtn?.addEventListener('click', () => openModal(loginModal));
+      registerBtn?.addEventListener('click', () => openModal(registerModal));
+      closeBtns.forEach(btn => btn.addEventListener('click', () => closeModal(btn.closest('.modal'))));
+      window.addEventListener('click', (event) => {
+        if (event.target.classList?.contains('modal')) closeModal(event.target);
+      });
+
+      switchToRegister?.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeModal(loginModal);
+        openModal(registerModal);
+      });
+      switchToLogin?.addEventListener('click', (event) => {
+        event.preventDefault();
+        closeModal(registerModal);
+        openModal(loginModal);
+      });
+
+      const provider = new GoogleAuthProvider();
+
+      async function loginWithGoogle() {
+        try {
+          await signInWithPopup(auth, provider);
+          showToast('Zalogowano przez Google.', 'success');
+          closeModal(loginModal);
+          closeModal(registerModal);
+        } catch (error) {
+          showToast(error.message || 'Nie udało się zalogować przez Google.', 'error');
+        }
+      }
+
+      googleLoginBtn?.addEventListener('click', loginWithGoogle);
+      googleLoginBtnLogin?.addEventListener('click', loginWithGoogle);
+
+      loginForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value;
+        try {
+          await signInWithEmailAndPassword(auth, email, password);
+          showToast('Zalogowano pomyślnie.', 'success');
+          closeModal(loginModal);
+        } catch (error) {
+          showToast('Logowanie nieudane: ' + (error?.message || ''), 'error');
+        }
+      });
+
+      registerForm?.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const name = document.getElementById('registerName').value.trim();
+        const email = document.getElementById('registerEmail').value.trim();
+        const password = document.getElementById('registerPassword').value;
+        const confirm = document.getElementById('registerConfirmPassword').value;
+        if (password !== confirm) {
+          showToast('Hasła nie są identyczne.', 'warning');
+          return;
+        }
+        try {
+          const userCred = await createUserWithEmailAndPassword(auth, email, password);
+          if (name) await updateProfile(userCred.user, { displayName: name });
+          showToast('Konto utworzono pomyślnie.', 'success');
+          closeModal(registerModal);
+        } catch (error) {
+          showToast('Rejestracja nie powiodła się: ' + (error?.message || ''), 'error');
+        }
+      });
+
+      logoutBtn?.addEventListener('click', async () => {
+        try {
+          await signOut(auth);
+          showToast('Wylogowano.', 'info');
+        } catch (error) {
+          console.error(error);
+        }
+      });
+
+      onAuthStateChanged(auth, (user) => {
+        const mobileAuth = document.getElementById('mobileAuth');
+        if (user) {
+          authButtons.style.display = 'none';
+          userMenu.style.display = 'flex';
+          const label = user.displayName ? user.displayName.split(' ')[0] : (user.email || 'Użytkownik');
+          if (accountBtn) accountBtn.textContent = label;
+          if (mobileAuth) {
+            mobileAuth.innerHTML = `
+              <div class="nav-link" style="font-weight:600;">
+                <i class="fas fa-user"></i> ${label}
+              </div>
+              <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
+                <i class="fas fa-sign-out-alt"></i> Wyloguj się
+              </button>
+            `;
+            document.getElementById('mobileLogoutBtn')?.addEventListener('click', async () => {
+              await signOut(auth);
+              mobileAuth.style.display = 'none';
+            });
+          }
+        } else {
+          authButtons.style.display = 'flex';
+          userMenu.style.display = 'none';
+          if (accountBtn) accountBtn.textContent = 'Moje konto';
+          if (mobileAuth) {
+            mobileAuth.innerHTML = `
+              <a href="#" id="mobileLoginLink" class="nav-link">Zaloguj się</a>
+              <a href="#" id="mobileRegisterLink" class="nav-link">Zarejestruj się</a>
+            `;
+            mobileAuth.querySelector('#mobileLoginLink')?.addEventListener('click', (e) => {
+              e.preventDefault();
+              openModal(loginModal);
+            });
+            mobileAuth.querySelector('#mobileRegisterLink')?.addEventListener('click', (e) => {
+              e.preventDefault();
+              openModal(registerModal);
+            });
+          }
+        }
+      });
+    }
+
+    setupAuthUI();
+  </script>
+</body>
+</html>
