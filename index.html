@@ -479,7 +479,7 @@ window.showConfirmModal = showConfirmModal;
     // --- Konfiguracja ---
     const firebaseConfig = {
       apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
-      authDomain: "base-468e0.firebaseapp.com",
+      authDomain: "grunteo.pl",
       projectId: "base-468e0",
       storageBucket: "base-468e0.firebasestorage.app",
       messagingSenderId: "829161895559",
@@ -640,7 +640,7 @@ window.showConfirmModal = showConfirmModal;
         case 'auth/unauthorized-domain':       return `Domena ${location.hostname} nie jest autoryzowana w Firebase (Authentication → Authorized domains).`;
         case 'auth/popup-blocked':             return 'Przeglądarka zablokowała okno logowania Google. Użyj przekierowania.';
         case 'auth/operation-not-supported-in-this-environment':
-                                               return 'To środowisko nie wspiera popup (np. file://). Uruchom przez http/https.';
+                                               return 'To środowisko nie wspiera popup (np. file://). Uruchom przez https.';
         default: return `Błąd: ${code || (err?.message || 'nieznany')}`;
       }
     };
@@ -680,8 +680,8 @@ window.showConfirmModal = showConfirmModal;
 
     // Google
     async function signInWithGoogleSmart() {
-      const ok = ['http:', 'https:'].includes(location.protocol);
-      if (!ok) return alert('Uruchom stronę przez http/https (nie file://).');
+      const ok = location.protocol === 'https:';
+      if (!ok) return alert('Uruchom stronę przez https (nie file://).');
       try {
         await signInWithPopup(auth, googleProvider);
         closeModal(loginModal); closeModal(registerModal);
