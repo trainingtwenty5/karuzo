@@ -107,6 +107,41 @@ a{color:var(--primary);text-decoration:none;transition:var(--transition);}
 .offer-actions{display:flex;gap:.5rem;}
 .offer-actions.center{justify-content:center;}
 
+/* ====== Home page offers grid (chessboard layout) ====== */
+body.home-page .offers-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:1.5rem;
+  align-items:stretch;
+  grid-auto-rows:1fr;
+}
+
+@media (min-width:768px){
+  body.home-page .offers-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+body.home-page .offer-card{
+  margin-bottom:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  border:1px solid #e5effa;
+}
+
+body.home-page .offer-card .offer-actions{
+  margin-top:auto;
+}
+
+@media (min-width:768px){
+  body.home-page .offer-card:nth-child(4n+2),
+  body.home-page .offer-card:nth-child(4n+3){
+    background:#f5f9ff;
+    border-color:#dbe8f7;
+  }
+}
+
 /* ====== Hero ====== */
 .hero{
   padding:calc(var(--topbar-height) + var(--header-height) + 20px) 0 2.5rem;
