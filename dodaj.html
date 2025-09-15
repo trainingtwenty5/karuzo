@@ -53,14 +53,69 @@
   <link rel="stylesheet" href="assets/dodaj.css">
 </head>
 
-<body onload="loadGoogleMaps()">
-  <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+  <body onload="loadGoogleMaps()">
+    <!-- Top Navbar (desktop) -->
+    <div class="top-navbar">
+      <div class="contact-info">
+        <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+        <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+      </div>
 
-  <div class="container-main">
-    <!-- Mapa desktop -->
-    <div class="map-container">
-      <div id="map"></div>
-      <div class="map-overlay map-overlay-desktop">
+      <div class="auth-buttons" id="authButtons">
+        <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
+          <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+        </button>
+        <button class="btn btn-primary btn-sm" id="registerBtn">
+          <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+        </button>
+      </div>
+
+      <div class="user-menu" id="userMenu" style="display:none;">
+        <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
+          <i class="fas fa-user me-1"></i> Moje konto
+        </button>
+        <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
+          <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+        </button>
+      </div>
+    </div>
+
+    <!-- Header + Nawigacja -->
+    <header>
+      <a href="index.html" class="logo">
+        <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png" alt="Grunteo">
+        <span>Grunteo</span>
+      </a>
+
+      <nav class="desktop-nav">
+        <a href="index.html" class="nav-link">Strona główna</a>
+        <a href="oferty.html" class="nav-link">Oferty</a>
+        <a href="#contact" class="nav-link">Kontakt</a>
+      </nav>
+
+      <button class="mobile-menu-btn" aria-label="Otwórz menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <nav class="nav-menu">
+        <a href="index.html" class="nav-link">Strona główna</a>
+        <a href="oferty.html" class="nav-link">Oferty</a>
+        <a href="#contact" class="nav-link">Kontakt</a>
+
+        <!-- Miejsce na elementy auth w menu mobilnym -->
+        <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+      </nav>
+    </header>
+
+    <h1 class="text-center mb-3">Dodaj darmowe ogłoszenie</h1>
+
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <div class="container-main">
+      <!-- Mapa desktop -->
+      <div class="map-container">
+        <div id="map"></div>
+        <div class="map-overlay map-overlay-desktop">
         <button id="clearPlotsBtn" class="btn-overlay">🗑️ Wyczyść punkty</button>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="autoSave" />
@@ -69,10 +124,9 @@
       </div>
     </div>
 
-    <!-- Formularz -->
-    <div class="form-container">
-      <h1 class="text-center mb-3">Dodaj darmowe ogłoszenie</h1>
-      <p class="lead text-center mb-4 d-none d-lg-block">Kliknij na mapę, aby wskazać lokalizację działki</p>
+      <!-- Formularz -->
+      <div class="form-container">
+        <p class="lead text-center mb-4 d-none d-lg-block">Kliknij na mapę, aby wskazać lokalizację działki</p>
 
       <hr />
 
@@ -141,13 +195,36 @@
     </div>
   </div>
 
-  <!-- Bootstrap + jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap + jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
-  <script>
-    /* ===== PERSISTENCJA FORMULARZA I PUNKTÓW ===== */
-    const FORM_KEY = 'df.form.v1';
+    <!-- Skrypt: menu mobilne (toggle + zamykanie przy zmianie rozmiaru) -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+        const navMenu = document.querySelector('.nav-menu');
+        const mobileAuth = document.getElementById('mobileAuth');
+
+        mobileMenuBtn?.addEventListener('click', function () {
+          navMenu.classList.toggle('active');
+          if (mobileAuth) {
+            mobileAuth.style.display = navMenu.classList.contains('active') ? 'flex' : 'none';
+          }
+        });
+
+        window.addEventListener('resize', () => {
+          if (window.innerWidth > 768) {
+            navMenu.classList.remove('active');
+            if (mobileAuth) mobileAuth.style.display = 'none';
+          }
+        });
+      });
+    </script>
+
+    <script>
+      /* ===== PERSISTENCJA FORMULARZA I PUNKTÓW ===== */
+      const FORM_KEY = 'df.form.v1';
     const POINTS_KEY = 'df.points.v1';
     let isLoggedIn = false;
 
