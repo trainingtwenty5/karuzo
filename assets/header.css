@@ -7,7 +7,7 @@
 }
 .contact-info{display:flex;align-items:center;gap:1.5rem;font-size:.9rem;}
 .auth-buttons,.user-menu{display:flex;align-items:center;gap:.5rem;}
-.top-navbar .btn-sm{padding:.4rem .8rem;font-size:.8rem;}
+.top-navbar .btn{padding:.4rem .8rem;font-size:.8rem;line-height:1;border-radius:6px;margin:0;}
 
 /* ====== Header + Nav ====== */
 header{

@@ -58,20 +58,20 @@
     </div>
 
     <div class="auth-buttons" id="authButtons">
-      <button class="btn btn-outline-primary btn-sm me-2" id="loginBtn">
-        <i class="fas fa-sign-in-alt me-1"></i> Zaloguj się
+      <button class="btn btn-outline-primary btn-sm" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i> Zaloguj się
       </button>
       <button class="btn btn-primary btn-sm" id="registerBtn">
-        <i class="fas fa-user-plus me-1"></i> Zarejestruj się
+        <i class="fas fa-user-plus"></i> Zarejestruj się
       </button>
     </div>
 
     <div class="user-menu" id="userMenu" style="display:none;">
-      <button class="btn btn-outline-primary btn-sm me-2" id="accountBtn">
-        <i class="fas fa-user me-1"></i> Moje konto
+      <button class="btn btn-outline-primary btn-sm" id="accountBtn">
+        <i class="fas fa-user"></i> Moje konto
       </button>
-      <button class="btn btn-secondary btn-sm ms-2" id="logoutBtn">
-        <i class="fas fa-sign-out-alt me-1"></i> Wyloguj
+      <button class="btn btn-secondary btn-sm" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Wyloguj
       </button>
     </div>
   </div>
@@ -604,7 +604,7 @@ window.showConfirmModal = showConfirmModal;
         userMenu    && (userMenu.style.display = 'flex');
         if (accountBtn) {
           const label = user.displayName || user.email || 'Moje konto';
-          accountBtn.innerHTML = `<i class="fas fa-user me-1"></i> ${label}`;
+          accountBtn.innerHTML = `<i class="fas fa-user"></i> ${label}`;
         }
         userDashboard && (userDashboard.style.display = 'block');
         loadUserOffers(user.email || null, user.uid || null);
