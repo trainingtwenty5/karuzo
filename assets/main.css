@@ -104,7 +104,7 @@ header{
 .logo span{font-size:1.05rem;line-height:1.1;}
 
 .desktop-nav{display:flex;gap:1.5rem;}
-.desktop-nav .nav-link{color:#333;font-weight:500;font-size:.9rem;position:relative;}
+.desktop-nav .nav-link{color:#333;font-weight:500;font-size:.9rem;position:relative;padding:0;}
 .nav-link::after{
   content:'';position:absolute;bottom:-5px;left:0;width:0;height:2px;
   background:var(--gradient-primary);transition:var(--transition);
@@ -135,7 +135,7 @@ header{
   max-height:calc(100vh - var(--nav-top)); /* płynne rozwijanie od headera */
   opacity:1;visibility:visible;
 }
-.nav-menu .nav-link{margin-bottom:.7rem;font-size:.95rem;color:#333;text-decoration:none;}
+.nav-menu .nav-link{margin-bottom:.7rem;font-size:.95rem;color:#333;text-decoration:none;padding:0;}
 .mobile-auth{display:flex;flex-direction:column;gap:1rem;margin-top:1.5rem;border-top:1px solid #eee;padding-top:1.5rem;}
 
 /* ====== Modals ====== */
