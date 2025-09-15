@@ -41,10 +41,27 @@ body {
 #selectedPlots .plot-item button { background: transparent; border: none; color: #c62828; font-size: 1rem; cursor: pointer; transition: var(--transition); }
 #selectedPlots .plot-item button:hover { color: red; transform: scale(1.1); }
 
+
 .privacy-text { margin-top: 1rem; font-size: 0.8rem; color: #555; line-height: 1.4; text-align: justify; }
 
-.btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; font-weight: 600; box-shadow: none; }
-.btn-primary:hover { background: linear-gradient(135deg, var(--secondary), var(--primary)); transform: none; box-shadow: none; }
+.form-heading {
+  font-size: 1.25rem;
+  font-weight: 300;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.form-container .btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  border: none;
+  font-weight: 600;
+  box-shadow: none;
+}
+.form-container .btn-primary:hover {
+  background: linear-gradient(135deg, var(--secondary), var(--primary));
+  transform: none;
+  box-shadow: none;
+}
 
 @media (max-width: 992px) {
   .container-main { flex-direction: column; }
@@ -82,5 +99,10 @@ textarea[readonly], textarea:disabled {
 
 @media (max-width: 992px) {
   .map-overlay-desktop { display: none !important; }
+}
+
+@media (min-width: 768px) {
+  header { justify-content: flex-start; }
+  .desktop-nav { flex: 1; justify-content: center; }
 }
 
