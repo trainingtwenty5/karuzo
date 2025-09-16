@@ -18,8 +18,7 @@ import {
   ensureArray,
   parseNumberFromText,
   syncMobileMenu,
-  setDoc,
-  serverTimestamp
+  setDoc
 } from './property-common.js';
 import {
   signInWithEmailAndPassword,
@@ -554,7 +553,7 @@ function buildFavoriteEntry() {
     contactPhone: contactPhone ? String(contactPhone).trim() : null,
     contactEmail: contactEmail ? String(contactEmail).trim() : null,
     plotNumber: plotNumber ? String(plotNumber).trim() : null,
-    savedAt: serverTimestamp()
+    savedAt: Date.now()
   };
 }
 
