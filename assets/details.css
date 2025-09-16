@@ -483,6 +483,119 @@ main.property-wrapper {
   justify-self: flex-start;
 }
 
+.share-section {
+  margin-bottom: 2.5rem;
+}
+
+.share-card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  padding: 1.6rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.share-description {
+  margin: 0;
+  color: var(--gray);
+  font-size: .95rem;
+}
+
+.share-link-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+}
+
+.share-link-label {
+  font-weight: 600;
+  color: var(--gray);
+}
+
+.share-link-input {
+  flex: 1 1 280px;
+  min-width: 0;
+  padding: .65rem .75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(30,111,186,.2);
+  font-size: .95rem;
+  font-family: inherit;
+  color: var(--darker);
+  background: #f8fbff;
+}
+
+.share-link-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30,111,186,.18);
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .75rem;
+  align-items: center;
+}
+
+.share-actions-label {
+  font-weight: 600;
+  color: var(--gray);
+}
+
+.share-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .55rem;
+}
+
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .55rem 1rem;
+  border-radius: 12px;
+  font-size: .9rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+
+.share-btn i {
+  font-size: 1rem;
+}
+
+.share-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+  opacity: .95;
+}
+
+.share-btn:focus-visible {
+  outline: 3px solid rgba(30,111,186,.45);
+  outline-offset: 2px;
+}
+
+.share-btn.messenger {
+  background: #0084ff;
+}
+
+.share-btn.whatsapp {
+  background: #25d366;
+}
+
+.share-btn.x {
+  background: #1c1e21;
+}
+
+.share-btn.facebook {
+  background: #1877f2;
+}
+
 .toast-container {
   position: fixed;
   top: 16px;
@@ -612,7 +725,8 @@ main.property-wrapper {
   .description-card,
   .tags-card,
   .contact-card,
-  .contact-form-card {
+  .contact-form-card,
+  .share-card {
     padding: 1.3rem 1.1rem;
   }
 
@@ -622,6 +736,28 @@ main.property-wrapper {
 
   .plan-info-grid {
     grid-template-columns: 1fr;
+  }
+
+  .share-link-box {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .5rem;
+  }
+
+  .share-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .6rem;
+  }
+
+  .share-buttons {
+    width: 100%;
+    gap: .5rem;
+  }
+
+  .share-btn {
+    flex: 1 1 100%;
+    justify-content: center;
   }
 }
 

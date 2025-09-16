@@ -39,6 +39,7 @@ const state = {
   map: null,
   marker: null,
   polygon: null,
+  shareUrl: '',
   favorites: [],
   savingFavorite: false
 };
@@ -74,6 +75,12 @@ const elements = {
   contactName: document.getElementById('contactName'),
   contactPhoneLink: document.getElementById('contactPhoneLink'),
   contactEmailLink: document.getElementById('contactEmailLink'),
+  shareLinkInput: document.getElementById('shareLinkInput'),
+  shareCopyBtn: document.getElementById('shareCopyBtn'),
+  shareMessenger: document.getElementById('shareMessenger'),
+  shareWhatsapp: document.getElementById('shareWhatsapp'),
+  shareX: document.getElementById('shareX'),
+  shareFacebook: document.getElementById('shareFacebook'),
   savePlotBtn: document.getElementById('savePlotBtn'),
   inquiryForm: document.getElementById('inquiryForm'),
   mapSection: document.getElementById('mapSection'),
@@ -218,6 +225,63 @@ function renderTags(tags) {
   });
 }
 
+function buildShareUrl() {
+  try {
+    const url = new URL(window.location.href);
+    url.hash = '';
+    return url.toString();
+  } catch (error) {
+    return window.location.href.split('#')[0];
+  }
+}
+
+function fallbackCopyShareUrl() {
+  if (!elements.shareLinkInput) return false;
+  if (typeof document.execCommand !== 'function') return false;
+  try {
+    const input = elements.shareLinkInput;
+    input.focus();
+    input.select();
+    const success = document.execCommand('copy');
+    input.setSelectionRange(0, 0);
+    input.blur();
+    return Boolean(success);
+  } catch (error) {
+    return false;
+  }
+}
+
+function updateShareLinks(title, location) {
+  const shareUrl = buildShareUrl();
+  state.shareUrl = shareUrl;
+  if (elements.shareLinkInput) {
+    elements.shareLinkInput.value = shareUrl;
+  }
+
+  const shareTitle = textContentOrFallback(title, 'Oferta działki');
+  const locationText = typeof location === 'string' ? location.trim() : '';
+  const normalizedLocation = locationText && locationText.toLowerCase() !== 'polska'
+    ? locationText
+    : '';
+  const shareText = normalizedLocation ? `${shareTitle} – ${normalizedLocation}` : shareTitle;
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedShareText = encodeURIComponent(shareText);
+
+  if (elements.shareMessenger) {
+    elements.shareMessenger.href = `https://www.messenger.com/t/?link=${encodedUrl}&text=${encodedShareText}`;
+  }
+  if (elements.shareWhatsapp) {
+    const whatsappMessage = `${shareText} ${shareUrl}`.trim();
+    elements.shareWhatsapp.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(whatsappMessage)}`;
+  }
+  if (elements.shareX) {
+    elements.shareX.href = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedShareText}`;
+  }
+  if (elements.shareFacebook) {
+    elements.shareFacebook.href = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`;
+  }
+}
+
 function renderUtilities(utilities) {
   if (!elements.utilitiesGrid) return;
   const source = utilities && typeof utilities === 'object' ? utilities : {};
@@ -346,6 +410,7 @@ function renderOffer(data, plot) {
   const email = pickValue(plot.contactEmail, data.contactEmail, data.email);
   setContactLink(elements.contactEmailLink, email, 'email');
 
+  updateShareLinks(title, location);
   updateSaveButtonState();
 }
 
@@ -509,6 +574,55 @@ function setupInquiryForm() {
     showToast('Wiadomość została wysłana. Skontaktujemy się wkrótce.', 'success');
     form.reset();
   });
+}
+
+function setupShareActions() {
+  const initialUrl = buildShareUrl();
+  state.shareUrl = initialUrl;
+
+  if (elements.shareLinkInput) {
+    elements.shareLinkInput.value = initialUrl;
+    const selectInput = (event) => {
+      event.target.select();
+    };
+    elements.shareLinkInput.addEventListener('focus', selectInput);
+    elements.shareLinkInput.addEventListener('click', selectInput);
+  }
+
+  if (elements.shareCopyBtn) {
+    elements.shareCopyBtn.addEventListener('click', async () => {
+      if (!state.shareUrl) {
+        state.shareUrl = buildShareUrl();
+        if (elements.shareLinkInput) {
+          elements.shareLinkInput.value = state.shareUrl;
+        }
+      }
+
+      const urlToCopy = state.shareUrl;
+      if (!urlToCopy) {
+        showToast('Link nie jest dostępny.', 'warning');
+        return;
+      }
+
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(urlToCopy);
+          showToast('Skopiowano link do oferty.', 'success');
+          return;
+        }
+      } catch (error) {
+        console.warn('Nie udało się skopiować linku za pomocą schowka.', error);
+      }
+
+      if (fallbackCopyShareUrl()) {
+        showToast('Skopiowano link do oferty.', 'success');
+      } else {
+        showToast('Nie udało się skopiować linku. Skopiuj go ręcznie.', 'error');
+      }
+    });
+  }
+
+  updateShareLinks('Oferta działki', null);
 }
 
 function collectUnique(values) {
@@ -916,6 +1030,7 @@ async function init() {
   setupAuthUI();
   setupMapModeButtons();
   setupInquiryForm();
+  setupShareActions();
   setupSaveButton();
   await loadProperty();
 }

@@ -244,6 +244,43 @@
 
         </div>
       </section>
+
+      <section class="share-section" aria-labelledby="shareTitle">
+        <div class="section-header">
+          <h2 id="shareTitle">Udostępnij ofertę</h2>
+        </div>
+        <div class="share-card">
+          <p class="share-description">Podziel się ogłoszeniem ze znajomymi lub wyślij je przez swoje ulubione komunikatory.</p>
+          <div class="share-link-box">
+            <label class="share-link-label" for="shareLinkInput">Link do oferty:</label>
+            <input type="text" id="shareLinkInput" class="share-link-input" readonly aria-label="Link do oferty">
+            <button class="btn btn-outline-primary" type="button" id="shareCopyBtn">
+              <i class="fas fa-link"></i> Skopiuj link
+            </button>
+          </div>
+          <div class="share-actions" role="group" aria-label="Udostępnij ofertę">
+            <span class="share-actions-label">Udostępnij poprzez:</span>
+            <div class="share-buttons">
+              <a href="#" id="shareMessenger" class="share-btn messenger" target="_blank" rel="noopener noreferrer" aria-label="Wyślij na Messengerze">
+                <i class="fab fa-facebook-messenger" aria-hidden="true"></i>
+                <span>Messenger</span>
+              </a>
+              <a href="#" id="shareWhatsapp" class="share-btn whatsapp" target="_blank" rel="noopener noreferrer" aria-label="Wyślij na WhatsAppie">
+                <i class="fab fa-whatsapp" aria-hidden="true"></i>
+                <span>WhatsApp</span>
+              </a>
+              <a href="#" id="shareX" class="share-btn x" target="_blank" rel="noopener noreferrer" aria-label="Udostępnij na X">
+                <i class="fab fa-x-twitter" aria-hidden="true"></i>
+                <span>X</span>
+              </a>
+              <a href="#" id="shareFacebook" class="share-btn facebook" target="_blank" rel="noopener noreferrer" aria-label="Udostępnij na Facebooku">
+                <i class="fab fa-facebook-f" aria-hidden="true"></i>
+                <span>Facebook</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
 
