@@ -38,6 +38,7 @@ const state = {
   area: null,
   map: null,
   marker: null,
+  polygon: null,
   favorites: [],
   savingFavorite: false
 };
@@ -369,11 +370,71 @@ function setupMapModeButtons() {
   });
 }
 
+function ensureProjDefinition() {
+  if (typeof proj4 === 'undefined' || typeof proj4.defs !== 'function') {
+    console.warn('Proj4 nie jest dostępne - granice działki nie będą pokazane.');
+    return false;
+  }
+  if (!proj4.defs('EPSG:2180')) {
+    proj4.defs('EPSG:2180', '+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +units=m +no_defs');
+  }
+  return true;
+}
+
+function parsePlotGeometry(geometryString) {
+  if (!geometryString || typeof geometryString !== 'string') return [];
+  if (!ensureProjDefinition()) return [];
+  const coords = [];
+  try {
+    const match = geometryString.match(/\(\(([^)]+)\)\)/);
+    const coordString = match ? match[1] : '';
+    if (!coordString) return [];
+    const points = coordString.split(',');
+    points.forEach(point => {
+      const parts = point.trim().split(/\s+/);
+      if (parts.length < 2) return;
+      const x = parseFloat(parts[0]);
+      const y = parseFloat(parts[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const [lng, lat] = proj4('EPSG:2180', 'WGS84', [x, y]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        coords.push({ lat, lng });
+      }
+    });
+  } catch (error) {
+    console.error('Nie udało się przetworzyć geometrii działki.', error);
+  }
+  return coords;
+}
+
+function computePolygonCenter(coords) {
+  if (!coords.length) return null;
+  const total = coords.reduce((acc, point) => {
+    acc.lat += point.lat;
+    acc.lng += point.lng;
+    return acc;
+  }, { lat: 0, lng: 0 });
+  return {
+    lat: total.lat / coords.length,
+    lng: total.lng / coords.length
+  };
+}
+
 async function renderMap(plot) {
   if (!elements.mapElement) return;
   const lat = parseFloat(pickValue(plot.lat, plot.latitude, plot.coords?.lat));
   const lng = parseFloat(pickValue(plot.lng, plot.longitude, plot.coords?.lng));
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+  const geometryRaw = pickValue(
+    plot.geometry_uldk_wkt,
+    plot.geometry_uldk?.wkt,
+    plot.geometry_uldk,
+    plot.geometry,
+    plot.geometryWkt,
+    plot.geometry_wkt
+  );
+  const geometryCoords = typeof geometryRaw === 'string' ? parsePlotGeometry(geometryRaw) : [];
+  const hasLatLng = Number.isFinite(lat) && Number.isFinite(lng);
+  if (!hasLatLng && !geometryCoords.length) {
     elements.mapElement.innerHTML = '<p style="padding:1rem;color:var(--gray);">Brak współrzędnych do wyświetlenia mapy.</p>';
     return;
   }
@@ -383,10 +444,27 @@ async function renderMap(plot) {
     elements.mapElement.innerHTML = '<p style="padding:1rem;color:#c53030;">Nie udało się załadować mapy.</p>';
     return;
   }
-  const center = { lat, lng };
+  const title = textContentOrFallback(elements.propertyTitle?.textContent, 'Działka');
+  const geometryCenter = geometryCoords.length ? computePolygonCenter(geometryCoords) : null;
+  const center = hasLatLng ? { lat, lng } : (geometryCenter || geometryCoords[0]);
+  if (!center) {
+    elements.mapElement.innerHTML = '<p style="padding:1rem;color:var(--gray);">Brak współrzędnych do wyświetlenia mapy.</p>';
+    return;
+  }
+
+  if (state.marker) {
+    state.marker.setMap(null);
+    state.marker = null;
+  }
+  if (state.polygon) {
+    state.polygon.setMap(null);
+    state.polygon = null;
+  }
+
+  elements.mapElement.innerHTML = '';
   state.map = new google.maps.Map(elements.mapElement, {
     center,
-    zoom: 15,
+    zoom: hasLatLng ? 15 : 16,
     mapTypeId: google.maps.MapTypeId.HYBRID,
     mapTypeControl: true,
     streetViewControl: false,
@@ -395,8 +473,25 @@ async function renderMap(plot) {
   state.marker = new google.maps.Marker({
     map: state.map,
     position: center,
-    title: textContentOrFallback(elements.propertyTitle?.textContent, 'Działka')
+    title
   });
+  if (geometryCoords.length) {
+    state.polygon = new google.maps.Polygon({
+      paths: geometryCoords,
+      strokeColor: '#ff3b30',
+      strokeOpacity: 0.95,
+      strokeWeight: 3,
+      fillColor: '#ff3b30',
+      fillOpacity: 0.18,
+      map: state.map,
+      clickable: false
+    });
+    const bounds = new google.maps.LatLngBounds();
+    geometryCoords.forEach(coord => bounds.extend(coord));
+    if (typeof bounds.isEmpty !== 'function' || !bounds.isEmpty()) {
+      state.map.fitBounds(bounds, { top: 32, right: 32, bottom: 32, left: 32 });
+    }
+  }
 }
 
 function setupInquiryForm() {
