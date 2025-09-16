@@ -152,6 +152,46 @@
   align-self: center;
 }
 
+.tag-suggestions-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.tag-suggestions-title {
+  margin: 0;
+  font-size: .9rem;
+  color: var(--gray);
+}
+
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.tag-chip--suggestion {
+  border: 1px solid rgba(30,111,186,.28);
+  background: #f8fafc;
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  appearance: none;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.tag-chip--suggestion:hover,
+.tag-chip--suggestion:focus-visible {
+  background: #e6f2ff;
+  border-color: rgba(30,111,186,.45);
+  box-shadow: 0 0 0 2px rgba(30,111,186,.16);
+  transform: translateY(-1px);
+}
+
+.tag-chip--suggestion:focus-visible {
+  outline: none;
+}
+
 .tag-chip.removable {
   background: #e6f2ff;
   color: var(--darker);

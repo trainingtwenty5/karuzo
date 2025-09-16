@@ -251,12 +251,16 @@
           <h2 id="tagsTitle">Parametry dodatkowe</h2>
         </div>
         <div class="tags-card">
-          <p class="tag-hint">Tagiem będzie wyszukiwana Twoja działka. Przykłady: #Blisko-latagi, #Budowlana, #Inwestycyjna, #Rolna, #Blisko-las, #Dojazd-asfaltowy, #Dostępne-media, #Pod-OZE.</p>
+          <p class="tag-hint">Tagiem będzie wyszukiwana Twoja działka. Przykłady: #Budowlana, #Inwestycyjna, #Rolna, #Blisko-las, #Dojazd-asfaltowy, #Dostępne-media, #Pod-OZE.</p>
           <div class="tags-list" id="tagsList"></div>
           <p class="tags-empty" id="tagsEmpty" hidden>Brak dodatkowych parametrów.</p>
           <div class="tag-form">
             <input type="text" id="tagInput" placeholder="Dodaj własny znacznik, np. #Budowlana">
             <button class="btn btn-primary" type="button" id="addTagBtn"><i class="fas fa-plus"></i> Dodaj</button>
+          </div>
+          <div class="tag-suggestions-wrapper" id="tagSuggestionsWrapper" hidden>
+            <p class="tag-suggestions-title">Popularne tagi (kliknij, aby dodać):</p>
+            <div class="tag-suggestions" id="tagSuggestionsList"></div>
           </div>
         </div>
       </section>
