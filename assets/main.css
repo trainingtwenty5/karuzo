@@ -210,9 +210,9 @@ body.home-page .offer-card .offer-actions{
 .faq-question{padding:1.25rem;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:600;transition:var(--transition);font-size:.95rem;}
 .faq-question:hover{color:var(--primary);}
 .faq-question i{transition:var(--transition);}
-.faq-answer{padding:0 1.25rem;max-height:0;overflow:hidden;transition:var(--transition);font-size:.9rem;}
+.faq-answer{padding:0 1.25rem;max-height:0;overflow:hidden;transition:max-height .35s cubic-bezier(.4,0,.2,1),padding .3s cubic-bezier(.4,0,.2,1);font-size:.9rem;will-change:max-height;}
 .faq-item.active .faq-question i{transform:rotate(180deg);}
-.faq-item.active .faq-answer{padding:0 1.25rem 1.25rem;max-height:500px;}
+.faq-item.active .faq-answer{padding:0 1.25rem 1.25rem;}
 
 /* ====== CTA ====== */
 .cta{
