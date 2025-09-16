@@ -17,7 +17,9 @@ import {
   sanitizeMultilineText,
   ensureArray,
   parseNumberFromText,
-  syncMobileMenu
+  syncMobileMenu,
+  setDoc,
+  serverTimestamp
 } from './property-common.js';
 import {
   signInWithEmailAndPassword,
@@ -36,7 +38,9 @@ const state = {
   price: null,
   area: null,
   map: null,
-  marker: null
+  marker: null,
+  favorites: [],
+  savingFavorite: false
 };
 
 const elements = {
@@ -260,6 +264,9 @@ function showError(message) {
     elements.errorState.textContent = message;
     elements.errorState.classList.remove('hidden');
   }
+  state.offerData = null;
+  state.plotData = null;
+  updateSaveButtonState();
 }
 
 function mergeUtilities(dataUtilities, plotUtilities) {
@@ -338,6 +345,8 @@ function renderOffer(data, plot) {
 
   const email = pickValue(plot.contactEmail, data.contactEmail, data.email);
   setContactLink(elements.contactEmailLink, email, 'email');
+
+  updateSaveButtonState();
 }
 
 function setMapMode(mode) {
@@ -408,11 +417,202 @@ function setupInquiryForm() {
   });
 }
 
+function collectUnique(values) {
+  return Array.from(new Set(values.filter(Boolean).map(value => String(value))));
+}
+
+function getOwnerIdentifiers() {
+  const offer = state.offerData || {};
+  const plot = state.plotData || {};
+  const ownerUids = collectUnique([
+    plot.ownerUid,
+    plot.ownerId,
+    plot.userUid,
+    plot.createdBy,
+    offer.ownerUid,
+    offer.userUid,
+    offer.uid,
+    offer.ownerId,
+    offer.createdBy
+  ]);
+  const ownerEmails = collectUnique([
+    plot.ownerEmail,
+    plot.contactEmail,
+    offer.ownerEmail,
+    offer.userEmail,
+    offer.email,
+    offer.contactEmail
+  ]).map(value => value.toLowerCase());
+  return { ownerUids, ownerEmails };
+}
+
+function isPlotOwnedByCurrentUser() {
+  if (!state.user) return false;
+  const { ownerUids, ownerEmails } = getOwnerIdentifiers();
+  const userUid = state.user.uid ? String(state.user.uid) : '';
+  const userEmail = state.user.email ? String(state.user.email).toLowerCase() : '';
+  if (userUid && ownerUids.includes(userUid)) return true;
+  if (userEmail && ownerEmails.includes(userEmail)) return true;
+  return false;
+}
+
+function isCurrentPlotFavorite() {
+  if (!state.offerId && state.plotIndex === undefined) return false;
+  return state.favorites.some(item => item && item.offerId === state.offerId && item.plotIndex === state.plotIndex);
+}
+
+function updateSaveButtonState() {
+  const btn = elements.savePlotBtn;
+  if (!btn) return;
+
+  btn.classList.remove('is-disabled', 'is-saved');
+  btn.removeAttribute('aria-pressed');
+  btn.disabled = false;
+
+  if (!state.offerData || !state.plotData) {
+    btn.classList.add('is-disabled');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-bookmark"></i> Ładowanie...';
+    return;
+  }
+
+  if (!state.user) {
+    btn.innerHTML = '<i class="far fa-bookmark"></i> Zapisz działkę';
+    return;
+  }
+
+  if (isPlotOwnedByCurrentUser()) {
+    btn.classList.add('is-disabled');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-user"></i> To Twoja oferta';
+    return;
+  }
+
+  if (state.savingFavorite) {
+    btn.classList.add('is-disabled');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Zapisywanie...';
+    return;
+  }
+
+  if (isCurrentPlotFavorite()) {
+    btn.classList.add('is-saved');
+    btn.setAttribute('aria-pressed', 'true');
+    btn.innerHTML = '<i class="fas fa-bookmark"></i> Dodano do ulubionych';
+  } else {
+    btn.innerHTML = '<i class="far fa-bookmark"></i> Zapisz działkę';
+  }
+}
+
+async function loadUserFavorites(user) {
+  if (!user) {
+    state.favorites = [];
+    updateSaveButtonState();
+    return;
+  }
+  const { db } = initFirebase();
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    const data = snap.exists() ? snap.data() : {};
+    const favorites = Array.isArray(data.favorites) ? data.favorites : [];
+    state.favorites = favorites;
+  } catch (error) {
+    console.error('loadUserFavorites', error);
+    state.favorites = [];
+  }
+  updateSaveButtonState();
+}
+
+function buildFavoriteEntry() {
+  const plot = state.plotData || {};
+  const offer = state.offerData || {};
+  const title = textContentOrFallback(
+    pickValue(plot.title, plot.name, plot.Id, offer.title, `Działka ${state.plotIndex + 1}`),
+    `Działka ${state.plotIndex + 1}`
+  );
+  const city = pickValue(plot.location, plot.city, offer.city, offer.location);
+  const priceValue = parseNumberFromText(pickValue(plot.price, offer.price));
+  const areaValue = parseNumberFromText(pickValue(plot.pow_dzialki_m2_uldk, plot.area, plot.surface, offer.area));
+  const contactName = pickValue(plot.contactName, offer.contactName, offer.firstName);
+  const contactPhone = pickValue(plot.contactPhone, offer.contactPhone, offer.phone);
+  const contactEmail = pickValue(plot.contactEmail, offer.contactEmail, offer.email);
+  const ownerUid = pickValue(plot.ownerUid, plot.ownerId, plot.userUid, offer.ownerUid, offer.userUid, offer.uid, offer.ownerId, offer.createdBy);
+  const ownerEmail = pickValue(plot.ownerEmail, offer.ownerEmail, offer.userEmail, offer.email);
+  const plotNumber = pickValue(plot.plotNumber, plot.Id, plot.number);
+
+  return {
+    offerId: state.offerId,
+    plotIndex: state.plotIndex,
+    title,
+    city: city ? String(city).trim() : null,
+    price: Number.isFinite(priceValue) ? priceValue : null,
+    area: Number.isFinite(areaValue) ? areaValue : null,
+    ownerUid: ownerUid ? String(ownerUid) : null,
+    ownerEmail: ownerEmail ? String(ownerEmail).trim() : null,
+    contactName: contactName ? String(contactName).trim() : null,
+    contactPhone: contactPhone ? String(contactPhone).trim() : null,
+    contactEmail: contactEmail ? String(contactEmail).trim() : null,
+    plotNumber: plotNumber ? String(plotNumber).trim() : null,
+    savedAt: serverTimestamp()
+  };
+}
+
+async function handleSaveFavorite() {
+  if (!elements.savePlotBtn) return;
+  if (!state.user) {
+    showToast('Zaloguj się, aby zapisać działkę do ulubionych.', 'info');
+    openModal(elements.loginModal);
+    return;
+  }
+  if (!state.offerData || !state.plotData) {
+    showToast('Poczekaj aż działka zostanie wczytana.', 'warning');
+    return;
+  }
+  if (isPlotOwnedByCurrentUser()) {
+    showToast('To Twoja oferta – znajdziesz ją w sekcji „Moje oferty”.', 'info');
+    return;
+  }
+  if (state.savingFavorite) {
+    return;
+  }
+
+  state.savingFavorite = true;
+  updateSaveButtonState();
+
+  const { db } = initFirebase();
+  const userRef = doc(db, 'users', state.user.uid);
+  try {
+    const snap = await getDoc(userRef);
+    const data = snap.exists() ? snap.data() : {};
+    const favorites = Array.isArray(data.favorites) ? data.favorites : [];
+    state.favorites = favorites;
+
+    if (isCurrentPlotFavorite()) {
+      showToast('Ta działka jest już na liście ulubionych.', 'info');
+      return;
+    }
+
+    const entry = buildFavoriteEntry();
+    const updatedFavorites = [...favorites, entry];
+    await setDoc(userRef, { favorites: updatedFavorites }, { merge: true });
+    state.favorites = updatedFavorites;
+    showToast('Dodano działkę do ulubionych.', 'success');
+  } catch (error) {
+    console.error('handleSaveFavorite', error);
+    showToast('Nie udało się zapisać działki. Spróbuj ponownie.', 'error');
+  } finally {
+    state.savingFavorite = false;
+    updateSaveButtonState();
+  }
+}
+
 function setupSaveButton() {
   if (!elements.savePlotBtn) return;
   elements.savePlotBtn.addEventListener('click', () => {
-    showToast('Funkcja zapisywania działek będzie dostępna wkrótce.', 'info');
+    handleSaveFavorite();
   });
+  updateSaveButtonState();
 }
 
 function openModal(modal) {
@@ -475,6 +675,13 @@ function updateAuthUI(user) {
       document.getElementById('mobileLoginBtn')?.addEventListener('click', () => openModal(elements.loginModal));
       document.getElementById('mobileRegisterBtn')?.addEventListener('click', () => openModal(elements.registerModal));
     }
+  }
+
+  if (user) {
+    loadUserFavorites(user);
+  } else {
+    state.favorites = [];
+    updateSaveButtonState();
   }
 }
 

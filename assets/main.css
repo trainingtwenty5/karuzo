@@ -97,6 +97,13 @@ a{color:var(--primary);text-decoration:none;transition:var(--transition);}
 /* ====== User dashboard ====== */
 .user-dashboard{display:none;margin-top:calc(var(--topbar-height) + var(--header-height) + 40px);margin-bottom:20px;padding:2rem;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-md);}
 .user-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;padding-bottom:1rem;border-bottom:1px solid #eee;}
+.offers-wrapper{display:flex;flex-direction:column;gap:2rem;}
+.offers-section{display:flex;flex-direction:column;gap:1rem;}
+.offers-section-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;}
+.offers-subtitle{margin:0;font-size:1rem;font-weight:600;color:#1f2a3d;display:flex;align-items:center;gap:.5rem;}
+.offers-subtitle i{color:var(--primary);}
+.offers-section-note{font-size:.85rem;color:#6d7686;}
+.dashboard-empty{margin:0;padding:1rem;border-radius:10px;background:#f7f9fd;border:1px dashed #c8d4e5;font-size:.9rem;color:#5b6575;}
 .offers-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem;}
 .offer-card{background:#fff;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,.08);padding:1rem;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease;margin-bottom:1rem;}
 .offer-card:hover{transform:translateY(-4px);box-shadow:0 6px 14px rgba(0,0,0,.12);}
@@ -106,6 +113,12 @@ a{color:var(--primary);text-decoration:none;transition:var(--transition);}
 .offer-card p{margin:.25rem 0;font-size:.9rem;color:#555;}
 .offer-actions{display:flex;gap:.5rem;}
 .offer-actions.center{justify-content:center;}
+.favorites-grid .offer-card{background:#e9f3ff;border:1px solid #c7ddf8;box-shadow:none;}
+.favorites-grid .offer-card:hover{box-shadow:0 6px 14px rgba(30,111,186,.2);transform:translateY(-2px);}
+.favorites-grid .offer-title{color:#1a4f85;}
+.favorites-grid .offer-details{color:#3f4d62;}
+.favorite-meta{font-size:.8rem;color:#51617a;margin-top:.4rem;}
+.favorite-ppm{color:#1f5ea8;font-size:.8rem;margin-left:.4rem;font-weight:600;}
 
 /* ====== Home page offers grid (chessboard layout) ====== */
 body.home-page .offers-grid{
