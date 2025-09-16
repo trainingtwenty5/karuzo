@@ -17,7 +17,8 @@ import {
   sanitizeMultilineText,
   ensureArray,
   parseNumberFromText,
-  syncMobileMenu
+  syncMobileMenu,
+  setDoc
 } from './property-common.js';
 import {
   signInWithEmailAndPassword,
@@ -36,7 +37,9 @@ const state = {
   price: null,
   area: null,
   map: null,
-  marker: null
+  marker: null,
+  favorites: [],
+  savingFavorite: false
 };
 
 const elements = {
@@ -129,6 +132,95 @@ function formatPerSqm(price, area) {
 function formatAreaText(value) {
   const formatted = formatArea(value);
   return formatted ? formatted : '—';
+}
+
+function toNullableString(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    const text = String(value).trim();
+    return text ? text : null;
+  }
+  return null;
+}
+
+function toNullableNumber(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === 'string') {
+    const parsed = parseNumberFromText(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function toPlotIndex(value) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function sanitizeTimestampValue(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isNaN(time) ? null : time;
+  }
+  if (value && typeof value === 'object') {
+    if (typeof value.toMillis === 'function') {
+      const millis = value.toMillis();
+      return Number.isFinite(millis) ? millis : null;
+    }
+    if (typeof value.toDate === 'function') {
+      const date = value.toDate();
+      const millis = date?.getTime();
+      return Number.isNaN(millis) ? null : millis;
+    }
+    if (typeof value.seconds === 'number') {
+      return Number.isFinite(value.seconds) ? Math.round(value.seconds * 1000) : null;
+    }
+  }
+  return null;
+}
+
+function sanitizeFavoriteEntry(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const entry = {
+    offerId: toNullableString(raw.offerId),
+    plotIndex: toPlotIndex(raw.plotIndex),
+    title: toNullableString(raw.title),
+    city: toNullableString(raw.city),
+    price: toNullableNumber(raw.price),
+    area: toNullableNumber(raw.area),
+    ownerUid: toNullableString(raw.ownerUid),
+    ownerEmail: toNullableString(raw.ownerEmail),
+    contactName: toNullableString(raw.contactName),
+    contactPhone: toNullableString(raw.contactPhone),
+    contactEmail: toNullableString(raw.contactEmail),
+    plotNumber: toNullableString(raw.plotNumber)
+  };
+
+  const savedAt = sanitizeTimestampValue(raw.savedAt);
+  entry.savedAt = savedAt !== null ? savedAt : Date.now();
+
+  return entry;
+}
+
+function sanitizeFavoriteList(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+  return list.map(sanitizeFavoriteEntry).filter(Boolean);
 }
 
 function setTextContent(element, value, fallback = '—') {
@@ -260,6 +352,9 @@ function showError(message) {
     elements.errorState.textContent = message;
     elements.errorState.classList.remove('hidden');
   }
+  state.offerData = null;
+  state.plotData = null;
+  updateSaveButtonState();
 }
 
 function mergeUtilities(dataUtilities, plotUtilities) {
@@ -338,6 +433,8 @@ function renderOffer(data, plot) {
 
   const email = pickValue(plot.contactEmail, data.contactEmail, data.email);
   setContactLink(elements.contactEmailLink, email, 'email');
+
+  updateSaveButtonState();
 }
 
 function setMapMode(mode) {
@@ -408,11 +505,202 @@ function setupInquiryForm() {
   });
 }
 
+function collectUnique(values) {
+  return Array.from(new Set(values.filter(Boolean).map(value => String(value))));
+}
+
+function getOwnerIdentifiers() {
+  const offer = state.offerData || {};
+  const plot = state.plotData || {};
+  const ownerUids = collectUnique([
+    plot.ownerUid,
+    plot.ownerId,
+    plot.userUid,
+    plot.createdBy,
+    offer.ownerUid,
+    offer.userUid,
+    offer.uid,
+    offer.ownerId,
+    offer.createdBy
+  ]);
+  const ownerEmails = collectUnique([
+    plot.ownerEmail,
+    plot.contactEmail,
+    offer.ownerEmail,
+    offer.userEmail,
+    offer.email,
+    offer.contactEmail
+  ]).map(value => value.toLowerCase());
+  return { ownerUids, ownerEmails };
+}
+
+function isPlotOwnedByCurrentUser() {
+  if (!state.user) return false;
+  const { ownerUids, ownerEmails } = getOwnerIdentifiers();
+  const userUid = state.user.uid ? String(state.user.uid) : '';
+  const userEmail = state.user.email ? String(state.user.email).toLowerCase() : '';
+  if (userUid && ownerUids.includes(userUid)) return true;
+  if (userEmail && ownerEmails.includes(userEmail)) return true;
+  return false;
+}
+
+function isCurrentPlotFavorite() {
+  if (!state.offerId && state.plotIndex === undefined) return false;
+  return state.favorites.some(item => item && item.offerId === state.offerId && item.plotIndex === state.plotIndex);
+}
+
+function updateSaveButtonState() {
+  const btn = elements.savePlotBtn;
+  if (!btn) return;
+
+  btn.classList.remove('is-disabled', 'is-saved');
+  btn.removeAttribute('aria-pressed');
+  btn.disabled = false;
+
+  if (!state.offerData || !state.plotData) {
+    btn.classList.add('is-disabled');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-bookmark"></i> Ładowanie...';
+    return;
+  }
+
+  if (!state.user) {
+    btn.innerHTML = '<i class="far fa-bookmark"></i> Zapisz działkę';
+    return;
+  }
+
+  if (isPlotOwnedByCurrentUser()) {
+    btn.classList.add('is-disabled');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-user"></i> To Twoja oferta';
+    return;
+  }
+
+  if (state.savingFavorite) {
+    btn.classList.add('is-disabled');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Zapisywanie...';
+    return;
+  }
+
+  if (isCurrentPlotFavorite()) {
+    btn.classList.add('is-saved');
+    btn.setAttribute('aria-pressed', 'true');
+    btn.innerHTML = '<i class="fas fa-bookmark"></i> Dodano do ulubionych';
+  } else {
+    btn.innerHTML = '<i class="far fa-bookmark"></i> Zapisz działkę';
+  }
+}
+
+async function loadUserFavorites(user) {
+  if (!user) {
+    state.favorites = [];
+    updateSaveButtonState();
+    return;
+  }
+  const { db } = initFirebase();
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+    const data = snap.exists() ? snap.data() : {};
+    const favorites = sanitizeFavoriteList(data.favorites);
+    state.favorites = favorites;
+  } catch (error) {
+    console.error('loadUserFavorites', error);
+    state.favorites = [];
+  }
+  updateSaveButtonState();
+}
+
+function buildFavoriteEntry() {
+  const plot = state.plotData || {};
+  const offer = state.offerData || {};
+  const title = textContentOrFallback(
+    pickValue(plot.title, plot.name, plot.Id, offer.title, `Działka ${state.plotIndex + 1}`),
+    `Działka ${state.plotIndex + 1}`
+  );
+  const city = pickValue(plot.location, plot.city, offer.city, offer.location);
+  const priceValue = parseNumberFromText(pickValue(plot.price, offer.price));
+  const areaValue = parseNumberFromText(pickValue(plot.pow_dzialki_m2_uldk, plot.area, plot.surface, offer.area));
+  const contactName = pickValue(plot.contactName, offer.contactName, offer.firstName);
+  const contactPhone = pickValue(plot.contactPhone, offer.contactPhone, offer.phone);
+  const contactEmail = pickValue(plot.contactEmail, offer.contactEmail, offer.email);
+  const ownerUid = pickValue(plot.ownerUid, plot.ownerId, plot.userUid, offer.ownerUid, offer.userUid, offer.uid, offer.ownerId, offer.createdBy);
+  const ownerEmail = pickValue(plot.ownerEmail, offer.ownerEmail, offer.userEmail, offer.email);
+  const plotNumber = pickValue(plot.plotNumber, plot.Id, plot.number);
+
+  return {
+    offerId: state.offerId,
+    plotIndex: state.plotIndex,
+    title,
+    city: city ? String(city).trim() : null,
+    price: Number.isFinite(priceValue) ? priceValue : null,
+    area: Number.isFinite(areaValue) ? areaValue : null,
+    ownerUid: ownerUid ? String(ownerUid) : null,
+    ownerEmail: ownerEmail ? String(ownerEmail).trim() : null,
+    contactName: contactName ? String(contactName).trim() : null,
+    contactPhone: contactPhone ? String(contactPhone).trim() : null,
+    contactEmail: contactEmail ? String(contactEmail).trim() : null,
+    plotNumber: plotNumber ? String(plotNumber).trim() : null,
+    savedAt: Date.now()
+  };
+}
+
+async function handleSaveFavorite() {
+  if (!elements.savePlotBtn) return;
+  if (!state.user) {
+    showToast('Zaloguj się, aby zapisać działkę do ulubionych.', 'info');
+    openModal(elements.loginModal);
+    return;
+  }
+  if (!state.offerData || !state.plotData) {
+    showToast('Poczekaj aż działka zostanie wczytana.', 'warning');
+    return;
+  }
+  if (isPlotOwnedByCurrentUser()) {
+    showToast('To Twoja oferta – znajdziesz ją w sekcji „Moje oferty”.', 'info');
+    return;
+  }
+  if (state.savingFavorite) {
+    return;
+  }
+
+  state.savingFavorite = true;
+  updateSaveButtonState();
+
+  const { db } = initFirebase();
+  const userRef = doc(db, 'users', state.user.uid);
+  try {
+    const snap = await getDoc(userRef);
+    const data = snap.exists() ? snap.data() : {};
+    const favorites = sanitizeFavoriteList(data.favorites);
+    state.favorites = favorites;
+
+    if (isCurrentPlotFavorite()) {
+      showToast('Ta działka jest już na liście ulubionych.', 'info');
+      return;
+    }
+
+    const entry = sanitizeFavoriteEntry(buildFavoriteEntry());
+    const updatedFavorites = [...favorites, entry];
+    await setDoc(userRef, { favorites: updatedFavorites }, { merge: true });
+    state.favorites = updatedFavorites;
+    showToast('Dodano działkę do ulubionych.', 'success');
+  } catch (error) {
+    console.error('handleSaveFavorite', error);
+    showToast('Nie udało się zapisać działki. Spróbuj ponownie.', 'error');
+  } finally {
+    state.savingFavorite = false;
+    updateSaveButtonState();
+  }
+}
+
 function setupSaveButton() {
   if (!elements.savePlotBtn) return;
   elements.savePlotBtn.addEventListener('click', () => {
-    showToast('Funkcja zapisywania działek będzie dostępna wkrótce.', 'info');
+    handleSaveFavorite();
   });
+  updateSaveButtonState();
 }
 
 function openModal(modal) {
@@ -475,6 +763,13 @@ function updateAuthUI(user) {
       document.getElementById('mobileLoginBtn')?.addEventListener('click', () => openModal(elements.loginModal));
       document.getElementById('mobileRegisterBtn')?.addEventListener('click', () => openModal(elements.registerModal));
     }
+  }
+
+  if (user) {
+    loadUserFavorites(user);
+  } else {
+    state.favorites = [];
+    updateSaveButtonState();
   }
 }
 
