@@ -381,7 +381,7 @@ window.showConfirmModal = showConfirmModal;
     const ppm2  = price && area ? (price/area).toFixed(0) : null;
     const city  = data.city || "brak";
     const phone = formatPhone(data.phone);
-    const detailsUrl = `oferta.html?id=${offerId}&plot=${plotIndex}`;
+    const detailsUrl = `details.html?id=${offerId}&plot=${plotIndex}`;
 
     return `
       <div class="map-info-window">
@@ -551,7 +551,7 @@ window.showConfirmModal = showConfirmModal;
       const price = Number(o.plot.price || 0);
       const area  = Number(o.plot.pow_dzialki_m2_uldk || 0);
       const ppm2  = price && area ? (price/area).toFixed(2) : "0.00";
-      const detailsUrl = `oferta.html?id=${o.id}&plot=${o.index}`;
+      const detailsUrl = `details.html?id=${o.id}&plot=${o.index}`;
 
       card.innerHTML = `
         <h5>${o.plot.Id || "Brak identyfikatora"}</h5>
@@ -933,7 +933,7 @@ async function loadUserOffers(email, uid) {
         const price = Number(plot.price || 0);
         const area  = Number(plot.pow_dzialki_m2_uldk || plot.area || plot.areaM2 || 0);
         const ppm2  = price && area ? Math.round(price/area) : 0;
-        const detailsUrl = `oferta.html?id=${offerId}&plot=${originalIndex}`;
+        const detailsUrl = `details.html?id=${offerId}&plot=${originalIndex}`;
 
         const el = document.createElement('div');
         el.className = 'offer-card';
@@ -950,7 +950,7 @@ async function loadUserOffers(email, uid) {
             <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
               <i class="fas fa-info-circle"></i> Szczegóły
             </a>
-            <button class="btn btn-primary btn-sm" onclick="window.location.href='dodaj.html?edit=${offerId}&plot=${originalIndex}'">
+            <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
               <i class="fas fa-edit"></i> Edytuj
             </button>
             <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(plot.Id||`Działka ${i+1}`).replace(/'/g,"\\'")}')">

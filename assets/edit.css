@@ -1,0 +1,169 @@
+.edit-toolbar {
+  position: sticky;
+  top: calc(var(--nav-top, 0px) + 8px);
+  z-index: 6;
+  display: flex;
+  justify-content: flex-end;
+  gap: .6rem;
+  margin-bottom: 1rem;
+}
+
+[contenteditable="true"] {
+  outline: 2px solid transparent;
+  transition: outline-color .15s ease, background-color .15s ease;
+  border-radius: 6px;
+  cursor: text;
+}
+
+[contenteditable="true"]:hover {
+  outline-color: rgba(30,111,186,.18);
+}
+
+[contenteditable="true"]:focus {
+  outline-color: rgba(30,111,186,.45);
+  background: rgba(30,111,186,.06);
+}
+
+[contenteditable="true"].single-line {
+  white-space: nowrap;
+}
+
+.property-meta [contenteditable="true"],
+.stat-card [contenteditable="true"],
+.plan-info-grid [contenteditable="true"],
+.location-card [contenteditable="true"],
+.plan-notes[contenteditable="true"],
+.description-text[contenteditable="true"],
+.contact-card [contenteditable="true"] {
+  min-height: 1.2em;
+}
+
+.utilities-grid .utility-card {
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.utilities-grid .utility-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.utilities-grid .utility-card[data-status="available"] {
+  border-color: rgba(34,197,94,.35);
+  background: #ecfdf5;
+}
+
+.utilities-grid .utility-card[data-status="planned"] {
+  border-color: rgba(250,204,21,.35);
+  background: #fffbeb;
+}
+
+.utilities-grid .utility-card[data-status="missing"] {
+  border-color: rgba(148,163,184,.35);
+  background: #fff;
+}
+
+.utilities-grid .utility-card[data-status="available"] .utility-status {
+  color: #047857;
+}
+
+.utilities-grid .utility-card[data-status="planned"] .utility-status {
+  color: #b45309;
+}
+
+.utilities-grid .utility-card[data-status="missing"] .utility-status {
+  color: var(--gray);
+}
+
+.tags-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tag-form {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+}
+
+.tag-form input {
+  flex: 1 1 220px;
+  padding: .6rem .8rem;
+  border-radius: 10px;
+  border: 1px solid rgba(30,111,186,.25);
+  font-size: .95rem;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.tag-form input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30,111,186,.16);
+}
+
+.tag-form button {
+  align-self: center;
+}
+
+.tag-chip.removable {
+  background: #e6f2ff;
+  color: var(--darker);
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding-right: .5rem;
+}
+
+.tag-chip .tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(15,23,42,.12);
+  color: var(--darker);
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.tag-chip .tag-remove:hover {
+  background: rgba(15,23,42,.25);
+}
+
+.tag-chip button.tag-remove {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.contact-details a[contenteditable="true"] {
+  display: inline-block;
+  min-width: 4ch;
+}
+
+.description-text[contenteditable="true"] {
+  min-height: 160px;
+}
+
+.plan-notes[contenteditable="true"] {
+  min-height: 120px;
+}
+
+.edit-toolbar .btn {
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 768px) {
+  .edit-toolbar {
+    position: static;
+    justify-content: stretch;
+  }
+
+  .edit-toolbar .btn {
+    width: 100%;
+  }
+}
+
