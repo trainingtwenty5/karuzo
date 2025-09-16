@@ -204,19 +204,93 @@ window.showConfirmModal = showConfirmModal;
       const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
       const navMenu = document.querySelector('.nav-menu');
       const mobileAuth = document.getElementById('mobileAuth');
+      const faqItems = document.querySelectorAll('.faq-item');
+
+      const closeFaqItem = (item) => {
+        const question = item.querySelector('.faq-question');
+        const answer = item.querySelector('.faq-answer');
+        if (!question || !answer) return;
+        item.classList.remove('active');
+        question.setAttribute('aria-expanded', 'false');
+        answer.setAttribute('aria-hidden', 'true');
+        answer.style.maxHeight = '0px';
+      };
+
+      const openFaqItem = (item) => {
+        const question = item.querySelector('.faq-question');
+        const answer = item.querySelector('.faq-answer');
+        if (!question || !answer) return;
+        item.classList.add('active');
+        question.setAttribute('aria-expanded', 'true');
+        answer.setAttribute('aria-hidden', 'false');
+        answer.style.maxHeight = `${answer.scrollHeight}px`;
+      };
+
+      const recalcActiveFaq = () => {
+        faqItems.forEach((item) => {
+          if (item.classList.contains('active')) {
+            const answer = item.querySelector('.faq-answer');
+            if (answer) {
+              answer.style.maxHeight = `${answer.scrollHeight}px`;
+            }
+          }
+        });
+      };
 
       mobileMenuBtn?.addEventListener('click', function () {
-        navMenu.classList.toggle('active');
+        navMenu?.classList.toggle('active');
         if (mobileAuth) {
-          mobileAuth.style.display = navMenu.classList.contains('active') ? 'flex' : 'none';
+          const isOpen = navMenu?.classList.contains('active');
+          mobileAuth.style.display = isOpen ? 'flex' : 'none';
+        }
+      });
+
+      faqItems.forEach((item, index) => {
+        const question = item.querySelector('.faq-question');
+        const answer = item.querySelector('.faq-answer');
+        if (!question || !answer) return;
+
+        if (!answer.id) {
+          answer.id = `faq-answer-${index + 1}`;
+        }
+
+        question.setAttribute('role', 'button');
+        question.setAttribute('tabindex', '0');
+        question.setAttribute('aria-controls', answer.id);
+
+        const toggleItem = () => {
+          const isActive = item.classList.contains('active');
+          faqItems.forEach((other) => {
+            if (other !== item) closeFaqItem(other);
+          });
+          if (isActive) {
+            closeFaqItem(item);
+          } else {
+            openFaqItem(item);
+          }
+        };
+
+        question.addEventListener('click', toggleItem);
+        question.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleItem();
+          }
+        });
+
+        if (item.classList.contains('active')) {
+          openFaqItem(item);
+        } else {
+          closeFaqItem(item);
         }
       });
 
       window.addEventListener('resize', () => {
         if (window.innerWidth > 768) {
-          navMenu.classList.remove('active');
+          navMenu?.classList.remove('active');
           if (mobileAuth) mobileAuth.style.display = 'none';
         }
+        recalcActiveFaq();
       });
     });
   </script>
@@ -337,7 +411,7 @@ window.showConfirmModal = showConfirmModal;
         </div>
       </div>
       <div class="hero-image">
-        <img src="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Działka" style="max-width:100%;height:auto;">
+        <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/z1.png" alt="Wizualizacja działki" style="max-width:100%;height:auto;">
       </div>
     </div>
   </section>
@@ -372,7 +446,7 @@ window.showConfirmModal = showConfirmModal;
     <div class="container">
       <div class="info-container">
         <div class="info-image">
-          <img src="https://files.cdn.thinkific.com/file_uploads/1010971/images/2fe/9ae/bbf/new2.png" alt="Jak działa Grunteo" style="max-width:100%;height:auto;">
+          <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/z3.png" alt="Proces publikacji ogłoszenia" style="max-width:100%;height:auto;">
           <div class="info-badge">Proste i szybkie</div>
         </div>
         <div class="info-content">
