@@ -412,6 +412,30 @@ main.property-wrapper {
   gap: .6rem;
 }
 
+#savePlotBtn.is-saved {
+  background: rgba(30, 111, 186, .12);
+  color: var(--primary);
+  border-color: rgba(30, 111, 186, .35);
+  box-shadow: none;
+}
+
+#savePlotBtn.is-saved:hover {
+  background: rgba(30, 111, 186, .18);
+  transform: none;
+}
+
+#savePlotBtn.is-disabled {
+  background: #f1f3f5;
+  color: #7c8596;
+  border-color: #d8dde6;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+#savePlotBtn.is-disabled:hover {
+  transform: none;
+}
+
 .contact-form-card {
   padding: 1.6rem 1.4rem;
 }

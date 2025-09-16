@@ -305,8 +305,23 @@ window.showConfirmModal = showConfirmModal;
         <i class="fas fa-plus me-1"></i> Dodaj ofertę
       </a>
     </div>
-    <div class="offers-grid" id="userOffers">
-      <!-- Oferty użytkownika -->
+    <div class="offers-wrapper" id="userOffers">
+      <section class="offers-section" id="ownedOffersSection">
+        <div class="offers-section-header">
+          <h3 class="offers-subtitle"><i class="fas fa-clipboard-list"></i> Moje aktywne ogłoszenia</h3>
+        </div>
+        <p class="dashboard-empty" id="ownedOffersEmpty" style="display:none;">Nie masz jeszcze żadnych ofert.</p>
+        <div class="offers-grid" id="userOwnedOffers"></div>
+      </section>
+
+      <section class="offers-section" id="favoriteOffersSection" style="display:none;">
+        <div class="offers-section-header">
+          <h3 class="offers-subtitle"><i class="fas fa-bookmark"></i> Moje ulubione</h3>
+          <span class="offers-section-note">Zapisane działki innych użytkowników.</span>
+        </div>
+        <p class="dashboard-empty" id="favoriteOffersEmpty" style="display:none;">Nie dodałeś jeszcze ulubionych działek.</p>
+        <div class="offers-grid favorites-grid" id="userFavoriteOffers"></div>
+      </section>
     </div>
   </div>
 
@@ -534,11 +549,50 @@ window.showConfirmModal = showConfirmModal;
     const registerForm  = document.getElementById('registerForm');
     const userDashboard = document.getElementById('userDashboard');
     const userOffers    = document.getElementById('userOffers');
+    const ownedOffers   = document.getElementById('userOwnedOffers');
+    const ownedEmpty    = document.getElementById('ownedOffersEmpty');
+    const favoriteSection = document.getElementById('favoriteOffersSection');
+    const favoriteOffers = document.getElementById('userFavoriteOffers');
+    const favoriteEmpty  = document.getElementById('favoriteOffersEmpty');
     const gBtn1         = document.getElementById('googleLoginBtn');
     const gBtn2         = document.getElementById('googleLoginBtnLogin');
 
     const openModal  = (m) => m && (m.style.display = 'flex');
     const closeModal = (m) => m && (m.style.display = 'none');
+
+    const toDate = (value) => {
+      if (!value) return null;
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+      if (typeof value === 'number') {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+      if (typeof value === 'string') {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+      if (typeof value === 'object') {
+        if (typeof value.toDate === 'function') {
+          const date = value.toDate();
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+        if ('seconds' in value && typeof value.seconds === 'number') {
+          const date = new Date(value.seconds * 1000);
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+      }
+      return null;
+    };
+
+    const formatDateTime = (value) => {
+      const date = toDate(value);
+      if (!date) return null;
+      return new Intl.DateTimeFormat('pl-PL', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    };
+
+    const formatNumberPL = (value) => Number.isFinite(value) ? value.toLocaleString('pl-PL') : null;
 
     // >>> renderMobileAuth PRZENIESIONE DO MODUŁU <<<
     function renderMobileAuth(user) {
@@ -610,13 +664,18 @@ window.showConfirmModal = showConfirmModal;
           accountBtn.innerHTML = `<i class="fas fa-user"></i> ${label}`;
         }
         userDashboard && (userDashboard.style.display = 'block');
+        favoriteSection && (favoriteSection.style.display = 'block');
         loadUserOffers(user.email || null, user.uid || null);
         closeModal(loginModal); closeModal(registerModal);
       } else {
         authButtons && (authButtons.style.display = 'flex');
         userMenu    && (userMenu.style.display = 'none');
         userDashboard && (userDashboard.style.display = 'none');
-        userOffers && (userOffers.innerHTML = '');
+        if (ownedOffers) ownedOffers.innerHTML = '';
+        if (favoriteOffers) favoriteOffers.innerHTML = '';
+        if (ownedEmpty) ownedEmpty.style.display = 'none';
+        if (favoriteEmpty) favoriteEmpty.style.display = 'none';
+        favoriteSection && (favoriteSection.style.display = 'none');
       }
       // aktualizuj sekcję menu mobilnego
       renderMobileAuth(user);
@@ -706,41 +765,47 @@ window.showConfirmModal = showConfirmModal;
     logoutBtn && logoutBtn.addEventListener('click', async () => {
       try { await signOut(auth); } catch(e){ console.error(e); }
     });
-
     // Oferty użytkownika
     async function loadUserOffers(email, uid) {
-      if (!userOffers) return;
-      userOffers.innerHTML = '<p>Ładuję Twoje oferty…</p>';
+      if (!ownedOffers) return;
+      ownedOffers.innerHTML = '';
+      if (ownedEmpty) {
+        ownedEmpty.textContent = 'Ładuję Twoje oferty…';
+        ownedEmpty.style.display = 'block';
+      }
+
+      if (favoriteOffers) favoriteOffers.innerHTML = '';
+      if (favoriteEmpty) {
+        favoriteEmpty.textContent = 'Ładuję ulubione…';
+        favoriteEmpty.style.display = uid ? 'block' : 'none';
+      }
+      if (favoriteSection) {
+        favoriteSection.style.display = uid ? 'block' : 'none';
+      }
 
       try {
-        const colRef = collection(db, "propertyListings");
+        const colRef = collection(db, 'propertyListings');
         const queries = [];
 
         if (email) {
-          queries.push(getDocs(query(colRef, where("email", "==", email))));
-          queries.push(getDocs(query(colRef, where("userEmail", "==", email))));
+          queries.push(getDocs(query(colRef, where('email', '==', email))));
+          queries.push(getDocs(query(colRef, where('userEmail', '==', email))));
         }
         if (uid) {
-          queries.push(getDocs(query(colRef, where("userUid", "==", uid))));
-          queries.push(getDocs(query(colRef, where("uid", "==", uid))));
-          queries.push(getDocs(query(colRef, where("ownerId", "==", uid))));
+          queries.push(getDocs(query(colRef, where('userUid', '==', uid))));
+          queries.push(getDocs(query(colRef, where('uid', '==', uid))));
+          queries.push(getDocs(query(colRef, where('ownerId', '==', uid))));
         }
 
-        const results = await Promise.allSettled(queries);
+        const results = queries.length ? await Promise.allSettled(queries) : [];
         const docsById = new Map();
-        results.forEach(r => {
-          if (r.status === "fulfilled") {
-            r.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
+        results.forEach(result => {
+          if (result.status === 'fulfilled') {
+            result.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
           }
         });
 
-        userOffers.innerHTML = '';
-
-        if (docsById.size === 0) {
-          userOffers.innerHTML = '<p>Nie masz jeszcze żadnych ofert.</p>';
-          return;
-        }
-
+        let hasOwned = false;
         docsById.forEach(docSnap => {
           const offer = docSnap.data();
           const offerId = docSnap.id;
@@ -754,11 +819,12 @@ window.showConfirmModal = showConfirmModal;
               el.className = 'offer-card';
 
               const price = Number(plot.price || 0);
-              const area  = Number(plot.pow_dzialki_m2_uldk || 0);
-              const ppm2  = price && area ? Math.round(price / area) : 0;
-              const city  = offer.city || 'Nie podano';
+              const area = Number(plot.pow_dzialki_m2_uldk || 0);
+              const ppm2 = price && area ? Math.round(price / area) : 0;
+              const city = offer.city || 'Nie podano';
               const phone = offer.phone || 'Nie podano';
               const title = plot.Id || `Działka ${visibleIdx + 1}`;
+              const safeTitle = (title || '').replace(/'/g, "\'");
               const detailsUrl = `details.html?id=${offerId}&plot=${originalIndex}`;
 
               el.innerHTML = `
@@ -766,7 +832,7 @@ window.showConfirmModal = showConfirmModal;
                 <div class="offer-details">
                   <p><strong>Lokalizacja:</strong> ${city}</p>
                   <p><strong>Telefon:</strong> ${phone}</p>
-                  ${area  ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+                  ${area ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
                   ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
                     ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>` : ''}
                   </p>` : ''}
@@ -778,29 +844,160 @@ window.showConfirmModal = showConfirmModal;
                   <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
                     <i class="fas fa-edit"></i> Edytuj
                   </button>
-                  <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(title||'').replace(/'/g,"\\'")}')">
+                  <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${safeTitle}')">
                     <i class="fas fa-trash"></i> Usuń
                   </button>
                 </div>
               `;
 
-              el.addEventListener('click', (e) => {
-                if (e.target.closest('.offer-actions')) return;
+              el.addEventListener('click', (event) => {
+                if (event.target.closest('.offer-actions')) return;
                 if (window.focusOfferOnMap) window.focusOfferOnMap(offerId, originalIndex);
               });
 
-              userOffers.appendChild(el);
+              ownedOffers.appendChild(el);
+              hasOwned = true;
             });
         });
 
-        if (!userOffers.querySelector('.offer-card')) {
-          userOffers.innerHTML = '<p>Nie masz jeszcze żadnych aktywnych ofert.</p>';
+        if (!hasOwned) {
+          if (ownedEmpty) {
+            ownedEmpty.textContent = 'Nie masz jeszcze żadnych ofert.';
+            ownedEmpty.style.display = 'block';
+          } else {
+            ownedOffers.innerHTML = '<p>Nie masz jeszcze żadnych ofert.</p>';
+          }
+        } else if (ownedEmpty) {
+          ownedEmpty.style.display = 'none';
         }
       } catch (err) {
         console.error('loadUserOffers:', err);
-        userOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
+        if (ownedEmpty) {
+          ownedEmpty.textContent = 'Wystąpił błąd podczas ładowania ofert.';
+          ownedEmpty.style.display = 'block';
+        } else {
+          ownedOffers.innerHTML = '<p>Wystąpił błąd podczas ładowania ofert.</p>';
+        }
+      }
+
+      if (uid) {
+        await loadFavoriteOffers(uid);
       }
     }
+
+    async function loadFavoriteOffers(uid) {
+      if (!favoriteOffers || !favoriteEmpty) return;
+      favoriteOffers.innerHTML = '';
+      favoriteEmpty.textContent = 'Ładuję ulubione…';
+      favoriteEmpty.style.display = 'block';
+
+      try {
+        const userRef = doc(db, 'users', uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          favoriteEmpty.textContent = 'Nie dodałeś jeszcze ulubionych działek.';
+          return;
+        }
+        const data = snap.data();
+        const favorites = Array.isArray(data.favorites) ? data.favorites : [];
+        if (!favorites.length) {
+          favoriteEmpty.textContent = 'Nie dodałeś jeszcze ulubionych działek.';
+          return;
+        }
+
+        favoriteEmpty.style.display = 'none';
+        favorites
+          .slice()
+          .sort((a, b) => {
+            const timeA = toDate(a?.savedAt)?.getTime() || 0;
+            const timeB = toDate(b?.savedAt)?.getTime() || 0;
+            return timeB - timeA;
+          })
+          .forEach(favorite => {
+            const card = createFavoriteCard(favorite);
+            favoriteOffers.appendChild(card);
+          });
+      } catch (err) {
+        console.error('loadFavoriteOffers', err);
+        favoriteEmpty.textContent = 'Nie udało się załadować ulubionych.';
+      }
+    }
+
+    function createFavoriteCard(favorite) {
+      const offerId = favorite?.offerId;
+      const plotIndex = Number.isFinite(favorite?.plotIndex) ? favorite.plotIndex : Number(favorite?.plotIndex) || 0;
+      const title = favorite?.title || (favorite?.plotNumber ? `Działka ${favorite.plotNumber}` : `Działka ${plotIndex + 1}`);
+      const city = favorite?.city || 'Nie podano';
+      const area = Number(favorite?.area || 0);
+      const price = Number(favorite?.price || 0);
+      const areaText = Number.isFinite(area) && area > 0 ? `${area.toLocaleString('pl-PL')} m²` : '';
+      const priceText = Number.isFinite(price) && price > 0 ? `${price.toLocaleString('pl-PL')} zł` : '';
+      const ppm = Number.isFinite(price) && Number.isFinite(area) && area > 0 ? Math.round(price / area) : null;
+      const ppmText = Number.isFinite(ppm) ? `${ppm.toLocaleString('pl-PL')} zł/m²` : '';
+      const savedAtText = formatDateTime(favorite?.savedAt);
+      const detailsUrl = offerId ? `details.html?id=${offerId}&plot=${plotIndex}` : '#';
+
+      const card = document.createElement('div');
+      card.className = 'offer-card';
+      card.innerHTML = `
+        <h3 class="offer-title">${title}</h3>
+        <div class="offer-details">
+          <p><strong>Lokalizacja:</strong> ${city}</p>
+          ${favorite?.contactName ? `<p><strong>Kontakt:</strong> ${favorite.contactName}</p>` : ''}
+          ${favorite?.contactPhone ? `<p><strong>Telefon:</strong> ${favorite.contactPhone}</p>` : ''}
+          ${areaText ? `<p><strong>Powierzchnia:</strong> ${areaText}</p>` : ''}
+          ${priceText ? `<p><strong>Cena:</strong> ${priceText}${ppmText ? ` <span class="favorite-ppm">(${ppmText})</span>` : ''}</p>` : ''}
+          ${savedAtText ? `<p class="favorite-meta"><strong>Zapisano:</strong> ${savedAtText}</p>` : ''}
+        </div>
+        <div class="offer-actions">
+          <a class="btn btn-accent btn-sm" ${offerId ? `target="_blank" href="${detailsUrl}"` : 'href="#" aria-disabled="true" style="pointer-events:none;opacity:.6;"'}>
+            <i class="fas fa-info-circle"></i> Szczegóły
+          </a>
+          <button class="btn btn-secondary btn-sm favorite-remove" type="button">
+            <i class="fas fa-times"></i> Usuń
+          </button>
+        </div>
+      `;
+
+      card.addEventListener('click', (event) => {
+        if (event.target.closest('.offer-actions')) return;
+        if (offerId) {
+          window.open(detailsUrl, '_blank');
+        }
+      });
+
+      const removeBtn = card.querySelector('.favorite-remove');
+      removeBtn?.addEventListener('click', async (event) => {
+        event.preventDefault();
+        await removeFavorite(offerId, plotIndex, title);
+      });
+
+      return card;
+    }
+
+    async function removeFavorite(offerId, plotIndex, title) {
+      if (!auth.currentUser || !offerId) return;
+      const label = title || 'wybraną działkę';
+      if (!(await showConfirmModal(`Czy na pewno chcesz usunąć "${label}" z ulubionych?`))) return;
+      try {
+        const userRef = doc(db, 'users', auth.currentUser.uid);
+        const snap = await getDoc(userRef);
+        if (!snap.exists()) {
+          showToast('Nie znaleziono listy ulubionych.', 'error');
+          return;
+        }
+        const data = snap.data();
+        const favorites = Array.isArray(data.favorites) ? data.favorites : [];
+        const updated = favorites.filter(item => !(item && item.offerId === offerId && item.plotIndex === plotIndex));
+        await setDoc(userRef, { favorites: updated }, { merge: true });
+        showToast('Usunięto z ulubionych.', 'success');
+        await loadFavoriteOffers(auth.currentUser.uid);
+      } catch (err) {
+        console.error('removeFavorite', err);
+        showToast('Nie udało się usunąć z ulubionych.', 'error');
+      }
+    }
+
     async function deletePlot(offerId, plotIndex, title) {
       if (!(await showConfirmModal(`Czy na pewno chcesz usunąć działkę "${title}"?`))) return;
       try {
