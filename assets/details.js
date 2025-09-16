@@ -131,6 +131,19 @@ function formatAreaText(value) {
   return formatted ? formatted : '—';
 }
 
+function extractPlotNumber(rawValue) {
+  if (rawValue === null || rawValue === undefined) {
+    return null;
+  }
+  const text = String(rawValue).trim();
+  if (!text) {
+    return null;
+  }
+  const parts = text.split('.');
+  const lastPart = parts[parts.length - 1]?.trim();
+  return lastPart || text;
+}
+
 function setTextContent(element, value, fallback = '—') {
   if (!element) return;
   element.textContent = textContentOrFallback(value, fallback);
@@ -142,6 +155,60 @@ function setMultilineText(element, value, fallback = '—') {
     ? fallback
     : sanitizeMultilineText(value);
   element.textContent = text;
+}
+
+function enforceReadOnly(element) {
+  if (!element) return;
+
+  const applyAttributes = () => {
+    if (element.getAttribute('contenteditable') !== 'false') {
+      element.setAttribute('contenteditable', 'false');
+    }
+    if (element.getAttribute('aria-readonly') !== 'true') {
+      element.setAttribute('aria-readonly', 'true');
+    }
+    if (element.hasAttribute('tabindex')) {
+      element.removeAttribute('tabindex');
+    }
+  };
+
+  applyAttributes();
+
+  if (typeof MutationObserver !== 'function') {
+    return;
+  }
+
+  if (!element.__readOnlyObserver) {
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'contenteditable') {
+          applyAttributes();
+        }
+      }
+    });
+    observer.observe(element, { attributes: true, attributeFilter: ['contenteditable'] });
+    element.__readOnlyObserver = observer;
+  }
+}
+
+function lockTextValue(element, value) {
+  if (!element) return;
+  const normalized = value === null || value === undefined ? '' : String(value);
+  element.dataset.lockedValue = normalized;
+  if (element.textContent !== normalized) {
+    element.textContent = normalized;
+  }
+  if (typeof MutationObserver === 'function' && !element.__lockedValueObserver) {
+    const observer = new MutationObserver(() => {
+      const locked = element.dataset.lockedValue ?? '';
+      if (element.textContent !== locked) {
+        element.textContent = locked;
+      }
+    });
+    observer.observe(element, { characterData: true, childList: true, subtree: true });
+    element.__lockedValueObserver = observer;
+  }
+  enforceReadOnly(element);
 }
 
 function formatPhoneNumber(phone) {
@@ -238,8 +305,8 @@ function setPrice(price) {
 function setArea(area) {
   state.area = Number.isFinite(area) ? area : null;
   const text = formatAreaText(state.area);
-  elements.propertyArea.textContent = text;
-  elements.plotAreaStat.textContent = text;
+  lockTextValue(elements.propertyArea, text);
+  lockTextValue(elements.plotAreaStat, text);
 }
 
 function renderPriceMetadata(priceUpdatedAt) {
@@ -309,7 +376,10 @@ function renderOffer(data, plot) {
 
   renderPriceMetadata(pickValue(plot.priceUpdatedAt, data.updatedAt, data.timestamp));
 
-  setTextContent(elements.plotNumber, pickValue(plot.plotNumber, plot.Id, plot.number), '—');
+  const rawPlotNumber = pickValue(plot.plotNumber, plot.Id, plot.number);
+  const formattedPlotNumber = extractPlotNumber(rawPlotNumber);
+  setTextContent(elements.plotNumber, formattedPlotNumber, '—');
+  lockTextValue(elements.plotNumber, elements.plotNumber.textContent);
   setTextContent(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
   setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status), '—');
 
@@ -338,6 +408,12 @@ function renderOffer(data, plot) {
 
   const email = pickValue(plot.contactEmail, data.contactEmail, data.email);
   setContactLink(elements.contactEmailLink, email, 'email');
+}
+
+function initializeReadOnlyLocks() {
+  lockTextValue(elements.plotNumber, elements.plotNumber?.textContent ?? '—');
+  lockTextValue(elements.propertyArea, elements.propertyArea?.textContent ?? '—');
+  lockTextValue(elements.plotAreaStat, elements.plotAreaStat?.textContent ?? '—');
 }
 
 function setMapMode(mode) {
@@ -612,6 +688,7 @@ async function init() {
   state.offerId = offerId;
   state.plotIndex = plotIndex;
   initFirebase();
+  initializeReadOnlyLocks();
   setupAuthUI();
   setupMapModeButtons();
   setupInquiryForm();
