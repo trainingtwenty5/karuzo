@@ -594,14 +594,22 @@ window.showConfirmModal = showConfirmModal;
       placeholder.textContent = 'Brak tagów w ofertach';
       tagFiltersList.appendChild(placeholder);
       tagFiltersList.dataset.expanded = 'true';
+      tagFiltersList.dataset.state = 'empty';
+      tagFiltersList.classList.remove('is-collapsed', 'is-expanded');
+      tagFiltersList.classList.add('is-empty');
       if (toggleTagsBtn) {
         toggleTagsBtn.hidden = true;
         toggleTagsBtn.setAttribute('aria-expanded', 'false');
+        toggleTagsBtn.dataset.state = 'collapsed';
       }
       return;
     }
 
     tagFiltersList.dataset.expanded = tagsExpanded ? 'true' : 'false';
+    tagFiltersList.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
+    tagFiltersList.classList.remove('is-empty');
+    tagFiltersList.classList.toggle('is-expanded', tagsExpanded);
+    tagFiltersList.classList.toggle('is-collapsed', !tagsExpanded);
 
     availableTags.forEach((tag, index) => {
       const btn = document.createElement('button');
@@ -625,8 +633,10 @@ window.showConfirmModal = showConfirmModal;
       if (hasMore) {
         toggleTagsBtn.textContent = tagsExpanded ? 'Pokaż mniej' : 'Pokaż więcej';
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
+        toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
         toggleTagsBtn.setAttribute('aria-expanded', 'false');
+        toggleTagsBtn.dataset.state = 'collapsed';
       }
     }
   }
@@ -704,11 +714,13 @@ window.showConfirmModal = showConfirmModal;
         data.plots.forEach((plot, index) => {
           if (plot.mock === false) return;
 
+          const isMockPlot = plot.mock === true;
+
           const lat = plot.lat;
           const lng = plot.lng;
           const geometry = plot.geometry_uldk;
           const offerId = docSnap.id;
-          const tags = normalizeTags(plot.tags);
+          const tags = isMockPlot ? normalizeTags(plot.tags) : [];
 
           const marker = new google.maps.Marker({
             position: { lat, lng },
@@ -753,7 +765,9 @@ window.showConfirmModal = showConfirmModal;
           };
 
           allOffers.push(entry);
-          tags.forEach(tag => uniqueTags.add(tag));
+          if (isMockPlot) {
+            tags.forEach(tag => uniqueTags.add(tag));
+          }
         });
       });
 
