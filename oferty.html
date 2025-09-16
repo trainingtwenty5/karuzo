@@ -190,6 +190,32 @@ window.showConfirmModal = showConfirmModal;
     
     <!-- Prawa strona - przewijana zawartość -->
     <div class="content-container">
+      <!-- Panel filtrów ofert -->
+      <div class="filters-panel" id="filtersPanel">
+        <h3 class="filters-title">Filtruj działki</h3>
+        <div class="filters-row sort-row">
+          <span class="filters-label">Sortuj:</span>
+          <div class="sort-buttons">
+            <button type="button" class="sort-chip" data-sort-key="price" aria-pressed="false">
+              Cena
+            </button>
+            <button type="button" class="sort-chip" data-sort-key="area" aria-pressed="false">
+              Powierzchnia
+            </button>
+          </div>
+        </div>
+        <div class="filters-row tags-row">
+          <span class="filters-label">Tagi:</span>
+          <div class="tags-area">
+            <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
+              <span class="tag-placeholder">Ładuję tagi…</span>
+            </div>
+            <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
+              Pokaż listę tagów
+            </button>
+          </div>
+        </div>
+      </div>
       <!-- Panel z ofertami publicznymi -->
       <div class="offers-section">
         <div class="section-title">
@@ -361,6 +387,58 @@ window.showConfirmModal = showConfirmModal;
   let markers = [];
   let markerCluster;
   let allOffers = [];
+  let availableTags = [];
+  let tagMetrics = new Map();
+  const filterState = {
+    sortKey: null,
+    sortDir: 'asc',
+    selectedTags: new Set()
+  };
+  let tagsExpanded = false;
+  const TAG_PREVIEW_COUNT = 5;
+
+  const tagFiltersList = document.getElementById('tagFiltersList');
+  const toggleTagsBtn = document.getElementById('toggleTagsBtn');
+  const sortButtons = document.querySelectorAll('[data-sort-key]');
+
+  const clusterRenderer = {
+    render: ({ count, position }) => {
+      return new google.maps.Marker({
+        position,
+        label: { text: String(count), color: 'white', fontSize: '14px', fontWeight: 'bold' },
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: 'red',
+          fillOpacity: 0.85,
+          strokeColor: 'red',
+          strokeWeight: 2
+        }
+      });
+    }
+  };
+
+  toggleTagsBtn?.addEventListener('click', () => {
+    tagsExpanded = !tagsExpanded;
+    renderTagFilters();
+  });
+
+  sortButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const key = btn.dataset.sortKey;
+      if (!key) return;
+      if (filterState.sortKey === key) {
+        filterState.sortDir = filterState.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        filterState.sortKey = key;
+        filterState.sortDir = 'asc';
+      }
+      updateSortButtonsUI();
+      filterOffersByBounds();
+    });
+  });
+
+  updateSortButtonsUI();
 
   // jedno, globalne InfoWindow – NIGDY nie tworzymy wielu
   window.infoWin = null;
@@ -398,6 +476,273 @@ window.showConfirmModal = showConfirmModal;
     `;
   }
 
+  function normalizeTags(rawTags) {
+    if (!Array.isArray(rawTags)) return [];
+    return rawTags
+      .map(tag => (typeof tag === 'string' ? tag.trim() : String(tag || '').trim()))
+      .filter(tag => tag.length);
+  }
+
+  function offerMatchesSelectedTags(offer) {
+    if (!filterState.selectedTags.size) return true;
+    if (!offer.tags || !offer.tags.length) return false;
+    for (const tag of filterState.selectedTags) {
+      if (!offer.tags.includes(tag)) return false;
+    }
+    return true;
+  }
+
+  function getOffersMatchingFilters() {
+    return allOffers.filter(offerMatchesSelectedTags);
+  }
+
+  function sortOffers(offers) {
+    const { sortKey, sortDir } = filterState;
+    if (!sortKey) return offers.slice();
+
+    const dir = sortDir === 'desc' ? -1 : 1;
+    const valueFor = (offer) => {
+      if (sortKey === 'price') {
+        const value = Number(offer.plot?.price);
+        return Number.isFinite(value) ? value : null;
+      }
+      if (sortKey === 'area') {
+        const value = Number(offer.plot?.pow_dzialki_m2_uldk);
+        return Number.isFinite(value) ? value : null;
+      }
+      return null;
+    };
+
+    return offers.slice().sort((a, b) => {
+      const aVal = valueFor(a);
+      const bVal = valueFor(b);
+
+      if (aVal === null && bVal === null) return 0;
+      if (aVal === null) return 1;
+      if (bVal === null) return -1;
+      if (aVal === bVal) return 0;
+      return aVal > bVal ? dir : -dir;
+    });
+  }
+
+  function rebuildCluster(activeMarkers) {
+    if (!map) return;
+    if (markerCluster) {
+      markerCluster.clearMarkers();
+    }
+    markerCluster = new markerClusterer.MarkerClusterer({
+      map,
+      markers: activeMarkers,
+      renderer: clusterRenderer
+    });
+  }
+
+  function updateMarkersForOffers(filteredOffers) {
+    const activeKeys = new Set(filteredOffers.map(o => o.key));
+    const activeMarkers = [];
+    allOffers.forEach(offer => {
+      const isActive = activeKeys.has(offer.key);
+      if (offer.marker) {
+        offer.marker.setVisible(isActive);
+        offer.marker.setMap(isActive ? map : null);
+        if (isActive) {
+          activeMarkers.push(offer.marker);
+        }
+      }
+    });
+    rebuildCluster(activeMarkers);
+  }
+
+  function updatePolygonVisibility(filteredOffers = null) {
+    if (!map) return;
+    const show = map.getZoom() >= 8;
+    const source = filteredOffers ?? getOffersMatchingFilters();
+    const activeKeys = new Set(source.map(o => o.key));
+    allOffers.forEach(offer => {
+      if (!offer.polygon) return;
+      const shouldShow = show && activeKeys.has(offer.key);
+      offer.polygon.setMap(shouldShow ? map : null);
+      offer.polygon.setVisible(!!shouldShow);
+    });
+  }
+
+  function updateSortButtonsUI() {
+    sortButtons.forEach(btn => {
+      const key = btn.dataset.sortKey;
+      const isActive = filterState.sortKey === key;
+      btn.dataset.active = isActive ? 'true' : 'false';
+      if (isActive) {
+        btn.dataset.direction = filterState.sortDir;
+        btn.setAttribute('aria-pressed', 'true');
+      } else {
+        btn.removeAttribute('data-direction');
+        btn.setAttribute('aria-pressed', 'false');
+      }
+    });
+  }
+
+  function createTagChip(tag) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-chip';
+    if (filterState.selectedTags.has(tag)) {
+      btn.classList.add('is-active');
+    }
+    btn.setAttribute('aria-pressed', filterState.selectedTags.has(tag) ? 'true' : 'false');
+    btn.textContent = tag;
+    btn.dataset.tag = tag;
+    btn.addEventListener('click', () => toggleTagFilter(tag));
+    return btn;
+  }
+
+  function formatTagCount(count) {
+    if (!Number.isFinite(count)) return '';
+    if (count === 1) return '1 oferta';
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return `${count} oferty`;
+    }
+    return `${count} ofert`;
+  }
+
+  function renderTagFilters() {
+    if (!tagFiltersList) return;
+
+    for (const tag of Array.from(filterState.selectedTags)) {
+      if (!availableTags.includes(tag)) {
+        filterState.selectedTags.delete(tag);
+      }
+    }
+
+    tagFiltersList.innerHTML = '';
+    tagFiltersList.classList.remove('is-empty');
+
+    if (!availableTags.length) {
+      const placeholder = document.createElement('span');
+      placeholder.className = 'tag-placeholder';
+      placeholder.textContent = 'Brak tagów w ofertach';
+      tagFiltersList.appendChild(placeholder);
+      tagFiltersList.dataset.expanded = 'false';
+      tagFiltersList.dataset.state = 'empty';
+      tagFiltersList.classList.add('is-empty');
+      if (toggleTagsBtn) {
+        toggleTagsBtn.hidden = true;
+        toggleTagsBtn.setAttribute('aria-expanded', 'false');
+        toggleTagsBtn.dataset.state = 'empty';
+      }
+      return;
+    }
+
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'tags-preview';
+    tagFiltersList.appendChild(previewWrap);
+
+    const configureChip = (chip, tag) => {
+      const stats = tagMetrics.get(tag);
+      if (stats?.count) {
+        const countLabel = formatTagCount(stats.count);
+        chip.dataset.countLabel = countLabel;
+        chip.title = `${tag} • ${countLabel}`;
+      } else {
+        chip.removeAttribute('data-count-label');
+        chip.title = tag;
+      }
+    };
+
+    const selectedTags = Array.from(filterState.selectedTags).filter(tag => availableTags.includes(tag));
+    const previewLimit = Math.max(TAG_PREVIEW_COUNT, selectedTags.length);
+    const previewTags = [];
+    const dropdownTags = [];
+    const seenTags = new Set();
+
+    selectedTags.forEach(tag => {
+      if (!seenTags.has(tag)) {
+        previewTags.push(tag);
+        seenTags.add(tag);
+      }
+    });
+
+    availableTags.forEach(tag => {
+      if (seenTags.has(tag)) return;
+      if (previewTags.length < previewLimit) {
+        previewTags.push(tag);
+        seenTags.add(tag);
+      } else {
+        dropdownTags.push(tag);
+      }
+    });
+
+    previewTags.forEach(tag => {
+      const chip = createTagChip(tag);
+      configureChip(chip, tag);
+      chip.classList.add('tag-chip--preview');
+      previewWrap.appendChild(chip);
+    });
+
+    let dropdownWrap = null;
+    if (dropdownTags.length) {
+      dropdownWrap = document.createElement('div');
+      dropdownWrap.className = 'tags-dropdown';
+      dropdownWrap.hidden = !tagsExpanded;
+      tagFiltersList.appendChild(dropdownWrap);
+
+      dropdownTags.forEach(tag => {
+        const chip = createTagChip(tag);
+        configureChip(chip, tag);
+        chip.classList.add('tag-chip--list');
+        dropdownWrap.appendChild(chip);
+      });
+    }
+
+    const hiddenCount = dropdownTags.length;
+
+    if (!tagsExpanded && hiddenCount > 0) {
+      const summary = document.createElement('span');
+      summary.className = 'tags-summary';
+      summary.textContent = `+${hiddenCount} w liście`;
+      previewWrap.appendChild(summary);
+    }
+
+    if (!hiddenCount) {
+      tagsExpanded = false;
+    }
+
+    if (toggleTagsBtn) {
+      if (hiddenCount > 0) {
+        toggleTagsBtn.hidden = false;
+        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj listę tagów' : `Pokaż ${hiddenCount} więcej`;
+        toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
+        toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
+      } else {
+        toggleTagsBtn.hidden = true;
+        toggleTagsBtn.setAttribute('aria-expanded', 'false');
+        toggleTagsBtn.dataset.state = 'all-visible';
+      }
+    }
+
+    tagFiltersList.dataset.expanded = tagsExpanded ? 'true' : 'false';
+    tagFiltersList.dataset.state = hiddenCount > 0 ? (tagsExpanded ? 'expanded' : 'collapsed') : 'all-visible';
+  }
+
+  function toggleTagFilter(tag) {
+    if (!tag) return;
+    if (filterState.selectedTags.has(tag)) {
+      filterState.selectedTags.delete(tag);
+    } else {
+      filterState.selectedTags.add(tag);
+    }
+    renderTagFilters();
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const filtered = getOffersMatchingFilters();
+    updateMarkersForOffers(filtered);
+    filterOffersByBounds(filtered);
+    updatePolygonVisibility(filtered);
+  }
+
   function openInfo(marker, html) {
     if (!window.infoWin) window.infoWin = new google.maps.InfoWindow();
     window.infoWin.setContent(html);
@@ -414,6 +759,7 @@ window.showConfirmModal = showConfirmModal;
     });
 
     google.maps.event.addListener(map, "idle", () => filterOffersByBounds());
+    google.maps.event.addListener(map, "zoom_changed", () => updatePolygonVisibility());
     await loadOffers();
 
     // delikatny zoom kółkiem (opcjonalne)
@@ -432,38 +778,53 @@ window.showConfirmModal = showConfirmModal;
     try {
       const snapshot = await window.getDocs(window.collection(window.db, "propertyListings"));
       const listContainer = document.getElementById("offersList");
-      listContainer && (listContainer.innerHTML = "");
+      if (listContainer) listContainer.innerHTML = "";
 
-      // reset
-      allOffers = [];
-      markers.forEach(m => m.setMap(null));
+      allOffers.forEach(offer => {
+        if (offer.marker) offer.marker.setMap(null);
+        if (offer.polygon) offer.polygon.setMap(null);
+      });
+
+      markers.forEach(marker => marker.setMap(null));
       markers = [];
-      const plotPolygons = [];
+      allOffers = [];
+      availableTags = [];
+      tagMetrics = new Map();
+      const tagStats = new Map();
+      let tagSequence = 0;
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         if (!data.plots || !data.plots.length) return;
 
         data.plots.forEach((plot, index) => {
-          // POKAZUJ wszystko oprócz jawnie ukrytych
-          if (plot.mock === false) return;
-
-          const lat = plot.lat, lng = plot.lng;
+          const lat = plot.lat;
+          const lng = plot.lng;
           const geometry = plot.geometry_uldk;
           const offerId = docSnap.id;
+          const tags = normalizeTags(plot.tags);
+          const uniquePlotTags = Array.from(new Set(tags));
 
-          // marker
+          if (uniquePlotTags.length) {
+            uniquePlotTags.forEach(tag => {
+              tagSequence += 1;
+              const current = tagStats.get(tag) || { count: 0, lastSeen: 0 };
+              current.count += 1;
+              current.lastSeen = tagSequence;
+              tagStats.set(tag, current);
+            });
+          }
+
           const marker = new google.maps.Marker({
-            position: { lat, lng }, map,
+            position: { lat, lng },
+            map,
             title: data.firstName || "Oferta",
             icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
           });
           markers.push(marker);
 
-          // klik w marker → InfoWindow + „Szczegóły”
           marker.addListener('click', () => openInfo(marker, infoHTML(plot, data, offerId, index)));
 
-          // polygon (pokazywany od określonego zoomu)
           let polygon = null;
           if (geometry) {
             const coords = parseGeometry(geometry);
@@ -475,77 +836,72 @@ window.showConfirmModal = showConfirmModal;
                 strokeWeight: 3,
                 fillColor: "#FF0000",
                 fillOpacity: 0.15,
-                map: null, visible: false
+                map: null,
+                visible: false
               });
               polygon.addListener('click', (evt) => {
-                // klik w obrys także otwiera JEDNO info okno
                 const fakeMarker = new google.maps.Marker({ position: evt.latLng, map: null });
                 openInfo(fakeMarker, infoHTML(plot, data, offerId, index));
               });
-              plotPolygons.push({ polygon, bounds: getPolygonBounds(coords), marker });
             }
           }
 
-          // zapisz wpis
-          allOffers.push({ id: offerId, data, plot, index, marker, polygon });
+          const entry = {
+            id: offerId,
+            key: `${offerId}__${index}`,
+            data,
+            plot,
+            index,
+            marker,
+            polygon,
+            tags: uniquePlotTags
+          };
+
+          allOffers.push(entry);
         });
       });
 
-      // klastrowanie
-      if (markerCluster) markerCluster.clearMarkers();
-      markerCluster = new markerClusterer.MarkerClusterer({
-        map, markers,
-        renderer: {
-          render: ({ count, position }) => {
-            return new google.maps.Marker({
-              position,
-              label: { text: String(count), color: "white", fontSize: "14px", fontWeight: "bold" },
-              icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 20,
-                fillColor: "red",
-                fillOpacity: 0.85,
-                strokeColor: "red",
-                strokeWeight: 2
-              }
-            });
+      tagMetrics = new Map(tagStats);
+      availableTags = Array.from(tagStats.entries())
+        .sort((a, b) => {
+          if (b[1].lastSeen !== a[1].lastSeen) {
+            return b[1].lastSeen - a[1].lastSeen;
           }
-        }
-      });
-
-      // polygony od zoom >= 8
-      google.maps.event.addListener(map, 'zoom_changed', () => {
-        const show = map.getZoom() >= 8;
-        plotPolygons.forEach(p => {
-          if (!p.polygon) return;
-          p.polygon.setMap(show ? map : null);
-          p.polygon.setVisible(!!show);
-        });
-      });
-
-      filterOffersByBounds();
+          if (b[1].count !== a[1].count) {
+            return b[1].count - a[1].count;
+          }
+          return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
+        })
+        .map(([tag]) => tag);
+      tagsExpanded = false;
+      renderTagFilters();
+      updateSortButtonsUI();
+      applyFilters();
     } catch (err) {
       console.error("Błąd pobierania ofert:", err);
     }
   }
 
-  // widoczność listy wg granic + SZCZEGÓŁY na środku
-  function filterOffersByBounds() {
+  // widoczność listy wg granic + sortowanie wyników
+  function filterOffersByBounds(filteredOffers = null) {
     if (!map || !allOffers.length) return;
     const bounds = map.getBounds();
     if (!bounds) return;
 
-    const visibleOffers = allOffers.filter(o => bounds.contains(o.marker.getPosition()));
+    const base = Array.isArray(filteredOffers) ? filteredOffers : getOffersMatchingFilters();
     const listContainer = document.getElementById("offersList");
     if (!listContainer) return;
 
+    const visibleOffers = base.filter(o => bounds.contains(o.marker.getPosition()));
+    const sortedOffers = sortOffers(visibleOffers);
+
     listContainer.innerHTML = "";
-    if (!visibleOffers.length) {
+    if (!sortedOffers.length) {
       listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
       return;
     }
 
-    visibleOffers.forEach(o => {
+    sortedOffers.forEach(o => {
       const card = document.createElement("div");
       card.className = "offer-card";
       const price = Number(o.plot.price || 0);
@@ -567,9 +923,7 @@ window.showConfirmModal = showConfirmModal;
         </div>
       `;
 
-      // klik w kartę (publiczną) → ogniskuj na mapie + InfoWindow
       card.addEventListener("click", (e) => {
-        // jeśli klik to „Szczegóły” – nie ogniskuj mapy
         if (e.target.closest('a')) return;
         map.panTo(o.marker.getPosition());
         map.setZoom(Math.max(16, map.getZoom()));
@@ -595,12 +949,6 @@ window.showConfirmModal = showConfirmModal;
       });
     } catch (e) { console.error("Błąd parsowania geometrii:", e, geometryString); }
     return coords;
-  }
-
-  function getPolygonBounds(coords) {
-    const bounds = new google.maps.LatLngBounds();
-    coords.forEach(c => bounds.extend(c));
-    return bounds;
   }
 
   // PUBLIC: focus z „Moje Oferty”
