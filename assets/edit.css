@@ -38,6 +38,52 @@
   min-height: 1.2em;
 }
 
+.edit-intro {
+  margin-bottom: 1.25rem;
+  padding: .75rem 1rem;
+  background: #f8fafc;
+  border-radius: 14px;
+  color: var(--darker);
+  font-size: .95rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.meta-chip--select {
+  position: relative;
+}
+
+.meta-chip--select select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0 1.4rem 0 .25rem;
+  cursor: pointer;
+  min-width: 140px;
+}
+
+.meta-chip--select::after {
+  content: "\f078";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  position: absolute;
+  right: .6rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: .65rem;
+  color: var(--primary);
+  pointer-events: none;
+}
+
+.meta-chip--select select:focus {
+  outline: none;
+}
+
+.meta-chip--select select option {
+  color: var(--darker);
+}
+
 .utilities-grid .utility-card {
   cursor: pointer;
   transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
@@ -137,6 +183,47 @@
   background: transparent;
   cursor: pointer;
   padding: 0;
+}
+
+.stat-card select {
+  width: 100%;
+  margin-top: .4rem;
+  padding: .55rem .7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(30,111,186,.28);
+  font-size: .95rem;
+  background: #fff;
+  color: var(--darker);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.stat-card select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30,111,186,.18);
+}
+
+.field-hint {
+  margin-top: .5rem;
+  padding: .45rem .6rem;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: .8rem;
+}
+
+.tag-hint {
+  margin: 0;
+  padding: .75rem 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: .88rem;
+  line-height: 1.45;
+}
+
+.tag-hint strong {
+  color: var(--primary);
 }
 
 .contact-details a[contenteditable="true"] {

@@ -45,6 +45,7 @@ const state = {
   planBadges: null,
   map: null,
   marker: null,
+  polygon: null,
   hasLoaded: false
 };
 
@@ -56,15 +57,15 @@ const elements = {
   propertyTitle: document.getElementById('propertyTitle'),
   propertyLocation: document.getElementById('propertyLocation'),
   propertyArea: document.getElementById('propertyArea'),
-  propertyType: document.getElementById('propertyType'),
-  ownershipStatus: document.getElementById('ownershipStatus'),
+  propertyTypeSelect: document.getElementById('propertyTypeSelect'),
+  ownershipFormSelect: document.getElementById('ownershipFormSelect'),
   priceValueText: document.getElementById('priceValueText'),
   pricePerSqm: document.getElementById('pricePerSqm'),
   priceUpdatedAt: document.getElementById('priceUpdatedAt'),
   plotNumber: document.getElementById('plotNumber'),
   landRegister: document.getElementById('landRegister'),
   plotAreaStat: document.getElementById('plotAreaStat'),
-  plotStatus: document.getElementById('plotStatus'),
+  plotOwnershipSelect: document.getElementById('plotOwnershipSelect'),
   locationAddress: document.getElementById('locationAddress'),
   locationAccess: document.getElementById('locationAccess'),
   planBadges: document.getElementById('planBadges'),
@@ -178,6 +179,61 @@ function updatePricePerSqm() {
 function renderPriceUpdatedAt(value) {
   const formatted = formatDateTime(value);
   elements.priceUpdatedAt.textContent = formatted ? `Aktualizacja: ${formatted}` : 'Aktualizacja: —';
+}
+
+function ensureSelectOption(select, value) {
+  if (!select) return;
+  const text = typeof value === 'string' ? value.trim() : value;
+  if (!text) return;
+  const normalized = String(text);
+  const exists = Array.from(select.options).some(option => option.value === normalized);
+  if (!exists) {
+    const option = new Option(normalized, normalized);
+    option.dataset.dynamic = 'true';
+    select.add(option);
+  }
+}
+
+function setSelectValue(select, value, fallback = '') {
+  if (!select) return;
+  const trimmed = typeof value === 'string' ? value.trim() : value;
+  if (trimmed) {
+    const normalized = String(trimmed);
+    ensureSelectOption(select, normalized);
+    select.value = normalized;
+  } else if (fallback) {
+    ensureSelectOption(select, fallback);
+    select.value = fallback;
+  } else {
+    select.value = '';
+  }
+}
+
+function normalizeOwnershipForm(value) {
+  if (value === undefined || value === null) return '';
+  const text = String(value).trim();
+  if (!text) return '';
+  if (/użytkowanie/i.test(text)) {
+    return 'Użytkowanie wieczyste';
+  }
+  if (/prywatn/i.test(text)) {
+    return 'Własność';
+  }
+  if (/własno/i.test(text)) {
+    return 'Własność';
+  }
+  return text;
+}
+
+function deriveStatusFromOwnership(ownershipForm) {
+  if (!ownershipForm) return '';
+  if (/użytkowanie/i.test(ownershipForm)) {
+    return 'Użytkowanie wieczyste';
+  }
+  if (/zarząd/i.test(ownershipForm)) {
+    return 'Zarząd';
+  }
+  return 'Własność (pełna)';
 }
 
 function formatPhoneNumber(phone) {
@@ -380,11 +436,8 @@ function attachEditorListeners() {
   [
     elements.propertyTitle,
     elements.propertyLocation,
-    elements.propertyType,
-    elements.ownershipStatus,
     elements.plotNumber,
     elements.landRegister,
-    elements.plotStatus,
     elements.planDesignation,
     elements.planHeight,
     elements.planIntensity,
@@ -405,6 +458,34 @@ function attachEditorListeners() {
         updateContactEmailHref();
       }
     });
+  });
+
+  elements.plotOwnershipSelect?.addEventListener('change', () => {
+    const value = elements.plotOwnershipSelect.value;
+    if (!elements.ownershipFormSelect) return;
+    if (/użytkowanie/i.test(value)) {
+      setSelectValue(elements.ownershipFormSelect, 'Użytkowanie wieczyste', 'Użytkowanie wieczyste');
+    } else if (value) {
+      setSelectValue(elements.ownershipFormSelect, 'Własność', 'Własność');
+    }
+  });
+
+  elements.ownershipFormSelect?.addEventListener('change', () => {
+    if (!elements.plotOwnershipSelect) return;
+    const ownershipValue = elements.ownershipFormSelect.value;
+    const currentStatus = elements.plotOwnershipSelect.value;
+    if (!currentStatus) {
+      const derived = deriveStatusFromOwnership(ownershipValue);
+      if (derived) {
+        setSelectValue(elements.plotOwnershipSelect, derived, derived);
+      }
+      return;
+    }
+    if (ownershipValue === 'Użytkowanie wieczyste' && !/użytkowanie/i.test(currentStatus)) {
+      setSelectValue(elements.plotOwnershipSelect, 'Użytkowanie wieczyste', 'Użytkowanie wieczyste');
+    } else if (ownershipValue === 'Własność' && /użytkowanie/i.test(currentStatus)) {
+      setSelectValue(elements.plotOwnershipSelect, 'Własność (pełna)', 'Własność (pełna)');
+    }
   });
 
   if (elements.contactPhoneLink?.isContentEditable) {
@@ -454,19 +535,49 @@ function attachEditorListeners() {
   });
 }
 
+function normalizeTag(rawValue) {
+  if (rawValue === undefined || rawValue === null) return '';
+  let text = String(rawValue).trim();
+  if (!text) return '';
+  text = text.replace(/^#+/, '');
+  text = text.replace(/[_\s]+/g, '-');
+  text = text.replace(/-+/g, '-');
+  text = text.replace(/[^0-9A-Za-zĄąĆćĘęŁłŃńÓóŚśŹźŻż-]/g, '');
+  if (!text) return '';
+  const segments = text.split('-').filter(Boolean);
+  if (!segments.length) return '';
+  const formatted = segments.map((segment, index) => {
+    if (/^[0-9]+$/.test(segment)) {
+      return segment;
+    }
+    if (segment === segment.toUpperCase() && segment.length > 1) {
+      if (index === 0) {
+        const lower = segment.toLowerCase();
+        return lower.charAt(0).toUpperCase() + lower.slice(1);
+      }
+      return segment.toUpperCase();
+    }
+    const lower = segment.toLowerCase();
+    if (index === 0) {
+      return lower.charAt(0).toUpperCase() + lower.slice(1);
+    }
+    return lower;
+  });
+  return `#${formatted.join('-')}`;
+}
+
 function addTag(rawValue) {
-  const value = (rawValue || '').trim();
-  if (!value) {
+  const normalized = normalizeTag(rawValue);
+  if (!normalized) {
     showToast('Podaj treść znacznika.', 'warning');
     return;
   }
-  const tag = value.startsWith('#') ? value : `#${value}`;
-  if (state.tags.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+  if (state.tags.some(existing => existing.toLowerCase() === normalized.toLowerCase())) {
     showToast('Taki znacznik już istnieje.', 'info');
     if (elements.tagInput) elements.tagInput.value = '';
     return;
   }
-  state.tags.push(tag);
+  state.tags.push(normalized);
   renderTagsEdit();
   if (elements.tagInput) elements.tagInput.value = '';
 }
@@ -483,11 +594,15 @@ function renderEditor(data, plot) {
   const location = pickValue(plot.location, plot.city, data.city, data.location, 'Polska');
   elements.propertyLocation.textContent = textContentOrFallback(location, 'Polska');
 
-  const propertyType = pickValue(plot.propertyType, plot.type, data.propertyType, 'Rodzaj');
-  elements.propertyType.textContent = textContentOrFallback(propertyType, 'Rodzaj');
+  let propertyType = pickValue(plot.propertyType, plot.type, data.propertyType, '');
+  if (typeof propertyType === 'string' && propertyType.trim().toLowerCase() === 'rodzaj') {
+    propertyType = '';
+  }
+  setSelectValue(elements.propertyTypeSelect, propertyType, '');
 
-  const ownership = pickValue(plot.ownershipStatus, plot.ownership, data.ownershipStatus, 'Własność');
-  elements.ownershipStatus.textContent = textContentOrFallback(ownership, 'Własność');
+  const ownershipRaw = pickValue(plot.ownershipStatus, plot.ownership, data.ownershipStatus, 'Własność');
+  const normalizedOwnership = normalizeOwnershipForm(ownershipRaw) || 'Własność';
+  setSelectValue(elements.ownershipFormSelect, normalizedOwnership, 'Własność');
 
   const price = parseNumberFromText(pickValue(plot.price, data.price));
   setPriceEdit(price);
@@ -500,7 +615,14 @@ function renderEditor(data, plot) {
   const plotNumberValue = pickValue(plot.plotNumber, plot.Id, plot.number);
   elements.plotNumber.textContent = textContentOrFallback(extractPlotNumberSegment(plotNumberValue), '—');
   elements.landRegister.textContent = textContentOrFallback(pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
-  elements.plotStatus.textContent = textContentOrFallback(pickValue(plot.status, plot.offerStatus, data.status), '—');
+  const statusValue = pickValue(plot.status, plot.offerStatus, data.status, '');
+  setSelectValue(elements.plotOwnershipSelect, statusValue, '');
+  if (!elements.plotOwnershipSelect?.value) {
+    const derivedStatus = deriveStatusFromOwnership(normalizedOwnership);
+    if (derivedStatus) {
+      setSelectValue(elements.plotOwnershipSelect, derivedStatus, derivedStatus);
+    }
+  }
 
   elements.locationAddress.textContent = sanitizeMultilineText(pickValue(plot.locationAddress, data.address, plot.address) || '');
   elements.locationAccess.textContent = sanitizeMultilineText(pickValue(plot.locationAccess, plot.access, data.access) || '');
@@ -518,9 +640,16 @@ function renderEditor(data, plot) {
 
   elements.descriptionText.textContent = sanitizeMultilineText(pickValue(plot.description, data.description) || '');
 
-  state.tags = ensureArray(pickValue(plot.tags, data.tags))
-    .map(tag => typeof tag === 'string' ? tag.trim() : '')
+  const normalizedTags = ensureArray(pickValue(plot.tags, data.tags))
+    .map(normalizeTag)
     .filter(Boolean);
+  const uniqueTags = [];
+  normalizedTags.forEach(tag => {
+    if (!uniqueTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+      uniqueTags.push(tag);
+    }
+  });
+  state.tags = uniqueTags;
   renderTagsEdit();
 
   const contactName = pickValue(plot.contactName, data.contactName, data.firstName, 'Właściciel');
@@ -564,11 +693,70 @@ function setMapMode(mode) {
       : google.maps.MapTypeId.TERRAIN);
 }
 
+function ensureProjDefinition() {
+  if (typeof proj4 === 'undefined' || typeof proj4.defs !== 'function') {
+    return false;
+  }
+  if (!proj4.defs('EPSG:2180')) {
+    proj4.defs('EPSG:2180', '+proj=tmerc +lat_0=0 +lon_0=19 +k=0.9993 +x_0=500000 +y_0=-5300000 +ellps=GRS80 +units=m +no_defs');
+  }
+  return true;
+}
+
+function parsePlotGeometry(geometryString) {
+  if (!geometryString || typeof geometryString !== 'string') return [];
+  if (!ensureProjDefinition()) return [];
+  const coords = [];
+  try {
+    const match = geometryString.match(/\(\(([^)]+)\)\)/);
+    const coordString = match ? match[1] : '';
+    if (!coordString) return [];
+    const points = coordString.split(',');
+    points.forEach(point => {
+      const parts = point.trim().split(/\s+/);
+      if (parts.length < 2) return;
+      const x = parseFloat(parts[0]);
+      const y = parseFloat(parts[1]);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      const [lng, lat] = proj4('EPSG:2180', 'WGS84', [x, y]);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        coords.push({ lat, lng });
+      }
+    });
+  } catch (error) {
+    console.error('Nie udało się przetworzyć geometrii działki.', error);
+  }
+  return coords;
+}
+
+function computePolygonCenter(coords) {
+  if (!coords.length) return null;
+  const total = coords.reduce((acc, point) => {
+    acc.lat += point.lat;
+    acc.lng += point.lng;
+    return acc;
+  }, { lat: 0, lng: 0 });
+  return {
+    lat: total.lat / coords.length,
+    lng: total.lng / coords.length
+  };
+}
+
 async function renderMap(plot) {
   if (!elements.mapElement) return;
   const lat = parseFloat(pickValue(plot.lat, plot.latitude, plot.coords?.lat));
   const lng = parseFloat(pickValue(plot.lng, plot.longitude, plot.coords?.lng));
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+  const geometryRaw = pickValue(
+    plot.geometry_uldk_wkt,
+    plot.geometry_uldk?.wkt,
+    plot.geometry_uldk,
+    plot.geometry,
+    plot.geometryWkt,
+    plot.geometry_wkt
+  );
+  const geometryCoords = typeof geometryRaw === 'string' ? parsePlotGeometry(geometryRaw) : [];
+  const hasLatLng = Number.isFinite(lat) && Number.isFinite(lng);
+  if (!hasLatLng && !geometryCoords.length) {
     elements.mapElement.innerHTML = '<p style="padding:1rem;color:var(--gray);">Brak współrzędnych do wyświetlenia mapy.</p>';
     return;
   }
@@ -578,20 +766,57 @@ async function renderMap(plot) {
     elements.mapElement.innerHTML = '<p style="padding:1rem;color:#c53030;">Nie udało się załadować mapy.</p>';
     return;
   }
-  const center = { lat, lng };
+
+  const title = textContentOrFallback(elements.propertyTitle?.textContent, 'Działka');
+  const geometryCenter = geometryCoords.length ? computePolygonCenter(geometryCoords) : null;
+  const center = hasLatLng ? { lat, lng } : (geometryCenter || geometryCoords[0]);
+  if (!center) {
+    elements.mapElement.innerHTML = '<p style="padding:1rem;color:var(--gray);">Brak współrzędnych do wyświetlenia mapy.</p>';
+    return;
+  }
+
+  if (state.marker) {
+    state.marker.setMap(null);
+    state.marker = null;
+  }
+  if (state.polygon) {
+    state.polygon.setMap(null);
+    state.polygon = null;
+  }
+
+  elements.mapElement.innerHTML = '';
   state.map = new google.maps.Map(elements.mapElement, {
     center,
-    zoom: 15,
+    zoom: hasLatLng ? 15 : 16,
     mapTypeId: google.maps.MapTypeId.HYBRID,
     mapTypeControl: true,
     streetViewControl: false,
     fullscreenControl: false
   });
+
   state.marker = new google.maps.Marker({
     map: state.map,
     position: center,
-    title: textContentOrFallback(elements.propertyTitle?.textContent, 'Działka')
+    title
   });
+
+  if (geometryCoords.length) {
+    state.polygon = new google.maps.Polygon({
+      paths: geometryCoords,
+      strokeColor: '#ff3b30',
+      strokeOpacity: 0.95,
+      strokeWeight: 3,
+      fillColor: '#ff3b30',
+      fillOpacity: 0.18,
+      map: state.map,
+      clickable: false
+    });
+    const bounds = new google.maps.LatLngBounds();
+    geometryCoords.forEach(coord => bounds.extend(coord));
+    if (!bounds.isEmpty()) {
+      state.map.fitBounds(bounds, { top: 32, right: 32, bottom: 32, left: 32 });
+    }
+  }
 }
 
 function openModal(modal) {
@@ -766,15 +991,15 @@ function buildUpdatedPlot() {
   const base = cloneDeep(state.plotData || {});
   base.title = stripHtml(elements.propertyTitle.innerHTML).trim() || 'Działka';
   base.location = stripHtml(elements.propertyLocation.innerHTML).trim();
-  base.propertyType = stripHtml(elements.propertyType.innerHTML).trim();
-  base.ownershipStatus = stripHtml(elements.ownershipStatus.innerHTML).trim();
+  base.propertyType = (elements.propertyTypeSelect?.value || '').trim();
+  base.ownershipStatus = (elements.ownershipFormSelect?.value || '').trim();
   base.price = state.price;
   base.pricePerSqm = state.price && state.area ? Math.round(state.price / state.area) : null;
   base.priceUpdatedAt = new Date().toISOString();
   base.pow_dzialki_m2_uldk = state.area;
   base.area = state.area;
   base.landRegister = stripHtml(elements.landRegister.innerHTML).trim();
-  base.status = stripHtml(elements.plotStatus.innerHTML).trim();
+  base.status = (elements.plotOwnershipSelect?.value || '').trim();
   base.locationAddress = sanitizeMultilineText(elements.locationAddress.textContent || '');
   base.locationAccess = sanitizeMultilineText(elements.locationAccess.textContent || '');
   base.planDesignation = stripHtml(elements.planDesignation.innerHTML).trim();
