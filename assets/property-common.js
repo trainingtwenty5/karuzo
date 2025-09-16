@@ -5,7 +5,9 @@ import {
   getDoc,
   updateDoc,
   serverTimestamp,
-  setDoc
+  setDoc,
+  collection,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth,
@@ -34,7 +36,7 @@ export function initFirebase() {
   return firebaseCache;
 }
 
-export { doc, getDoc, updateDoc, serverTimestamp, setDoc, onAuthStateChanged };
+export { doc, getDoc, updateDoc, serverTimestamp, setDoc, onAuthStateChanged, collection, getDocs };
 
 export function parseQueryParams() {
   const params = new URLSearchParams(window.location.search);

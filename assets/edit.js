@@ -4,6 +4,8 @@ import {
   getDoc,
   updateDoc,
   serverTimestamp,
+  collection,
+  getDocs,
   onAuthStateChanged,
   parseQueryParams,
   formatNumber,
@@ -39,6 +41,9 @@ const state = {
   plotData: null,
   utilities: {},
   tags: [],
+  tagSuggestions: [],
+  tagSuggestionsLoaded: false,
+  loadingTagSuggestions: false,
   price: null,
   area: null,
   saving: false,
@@ -80,6 +85,8 @@ const elements = {
   tagsEmpty: document.getElementById('tagsEmpty'),
   tagInput: document.getElementById('tagInput'),
   addTagBtn: document.getElementById('addTagBtn'),
+  tagSuggestionsWrapper: document.getElementById('tagSuggestionsWrapper'),
+  tagSuggestionsList: document.getElementById('tagSuggestionsList'),
   contactName: document.getElementById('contactName'),
   contactPhoneLink: document.getElementById('contactPhoneLink'),
   contactEmailLink: document.getElementById('contactEmailLink'),
@@ -108,6 +115,8 @@ const MAP_MODES = {
   mpzp: 'satellite',
   studium: 'terrain'
 };
+
+const TAG_SUGGESTION_LIMIT = 18;
 
 function pickValue(...values) {
   for (const value of values) {
@@ -319,11 +328,46 @@ function renderUtilitiesEdit() {
   });
 }
 
+function renderTagSuggestions() {
+  if (!elements.tagSuggestionsList) return;
+
+  const listElement = elements.tagSuggestionsList;
+  listElement.innerHTML = '';
+
+  const selected = new Set(state.tags.map(tag => tag.toLowerCase()));
+  const available = Array.isArray(state.tagSuggestions)
+    ? state.tagSuggestions.filter(tag => !selected.has(tag.toLowerCase()))
+    : [];
+
+  if (!available.length) {
+    if (elements.tagSuggestionsWrapper) {
+      elements.tagSuggestionsWrapper.hidden = true;
+    }
+    return;
+  }
+
+  const limit = TAG_SUGGESTION_LIMIT > 0 ? TAG_SUGGESTION_LIMIT : available.length;
+  available.slice(0, limit).forEach(tag => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'tag-chip tag-chip--suggestion';
+    button.textContent = tag;
+    button.dataset.tag = tag;
+    button.setAttribute('aria-label', `Dodaj znacznik ${tag}`);
+    listElement.appendChild(button);
+  });
+
+  if (elements.tagSuggestionsWrapper) {
+    elements.tagSuggestionsWrapper.hidden = false;
+  }
+}
+
 function renderTagsEdit() {
   if (!elements.tagsList || !elements.tagsEmpty) return;
   elements.tagsList.innerHTML = '';
   if (!state.tags.length) {
     elements.tagsEmpty.hidden = false;
+    renderTagSuggestions();
     return;
   }
   elements.tagsEmpty.hidden = true;
@@ -333,6 +377,7 @@ function renderTagsEdit() {
     chip.innerHTML = `<span>${tag}</span><button type="button" class="tag-remove" data-index="${index}" aria-label="Usuń znacznik">&times;</button>`;
     elements.tagsList.appendChild(chip);
   });
+  renderTagSuggestions();
 }
 
 function showContent() {
@@ -533,6 +578,15 @@ function attachEditorListeners() {
       renderTagsEdit();
     }
   });
+
+  elements.tagSuggestionsList?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-tag]');
+    if (!button) return;
+    const tag = button.dataset.tag;
+    if (tag) {
+      addTag(tag);
+    }
+  });
 }
 
 function normalizeTag(rawValue) {
@@ -580,6 +634,56 @@ function addTag(rawValue) {
   state.tags.push(normalized);
   renderTagsEdit();
   if (elements.tagInput) elements.tagInput.value = '';
+}
+
+async function loadTagSuggestions() {
+  if (state.loadingTagSuggestions || state.tagSuggestionsLoaded) {
+    return;
+  }
+  state.loadingTagSuggestions = true;
+  try {
+    const { db } = initFirebase();
+    const snapshot = await getDocs(collection(db, 'propertyListings'));
+    const accumulator = new Map();
+
+    snapshot.forEach(docSnap => {
+      const data = docSnap.data();
+      const plots = Array.isArray(data?.plots) ? data.plots : [];
+      plots.forEach(plot => {
+        const normalizedTags = ensureArray(plot?.tags)
+          .map(normalizeTag)
+          .filter(Boolean);
+        const uniqueTags = [];
+        normalizedTags.forEach(tag => {
+          if (!uniqueTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+            uniqueTags.push(tag);
+          }
+        });
+        uniqueTags.forEach(tag => {
+          const key = tag.toLowerCase();
+          const entry = accumulator.get(key);
+          if (entry) {
+            entry.count += 1;
+          } else {
+            accumulator.set(key, { tag, count: 1 });
+          }
+        });
+      });
+    });
+
+    state.tagSuggestions = Array.from(accumulator.values())
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return a.tag.localeCompare(b.tag, 'pl', { sensitivity: 'base' });
+      })
+      .map(entry => entry.tag);
+    state.tagSuggestionsLoaded = true;
+    renderTagSuggestions();
+  } catch (error) {
+    console.error('loadTagSuggestions', error);
+  } finally {
+    state.loadingTagSuggestions = false;
+  }
 }
 
 function renderEditor(data, plot) {
@@ -1089,6 +1193,7 @@ async function init() {
     return;
   }
   initFirebase();
+  loadTagSuggestions();
   setupAuthUI();
   setupMapModeButtons();
   elements.saveChangesBtn?.addEventListener('click', () => handleSave());
