@@ -140,6 +140,16 @@ function formatAreaText(value) {
   return formatted ? formatted : '—';
 }
 
+function extractPlotNumberSegment(value) {
+  if (value === undefined || value === null) return value;
+  const str = String(value).trim();
+  if (!str) return '';
+  const lastDotIndex = str.lastIndexOf('.');
+  if (lastDotIndex === -1) return str;
+  const segment = str.slice(lastDotIndex + 1).trim();
+  return segment || str;
+}
+
 function setPriceEdit(price) {
   state.price = Number.isFinite(price) ? price : null;
   elements.priceValueText.textContent = formatPrice(state.price);
@@ -300,7 +310,8 @@ function selectAllText(element) {
 }
 
 function preventNewline(element) {
-  element?.addEventListener('keydown', (event) => {
+  if (!element?.isContentEditable) return;
+  element.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
       event.preventDefault();
     }
@@ -360,7 +371,7 @@ function attachEditorListeners() {
   };
 
   [elements.propertyArea, elements.plotAreaStat].forEach(element => {
-    if (!element) return;
+    if (!element || !element.isContentEditable) return;
     handleAreaFocus(element);
     handleAreaBlur(element);
     handleAreaInput(element);
@@ -382,8 +393,9 @@ function attachEditorListeners() {
     elements.contactPhoneLink,
     elements.contactEmailLink
   ].forEach(element => {
+    if (!element || !element.isContentEditable) return;
     preventNewline(element);
-    element?.addEventListener('blur', () => {
+    element.addEventListener('blur', () => {
       const text = stripHtml(element.innerHTML).trim();
       element.textContent = text;
       if (element === elements.contactPhoneLink) {
@@ -395,13 +407,15 @@ function attachEditorListeners() {
     });
   });
 
-  elements.contactPhoneLink?.addEventListener('input', () => {
-    const formatted = formatPhoneNumber(stripHtml(elements.contactPhoneLink.innerHTML));
-    if (formatted) {
-      elements.contactPhoneLink.textContent = formatted;
-      selectAllText(elements.contactPhoneLink);
-    }
-  });
+  if (elements.contactPhoneLink?.isContentEditable) {
+    elements.contactPhoneLink.addEventListener('input', () => {
+      const formatted = formatPhoneNumber(stripHtml(elements.contactPhoneLink.innerHTML));
+      if (formatted) {
+        elements.contactPhoneLink.textContent = formatted;
+        selectAllText(elements.contactPhoneLink);
+      }
+    });
+  }
 
   elements.utilitiesGrid?.addEventListener('click', (event) => {
     const card = event.target.closest('.utility-card');
@@ -483,7 +497,8 @@ function renderEditor(data, plot) {
 
   renderPriceUpdatedAt(pickValue(plot.priceUpdatedAt, data.updatedAt, data.timestamp));
 
-  elements.plotNumber.textContent = textContentOrFallback(pickValue(plot.plotNumber, plot.Id, plot.number), '—');
+  const plotNumberValue = pickValue(plot.plotNumber, plot.Id, plot.number);
+  elements.plotNumber.textContent = textContentOrFallback(extractPlotNumberSegment(plotNumberValue), '—');
   elements.landRegister.textContent = textContentOrFallback(pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
   elements.plotStatus.textContent = textContentOrFallback(pickValue(plot.status, plot.offerStatus, data.status), '—');
 
@@ -758,7 +773,6 @@ function buildUpdatedPlot() {
   base.priceUpdatedAt = new Date().toISOString();
   base.pow_dzialki_m2_uldk = state.area;
   base.area = state.area;
-  base.plotNumber = stripHtml(elements.plotNumber.innerHTML).trim();
   base.landRegister = stripHtml(elements.landRegister.innerHTML).trim();
   base.status = stripHtml(elements.plotStatus.innerHTML).trim();
   base.locationAddress = sanitizeMultilineText(elements.locationAddress.textContent || '');
@@ -771,9 +785,6 @@ function buildUpdatedPlot() {
   base.description = sanitizeMultilineText(elements.descriptionText.textContent || '');
   base.utilities = { ...state.utilities };
   base.tags = [...state.tags];
-  base.contactName = stripHtml(elements.contactName.innerHTML).trim();
-  base.contactPhone = stripHtml(elements.contactPhoneLink.innerHTML).trim();
-  base.contactEmail = stripHtml(elements.contactEmailLink.innerHTML).trim();
   base.planBadges = state.planBadges || base.planBadges || [];
   return base;
 }
