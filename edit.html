@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="assets/header.css">
   <link rel="stylesheet" href="assets/details.css">
   <link rel="stylesheet" href="assets/edit.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
 </head>
 <body class="property-page" style="padding-top: calc(var(--topbar-height) + var(--header-height));">
   <div class="top-navbar">
@@ -81,6 +82,7 @@
     <div id="errorState" class="error-state hidden">Brak uprawnień do edycji tej działki.</div>
 
     <section id="propertyContent" class="hidden" aria-live="polite">
+      <p class="edit-intro">Możesz tutaj dostosować swoją ofertę.</p>
       <div class="edit-toolbar">
         <button id="saveChangesBtn" class="btn btn-primary">
           <i class="fas fa-save"></i> Zapisz zmiany
@@ -96,10 +98,18 @@
                 <span id="propertyLocation" contenteditable="true">Polska</span></span>
               <span class="meta-chip"><i class="fas fa-ruler-combined"></i>
                 <span id="propertyArea">0 m²</span></span>
-              <span class="meta-chip"><i class="fas fa-layer-group"></i>
-                <span id="propertyType" contenteditable="true">Rodzaj</span></span>
-              <span class="meta-chip"><i class="fas fa-landmark"></i>
-                <span id="ownershipStatus" contenteditable="true">Własność</span></span>
+              <span class="meta-chip meta-chip--select"><i class="fas fa-layer-group"></i>
+                <select id="propertyTypeSelect" aria-label="Rodzaj działki">
+                  <option value="">Rodzaj</option>
+                  <option value="Budowlana">Budowlana</option>
+                  <option value="Rolna">Rolna</option>
+                  <option value="Inwestycyjna">Inwestycyjna</option>
+                </select></span>
+              <span class="meta-chip meta-chip--select"><i class="fas fa-landmark"></i>
+                <select id="ownershipFormSelect" aria-label="Forma władania">
+                  <option value="Własność">Własność</option>
+                  <option value="Użytkowanie wieczyste">Użytkowanie wieczyste</option>
+                </select></span>
             </div>
           </div>
 
@@ -122,14 +132,25 @@
           <div class="stat-card">
             <h4>Numer księgi wieczystej</h4>
             <p id="landRegister" contenteditable="true">—</p>
+            <p class="field-hint">Przykład: WA3M/00095878/5</p>
           </div>
           <div class="stat-card">
             <h4>Powierzchnia</h4>
             <p id="plotAreaStat">—</p>
           </div>
           <div class="stat-card">
-            <h4>Status</h4>
-            <p id="plotStatus" contenteditable="true">—</p>
+            <h4>Status własności</h4>
+            <select id="plotOwnershipSelect" aria-label="Status własności">
+              <option value="">Wybierz status</option>
+              <option value="Własność (pełna)">Własność (pełna)</option>
+              <option value="Współwłasność ułamkowa">Współwłasność ułamkowa</option>
+              <option value="Wspólność łączna">Wspólność łączna</option>
+              <option value="Użytkowanie wieczyste">Użytkowanie wieczyste</option>
+              <option value="Trwały zarząd">Trwały zarząd</option>
+              <option value="Zarząd">Zarząd</option>
+              <option value="Użytkowanie">Użytkowanie</option>
+              <option value="Inny rodzaj władania">Inny rodzaj władania</option>
+            </select>
           </div>
         </div>
       </section>
@@ -230,6 +251,7 @@
           <h2 id="tagsTitle">Parametry dodatkowe</h2>
         </div>
         <div class="tags-card">
+          <p class="tag-hint">Tagiem będzie wyszukiwana Twoja działka. Przykłady: #Blisko-latagi, #Budowlana, #Inwestycyjna, #Rolna, #Blisko-las, #Dojazd-asfaltowy, #Dostępne-media, #Pod-OZE.</p>
           <div class="tags-list" id="tagsList"></div>
           <p class="tags-empty" id="tagsEmpty" hidden>Brak dodatkowych parametrów.</p>
           <div class="tag-form">
