@@ -192,6 +192,7 @@ window.showConfirmModal = showConfirmModal;
     <div class="content-container">
       <!-- Panel filtrów ofert -->
       <div class="filters-panel" id="filtersPanel">
+        <h3 class="filters-title">Filtruj działki</h3>
         <div class="filters-row sort-row">
           <span class="filters-label">Sortuj:</span>
           <div class="sort-buttons">
@@ -205,12 +206,14 @@ window.showConfirmModal = showConfirmModal;
         </div>
         <div class="filters-row tags-row">
           <span class="filters-label">Tagi:</span>
-          <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
-            <span class="tag-placeholder">Ładuję tagi…</span>
+          <div class="tags-area">
+            <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
+              <span class="tag-placeholder">Ładuję tagi…</span>
+            </div>
+            <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
+              Pokaż listę tagów
+            </button>
           </div>
-          <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
-            Pokaż więcej
-          </button>
         </div>
       </div>
       <!-- Panel z ofertami publicznymi -->
@@ -385,13 +388,14 @@ window.showConfirmModal = showConfirmModal;
   let markerCluster;
   let allOffers = [];
   let availableTags = [];
+  let tagMetrics = new Map();
   const filterState = {
     sortKey: null,
     sortDir: 'asc',
     selectedTags: new Set()
   };
   let tagsExpanded = false;
-  const TAG_PREVIEW_COUNT = 6;
+  const TAG_PREVIEW_COUNT = 5;
 
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
@@ -577,6 +581,31 @@ window.showConfirmModal = showConfirmModal;
     });
   }
 
+  function createTagChip(tag) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'tag-chip';
+    if (filterState.selectedTags.has(tag)) {
+      btn.classList.add('is-active');
+    }
+    btn.setAttribute('aria-pressed', filterState.selectedTags.has(tag) ? 'true' : 'false');
+    btn.textContent = tag;
+    btn.dataset.tag = tag;
+    btn.addEventListener('click', () => toggleTagFilter(tag));
+    return btn;
+  }
+
+  function formatTagCount(count) {
+    if (!Number.isFinite(count)) return '';
+    if (count === 1) return '1 oferta';
+    const mod10 = count % 10;
+    const mod100 = count % 100;
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return `${count} oferty`;
+    }
+    return `${count} ofert`;
+  }
+
   function renderTagFilters() {
     if (!tagFiltersList) return;
 
@@ -587,58 +616,113 @@ window.showConfirmModal = showConfirmModal;
     }
 
     tagFiltersList.innerHTML = '';
+    tagFiltersList.classList.remove('is-empty');
 
     if (!availableTags.length) {
       const placeholder = document.createElement('span');
       placeholder.className = 'tag-placeholder';
       placeholder.textContent = 'Brak tagów w ofertach';
       tagFiltersList.appendChild(placeholder);
-      tagFiltersList.dataset.expanded = 'true';
+      tagFiltersList.dataset.expanded = 'false';
       tagFiltersList.dataset.state = 'empty';
-      tagFiltersList.classList.remove('is-collapsed', 'is-expanded');
       tagFiltersList.classList.add('is-empty');
       if (toggleTagsBtn) {
         toggleTagsBtn.hidden = true;
         toggleTagsBtn.setAttribute('aria-expanded', 'false');
-        toggleTagsBtn.dataset.state = 'collapsed';
+        toggleTagsBtn.dataset.state = 'empty';
       }
       return;
     }
 
-    tagFiltersList.dataset.expanded = tagsExpanded ? 'true' : 'false';
-    tagFiltersList.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
-    tagFiltersList.classList.remove('is-empty');
-    tagFiltersList.classList.toggle('is-expanded', tagsExpanded);
-    tagFiltersList.classList.toggle('is-collapsed', !tagsExpanded);
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'tags-preview';
+    tagFiltersList.appendChild(previewWrap);
 
-    availableTags.forEach((tag, index) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'tag-chip';
-      if (!tagsExpanded && index >= TAG_PREVIEW_COUNT) {
-        btn.classList.add('tag-chip--hidden');
+    const configureChip = (chip, tag) => {
+      const stats = tagMetrics.get(tag);
+      if (stats?.count) {
+        const countLabel = formatTagCount(stats.count);
+        chip.dataset.countLabel = countLabel;
+        chip.title = `${tag} • ${countLabel}`;
+      } else {
+        chip.removeAttribute('data-count-label');
+        chip.title = tag;
       }
-      if (filterState.selectedTags.has(tag)) {
-        btn.classList.add('is-active');
+    };
+
+    const selectedTags = Array.from(filterState.selectedTags).filter(tag => availableTags.includes(tag));
+    const previewLimit = Math.max(TAG_PREVIEW_COUNT, selectedTags.length);
+    const previewTags = [];
+    const dropdownTags = [];
+    const seenTags = new Set();
+
+    selectedTags.forEach(tag => {
+      if (!seenTags.has(tag)) {
+        previewTags.push(tag);
+        seenTags.add(tag);
       }
-      btn.textContent = tag;
-      btn.dataset.tag = tag;
-      btn.addEventListener('click', () => toggleTagFilter(tag));
-      tagFiltersList.appendChild(btn);
     });
 
+    availableTags.forEach(tag => {
+      if (seenTags.has(tag)) return;
+      if (previewTags.length < previewLimit) {
+        previewTags.push(tag);
+        seenTags.add(tag);
+      } else {
+        dropdownTags.push(tag);
+      }
+    });
+
+    previewTags.forEach(tag => {
+      const chip = createTagChip(tag);
+      configureChip(chip, tag);
+      chip.classList.add('tag-chip--preview');
+      previewWrap.appendChild(chip);
+    });
+
+    let dropdownWrap = null;
+    if (dropdownTags.length) {
+      dropdownWrap = document.createElement('div');
+      dropdownWrap.className = 'tags-dropdown';
+      dropdownWrap.hidden = !tagsExpanded;
+      tagFiltersList.appendChild(dropdownWrap);
+
+      dropdownTags.forEach(tag => {
+        const chip = createTagChip(tag);
+        configureChip(chip, tag);
+        chip.classList.add('tag-chip--list');
+        dropdownWrap.appendChild(chip);
+      });
+    }
+
+    const hiddenCount = dropdownTags.length;
+
+    if (!tagsExpanded && hiddenCount > 0) {
+      const summary = document.createElement('span');
+      summary.className = 'tags-summary';
+      summary.textContent = `+${hiddenCount} w liście`;
+      previewWrap.appendChild(summary);
+    }
+
+    if (!hiddenCount) {
+      tagsExpanded = false;
+    }
+
     if (toggleTagsBtn) {
-      const hasMore = availableTags.length > TAG_PREVIEW_COUNT;
-      toggleTagsBtn.hidden = !hasMore;
-      if (hasMore) {
-        toggleTagsBtn.textContent = tagsExpanded ? 'Pokaż mniej' : 'Pokaż więcej';
+      if (hiddenCount > 0) {
+        toggleTagsBtn.hidden = false;
+        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj listę tagów' : `Pokaż ${hiddenCount} więcej`;
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
+        toggleTagsBtn.hidden = true;
         toggleTagsBtn.setAttribute('aria-expanded', 'false');
-        toggleTagsBtn.dataset.state = 'collapsed';
+        toggleTagsBtn.dataset.state = 'all-visible';
       }
     }
+
+    tagFiltersList.dataset.expanded = tagsExpanded ? 'true' : 'false';
+    tagFiltersList.dataset.state = hiddenCount > 0 ? (tagsExpanded ? 'expanded' : 'collapsed') : 'all-visible';
   }
 
   function toggleTagFilter(tag) {
@@ -705,22 +789,31 @@ window.showConfirmModal = showConfirmModal;
       markers = [];
       allOffers = [];
       availableTags = [];
-      const uniqueTags = new Set();
+      tagMetrics = new Map();
+      const tagStats = new Map();
+      let tagSequence = 0;
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         if (!data.plots || !data.plots.length) return;
 
         data.plots.forEach((plot, index) => {
-          if (plot.mock === false) return;
-
-          const isMockPlot = plot.mock === true;
-
           const lat = plot.lat;
           const lng = plot.lng;
           const geometry = plot.geometry_uldk;
           const offerId = docSnap.id;
-          const tags = isMockPlot ? normalizeTags(plot.tags) : [];
+          const tags = normalizeTags(plot.tags);
+          const uniquePlotTags = Array.from(new Set(tags));
+
+          if (uniquePlotTags.length) {
+            uniquePlotTags.forEach(tag => {
+              tagSequence += 1;
+              const current = tagStats.get(tag) || { count: 0, lastSeen: 0 };
+              current.count += 1;
+              current.lastSeen = tagSequence;
+              tagStats.set(tag, current);
+            });
+          }
 
           const marker = new google.maps.Marker({
             position: { lat, lng },
@@ -761,17 +854,25 @@ window.showConfirmModal = showConfirmModal;
             index,
             marker,
             polygon,
-            tags
+            tags: uniquePlotTags
           };
 
           allOffers.push(entry);
-          if (isMockPlot) {
-            tags.forEach(tag => uniqueTags.add(tag));
-          }
         });
       });
 
-      availableTags = Array.from(uniqueTags).sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
+      tagMetrics = new Map(tagStats);
+      availableTags = Array.from(tagStats.entries())
+        .sort((a, b) => {
+          if (b[1].lastSeen !== a[1].lastSeen) {
+            return b[1].lastSeen - a[1].lastSeen;
+          }
+          if (b[1].count !== a[1].count) {
+            return b[1].count - a[1].count;
+          }
+          return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
+        })
+        .map(([tag]) => tag);
       tagsExpanded = false;
       renderTagFilters();
       updateSortButtonsUI();
