@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grunteo - Szczegóły działki</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <link rel="icon" type="image/png" sizes="32x32" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+  <link rel="icon" type="image/png" sizes="64x64" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png">
+
+  <link rel="stylesheet" href="assets/main.css">
+  <link rel="stylesheet" href="assets/header.css">
+  <link rel="stylesheet" href="assets/details.css">
+</head>
+<body class="property-page" style="padding-top: calc(var(--topbar-height) + var(--header-height));">
+  <div class="top-navbar">
+    <div class="contact-info">
+      <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+      <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+    </div>
+
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-outline-primary btn-sm" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i> Zaloguj się
+      </button>
+      <button class="btn btn-primary btn-sm" id="registerBtn">
+        <i class="fas fa-user-plus"></i> Zarejestruj się
+      </button>
+    </div>
+
+    <div class="user-menu" id="userMenu" style="display:none;">
+      <button class="btn btn-outline-primary btn-sm" id="accountBtn">
+        <i class="fas fa-user"></i> Moje konto
+      </button>
+      <button class="btn btn-secondary btn-sm" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Wyloguj
+      </button>
+    </div>
+  </div>
+
+  <header>
+    <a href="index.html" class="logo">
+      <img src="https://storage.waw.cloud.ovh.net/v1/AUTH_024f82ed62da4186825a5b526cd1a61e/FishFounder/Grunteo_logo.png" alt="Grunteo">
+      <span>Grunteo</span>
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+    </nav>
+
+    <a href="dodaj.html" class="desktop-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <a href="dodaj.html" class="mobile-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <button class="mobile-menu-btn" aria-label="Otwórz menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj</a>
+      <a href="#contact" class="nav-link">Kontakt</a>
+      <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+    </nav>
+  </header>
+
+  <main class="property-wrapper">
+    <div id="loadingState" class="loading-state">Wczytywanie danych działki...</div>
+    <div id="errorState" class="error-state hidden">Nie odnaleziono wskazanej działki.</div>
+
+    <section id="propertyContent" class="hidden" aria-live="polite">
+      <section class="property-hero" aria-labelledby="propertyTitle">
+        <div class="property-heading">
+          <div class="title-group">
+            <h1 id="propertyTitle">Działka</h1>
+            <div class="property-meta">
+              <span class="meta-chip"><i class="fas fa-map-marker-alt"></i> <span id="propertyLocation">Polska</span></span>
+              <span class="meta-chip"><i class="fas fa-ruler-combined"></i> <span id="propertyArea">0 m²</span></span>
+              <span class="meta-chip"><i class="fas fa-layer-group"></i> <span id="propertyType">Rodzaj</span></span>
+              <span class="meta-chip"><i class="fas fa-landmark"></i> <span id="ownershipStatus">Własność</span></span>
+            </div>
+          </div>
+
+          <div class="price-box" aria-live="polite">
+            <div class="price-line">
+              <span id="priceValueText" class="price-amount">—</span>
+            </div>
+            <div class="price-meta">
+              <span>cena za m²: <strong id="pricePerSqm">—</strong></span>
+              <span id="priceUpdatedAt">Aktualizacja: —</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="property-stats">
+          <div class="stat-card">
+            <h4>Numer działki</h4>
+            <p id="plotNumber">—</p>
+          </div>
+          <div class="stat-card">
+            <h4>Numer księgi wieczystej</h4>
+            <p id="landRegister">—</p>
+          </div>
+          <div class="stat-card">
+            <h4>Powierzchnia</h4>
+            <p id="plotAreaStat">—</p>
+          </div>
+          <div class="stat-card">
+            <h4>Status</h4>
+            <p id="plotStatus">—</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="property-layout" id="mapSection">
+        <div class="map-panel">
+          <div class="map-toolbar">
+            <h3>Mapa i lokalizacja</h3>
+            <div class="map-modes" role="group" aria-label="Warstwy mapy">
+              <button class="map-mode-btn active" data-mode="base">Mapa</button>
+              <button class="map-mode-btn" data-mode="mpzp">MPZP</button>
+              <button class="map-mode-btn" data-mode="studium">Studium</button>
+            </div>
+          </div>
+          <div id="propertyMap" role="region" aria-label="Mapa działki"></div>
+          <div class="location-details">
+            <div class="location-card">
+              <h4>Adres</h4>
+              <p id="locationAddress">Dodaj adres działki</p>
+            </div>
+            <div class="location-card">
+              <h4>Dojazd i otoczenie</h4>
+              <p id="locationAccess">Opisz komunikację, dostęp do drogi, najbliższe punkty orientacyjne.</p>
+            </div>
+          </div>
+        </div>
+
+        <aside class="plan-panel">
+          <div class="section-header">
+            <h3>Plan zagospodarowania</h3>
+          </div>
+          <div class="plan-badges" id="planBadges"></div>
+          <div class="plan-info-grid">
+            <dl><dt>Przeznaczenie</dt><dd id="planDesignation">Brak informacji</dd></dl>
+            <dl><dt>Maks. wysokość</dt><dd id="planHeight">—</dd></dl>
+            <dl><dt>Intensywność zabudowy</dt><dd id="planIntensity">—</dd></dl>
+            <dl><dt>Pow. biologicznie czynna</dt><dd id="planGreen">—</dd></dl>
+          </div>
+          <div class="plan-notes" id="planNotes">Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.</div>
+        </aside>
+      </section>
+
+      <section class="utilities-section" aria-labelledby="utilitiesTitle">
+        <div class="section-header">
+          <h2 id="utilitiesTitle">Uzbrojenie terenu</h2>
+        </div>
+        <div class="utilities-grid" id="utilitiesGrid">
+          <div class="utility-card" data-utility="electricity" data-status="missing" aria-disabled="true">
+            <div class="utility-icon">⚡</div>
+            <div class="utility-content">
+              <h4>Prąd</h4>
+              <div class="utility-status">Brak informacji</div>
+            </div>
+          </div>
+          <div class="utility-card" data-utility="water" data-status="missing" aria-disabled="true">
+            <div class="utility-icon">💧</div>
+            <div class="utility-content">
+              <h4>Woda</h4>
+              <div class="utility-status">Brak informacji</div>
+            </div>
+          </div>
+          <div class="utility-card" data-utility="gas" data-status="missing" aria-disabled="true">
+            <div class="utility-icon">🔥</div>
+            <div class="utility-content">
+              <h4>Gaz</h4>
+              <div class="utility-status">Brak informacji</div>
+            </div>
+          </div>
+          <div class="utility-card" data-utility="sewage" data-status="missing" aria-disabled="true">
+            <div class="utility-icon">♻️</div>
+            <div class="utility-content">
+              <h4>Kanalizacja</h4>
+              <div class="utility-status">Brak informacji</div>
+            </div>
+          </div>
+          <div class="utility-card" data-utility="fiber" data-status="missing" aria-disabled="true">
+            <div class="utility-icon">🌐</div>
+            <div class="utility-content">
+              <h4>Światłowód</h4>
+              <div class="utility-status">Brak informacji</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="description-section" aria-labelledby="descriptionTitle">
+        <div class="section-header">
+          <h2 id="descriptionTitle">Opis szczegółowy</h2>
+        </div>
+        <div class="description-card">
+          <div id="descriptionText" class="description-text">Brak opisu</div>
+        </div>
+      </section>
+
+      <section class="tags-section" aria-labelledby="tagsTitle">
+        <div class="section-header">
+          <h2 id="tagsTitle">Parametry dodatkowe</h2>
+        </div>
+        <div class="tags-card">
+          <div class="tags-list" id="tagsList"></div>
+          <p class="tags-empty" id="tagsEmpty" hidden>Brak dodatkowych parametrów.</p>
+        </div>
+      </section>
+
+      <section class="contact-section" id="contact" aria-labelledby="contactTitle">
+        <div class="section-header">
+          <h2 id="contactTitle">Skontaktuj się</h2>
+        </div>
+        <div class="contact-wrapper">
+          <div class="contact-card">
+            <h3 id="contactName">Właściciel</h3>
+            <div class="contact-details">
+              <span><i class="fas fa-phone"></i> <a href="#" id="contactPhoneLink">Brak numeru</a></span>
+              <span><i class="fas fa-envelope"></i> <a href="#" id="contactEmailLink">Brak adresu</a></span>
+            </div>
+            <div class="contact-actions">
+              <button class="btn btn-secondary" type="button" id="savePlotBtn">
+                <i class="fas fa-bookmark"></i> Zapisz działkę
+              </button>
+            </div>
+          </div>
+
+          <div class="contact-form-card">
+            <h3>Wyślij zapytanie</h3>
+            <form id="inquiryForm" class="contact-form">
+              <div>
+                <label for="inquiryName">Imię i nazwisko</label>
+                <input type="text" id="inquiryName" name="inquiryName" autocomplete="name" required>
+              </div>
+              <div>
+                <label for="inquiryEmail">Adres email</label>
+                <input type="email" id="inquiryEmail" name="inquiryEmail" autocomplete="email" required>
+              </div>
+              <div>
+                <label for="inquiryMessage">Wiadomość</label>
+                <textarea id="inquiryMessage" name="inquiryMessage" rows="5" required></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-paper-plane"></i> Wyślij wiadomość
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Zaloguj się</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Hasło</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Zaloguj się</button>
+      </form>
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+      <div class="form-footer">
+        <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Utwórz konto</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Hasło</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Zarejestruj się</button>
+      </form>
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtn">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+      <div class="form-footer">
+        <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/details.js"></script>
+</body>
+</html>

@@ -757,7 +757,7 @@ window.showConfirmModal = showConfirmModal;
               const city  = offer.city || 'Nie podano';
               const phone = offer.phone || 'Nie podano';
               const title = plot.Id || `Działka ${visibleIdx + 1}`;
-              const detailsUrl = `oferta.html?id=${offerId}&plot=${originalIndex}`;
+              const detailsUrl = `details.html?id=${offerId}&plot=${originalIndex}`;
 
               el.innerHTML = `
                 <h3 class="offer-title">${title}</h3>
@@ -773,7 +773,7 @@ window.showConfirmModal = showConfirmModal;
                   <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
                     <i class="fas fa-info-circle"></i> Szczegóły
                   </a>
-                  <button class="btn btn-primary btn-sm" onclick="window.location.href='dodaj.html?edit=${offerId}&plot=${originalIndex}'">
+                  <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
                     <i class="fas fa-edit"></i> Edytuj
                   </button>
                   <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(title||'').replace(/'/g,"\\'")}')">
