@@ -741,7 +741,15 @@ main.property-wrapper {
   .share-link-box {
     flex-direction: column;
     align-items: stretch;
-    gap: .5rem;
+    gap: .35rem;
+  }
+
+  .share-link-label {
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: var(--gray);
   }
 
   .share-actions {
