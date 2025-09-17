@@ -526,22 +526,31 @@
       if (!selectedPoints || selectedPoints.length === 0) return;
       selectedPoints.forEach((p) => {
         const latLng = new google.maps.LatLng(p.lat, p.lng);
-        let desktopMarker = null,
-            mobileMarker = null,
-            desktopInfoWindow = null,
-            mobileInfoWindow = null;
+        const markerObj = { id: p.id, labelOpen: false };
 
         if (desktopMap) {
-          desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
-          desktopInfoWindow = createMarkerInfoWindow(desktopMarker, desktopMap);
+          const desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
+          const desktopInfoWindow = createMarkerInfoWindow(desktopMarker, desktopMap, {
+            shouldOpen: false,
+            onClose: () => handleMarkerLabelClose(markerObj)
+          });
+          desktopMarker.addListener('click', () => handleMarkerLabelOpen(markerObj));
+          markerObj.desktopMarker = desktopMarker;
+          markerObj.desktopInfoWindow = desktopInfoWindow;
         }
 
         if (mobileMap) {
-          mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
-          mobileInfoWindow = createMarkerInfoWindow(mobileMarker, mobileMap);
+          const mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
+          const mobileInfoWindow = createMarkerInfoWindow(mobileMarker, mobileMap, {
+            shouldOpen: false,
+            onClose: () => handleMarkerLabelClose(markerObj)
+          });
+          mobileMarker.addListener('click', () => handleMarkerLabelOpen(markerObj));
+          markerObj.mobileMarker = mobileMarker;
+          markerObj.mobileInfoWindow = mobileInfoWindow;
         }
 
-        pointMarkers.push({ id: p.id, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow });
+        pointMarkers.push(markerObj);
       });
 
       updateMarkerLabels();
@@ -647,10 +656,9 @@
 
     let desktopMap, mobileMap;
     let selectedPoints = [];
-    let pointMarkers = []; // {id, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow}
+    let pointMarkers = []; // {id, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow, labelOpen}
     const MARKER_NOTE_TEXT = 'Po upływie 60 sekund od przesłania danych pinezka zmienia się w ogłoszenie z obrysem działki i edytowalnym opisem.';
     const SECOND_MARKER_NOTE_TEXT = 'Uwaga: w formularzu wpisujesz jedną cenę. Ta kwota domyślnie trafi do wszystkich dodawanych działek, ale po zalogowaniu możesz edytować ceny indywidualnie.';
-    let markerLabelsDisabled = false;
     let isSaving = false;
     let lastCenter = { lat: 51.63538575429843, lng: 16.45740592647929 };
     let lastZoom = 17;
@@ -752,29 +760,17 @@
       );
     }
 
-    function setMarkerLabelsDisabled(disabled) {
-      if (markerLabelsDisabled === disabled) return;
-      markerLabelsDisabled = disabled;
-
-      if (disabled) {
-        pointMarkers.forEach(markerObj => {
-          if (markerObj.desktopInfoWindow) markerObj.desktopInfoWindow.close();
-          if (markerObj.mobileInfoWindow) markerObj.mobileInfoWindow.close();
-        });
-      } else {
-        updateMarkerLabels();
-      }
-    }
-
-    function createMarkerInfoWindow(marker, map) {
+    function createMarkerInfoWindow(marker, map, { shouldOpen = true, onClose } = {}) {
       if (!marker || !map) return null;
       const infoWindow = new google.maps.InfoWindow({
         content: '',
         disableAutoPan: true,
         pixelOffset: new google.maps.Size(24, -28)
       });
-      infoWindow.addListener('closeclick', () => setMarkerLabelsDisabled(true));
-      if (!markerLabelsDisabled) {
+      if (typeof onClose === 'function') {
+        infoWindow.addListener('closeclick', onClose);
+      }
+      if (shouldOpen) {
         infoWindow.open({ anchor: marker, map });
       }
       return infoWindow;
@@ -800,15 +796,24 @@
       `;
     }
 
+    function handleMarkerLabelClose(markerObj) {
+      if (!markerObj) return;
+      if (markerObj.labelOpen !== false) {
+        markerObj.labelOpen = false;
+      }
+      updateMarkerLabels();
+    }
+
+    function handleMarkerLabelOpen(markerObj) {
+      if (!markerObj) return;
+      if (markerObj.labelOpen !== true) {
+        markerObj.labelOpen = true;
+      }
+      updateMarkerLabels();
+    }
+
     function updateMarkerLabels() {
       if (!selectedPoints || selectedPoints.length === 0) {
-        pointMarkers.forEach(markerObj => {
-          if (markerObj.desktopInfoWindow) markerObj.desktopInfoWindow.close();
-          if (markerObj.mobileInfoWindow) markerObj.mobileInfoWindow.close();
-        });
-        return;
-      }
-      if (markerLabelsDisabled) {
         pointMarkers.forEach(markerObj => {
           if (markerObj.desktopInfoWindow) markerObj.desktopInfoWindow.close();
           if (markerObj.mobileInfoWindow) markerObj.mobileInfoWindow.close();
@@ -819,15 +824,24 @@
         const markerObj = pointMarkers.find(m => m.id === point.id);
         if (!markerObj) return;
         const content = createMarkerLabelContent(index + 1);
+        const shouldBeOpen = markerObj.labelOpen !== false;
 
         if (markerObj.desktopInfoWindow && markerObj.desktopMarker && desktopMap) {
           markerObj.desktopInfoWindow.setContent(content);
-          markerObj.desktopInfoWindow.open({ anchor: markerObj.desktopMarker, map: desktopMap });
+          if (shouldBeOpen) {
+            markerObj.desktopInfoWindow.open({ anchor: markerObj.desktopMarker, map: desktopMap });
+          } else {
+            markerObj.desktopInfoWindow.close();
+          }
         }
 
         if (markerObj.mobileInfoWindow && markerObj.mobileMarker && mobileMap) {
           markerObj.mobileInfoWindow.setContent(content);
-          markerObj.mobileInfoWindow.open({ anchor: markerObj.mobileMarker, map: mobileMap });
+          if (shouldBeOpen) {
+            markerObj.mobileInfoWindow.open({ anchor: markerObj.mobileMarker, map: mobileMap });
+          } else {
+            markerObj.mobileInfoWindow.close();
+          }
         }
       });
     }
@@ -840,16 +854,28 @@
       const point = { id: pointId, lat: latLng.lat(), lng: latLng.lng(), timestamp: new Date().toISOString() };
       selectedPoints.push(point);
 
-      let desktopMarker = null, mobileMarker = null, desktopInfoWindow = null, mobileInfoWindow = null;
+      const markerObj = { id: pointId, labelOpen: true };
       if (desktopMap) {
-        desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
-        desktopInfoWindow = createMarkerInfoWindow(desktopMarker, desktopMap);
+        const desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
+        const desktopInfoWindow = createMarkerInfoWindow(desktopMarker, desktopMap, {
+          shouldOpen: true,
+          onClose: () => handleMarkerLabelClose(markerObj)
+        });
+        desktopMarker.addListener('click', () => handleMarkerLabelOpen(markerObj));
+        markerObj.desktopMarker = desktopMarker;
+        markerObj.desktopInfoWindow = desktopInfoWindow;
       }
       if (mobileMap) {
-        mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
-        mobileInfoWindow = createMarkerInfoWindow(mobileMarker, mobileMap);
+        const mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
+        const mobileInfoWindow = createMarkerInfoWindow(mobileMarker, mobileMap, {
+          shouldOpen: true,
+          onClose: () => handleMarkerLabelClose(markerObj)
+        });
+        mobileMarker.addListener('click', () => handleMarkerLabelOpen(markerObj));
+        markerObj.mobileMarker = mobileMarker;
+        markerObj.mobileInfoWindow = mobileInfoWindow;
       }
-      pointMarkers.push({ id: pointId, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow });
+      pointMarkers.push(markerObj);
 
       updateSelectedPointsList();
       persistSelectedPoints();
