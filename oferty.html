@@ -892,7 +892,12 @@ window.showConfirmModal = showConfirmModal;
           });
           markers.push(marker);
 
-          marker.addListener('click', () => openInfo(marker, infoHTML(plot, data, offerId, index)));
+          marker.addListener('click', () => {
+            if (map && typeof marker.getPosition === 'function') {
+              map.panTo(marker.getPosition());
+            }
+            openInfo(marker, infoHTML(plot, data, offerId, index));
+          });
 
           let polygon = null;
           if (geometry) {
@@ -909,6 +914,9 @@ window.showConfirmModal = showConfirmModal;
                 visible: false
               });
               polygon.addListener('click', (evt) => {
+                if (map && evt?.latLng) {
+                  map.panTo(evt.latLng);
+                }
                 const fakeMarker = new google.maps.Marker({ position: evt.latLng, map: null });
                 openInfo(fakeMarker, infoHTML(plot, data, offerId, index));
               });
