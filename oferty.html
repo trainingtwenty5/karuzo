@@ -205,6 +205,9 @@ window.showConfirmModal = showConfirmModal;
             <button type="button" class="sort-chip" data-sort-key="area" aria-pressed="false">
               Powierzchnia
             </button>
+            <button type="button" class="sort-chip" data-sort-key="tagPopularity" aria-pressed="false">
+              Popularność tagów
+            </button>
           </div>
         </div>
         <div class="filters-row tags-row">
@@ -399,6 +402,8 @@ window.showConfirmModal = showConfirmModal;
   };
   let tagsExpanded = false;
   const TAG_PREVIEW_COUNT = 5;
+  let randomPreviewTags = [];
+  let randomPreviewSignature = '';
 
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
@@ -434,7 +439,7 @@ window.showConfirmModal = showConfirmModal;
         filterState.sortDir = filterState.sortDir === 'asc' ? 'desc' : 'asc';
       } else {
         filterState.sortKey = key;
-        filterState.sortDir = 'asc';
+        filterState.sortDir = key === 'tagPopularity' ? 'desc' : 'asc';
       }
       updateSortButtonsUI();
       filterOffersByBounds();
@@ -513,6 +518,12 @@ window.showConfirmModal = showConfirmModal;
         const value = Number(offer.plot?.pow_dzialki_m2_uldk);
         return Number.isFinite(value) ? value : null;
       }
+      if (sortKey === 'tagPopularity') {
+        const tags = Array.isArray(offer.tags) ? offer.tags : [];
+        if (!tags.length) return null;
+        const total = tags.reduce((acc, tag) => acc + (tagMetrics.get(tag)?.count || 0), 0);
+        return Number.isFinite(total) ? total : null;
+      }
       return null;
     };
 
@@ -588,11 +599,6 @@ window.showConfirmModal = showConfirmModal;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'tag-chip';
-    if (filterState.selectedTags.has(tag)) {
-      btn.classList.add('is-active');
-    }
-    btn.setAttribute('aria-pressed', filterState.selectedTags.has(tag) ? 'true' : 'false');
-    btn.textContent = tag;
     btn.dataset.tag = tag;
     btn.addEventListener('click', () => toggleTagFilter(tag));
     return btn;
@@ -607,6 +613,55 @@ window.showConfirmModal = showConfirmModal;
       return `${count} oferty`;
     }
     return `${count} ofert`;
+  }
+
+  function pickRandomTags(source, count) {
+    const pool = Array.isArray(source) ? source.slice() : [];
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, Math.min(count, pool.length));
+  }
+
+  function ensureRandomPreviewTags() {
+    const signature = availableTags.join('|');
+    if (signature !== randomPreviewSignature) {
+      randomPreviewSignature = signature;
+      randomPreviewTags = pickRandomTags(availableTags, TAG_PREVIEW_COUNT);
+    } else {
+      randomPreviewTags = randomPreviewTags.filter(tag => availableTags.includes(tag));
+      const missing = Math.min(TAG_PREVIEW_COUNT, availableTags.length) - randomPreviewTags.length;
+      if (missing > 0) {
+        const pool = availableTags.filter(tag => !randomPreviewTags.includes(tag));
+        randomPreviewTags = randomPreviewTags.concat(pickRandomTags(pool, missing));
+      }
+    }
+    return randomPreviewTags.slice(0, Math.min(TAG_PREVIEW_COUNT, availableTags.length));
+  }
+
+  function configureTagChip(chip, tag) {
+    const isActive = filterState.selectedTags.has(tag);
+    chip.classList.toggle('is-active', isActive);
+    chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    chip.dataset.tag = tag;
+    chip.innerHTML = '';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'tag-chip__label';
+    labelSpan.textContent = `#${tag}`;
+    chip.appendChild(labelSpan);
+
+    const stats = tagMetrics.get(tag);
+    if (stats?.count) {
+      const countSpan = document.createElement('span');
+      countSpan.className = 'tag-chip__count';
+      countSpan.textContent = `(${stats.count})`;
+      chip.appendChild(countSpan);
+      chip.title = `#${tag} • ${formatTagCount(stats.count)}`;
+    } else {
+      chip.title = `#${tag}`;
+    }
   }
 
   function renderTagFilters() {
@@ -641,48 +696,41 @@ window.showConfirmModal = showConfirmModal;
     previewWrap.className = 'tags-preview';
     tagFiltersList.appendChild(previewWrap);
 
-    const configureChip = (chip, tag) => {
-      const stats = tagMetrics.get(tag);
-      if (stats?.count) {
-        const countLabel = formatTagCount(stats.count);
-        chip.dataset.countLabel = countLabel;
-        chip.title = `${tag} • ${countLabel}`;
-      } else {
-        chip.removeAttribute('data-count-label');
-        chip.title = tag;
-      }
-    };
-
     const selectedTags = Array.from(filterState.selectedTags).filter(tag => availableTags.includes(tag));
-    const previewLimit = Math.max(TAG_PREVIEW_COUNT, selectedTags.length);
+    const targetPreviewSize = Math.min(Math.max(TAG_PREVIEW_COUNT, selectedTags.length), availableTags.length);
+    const previewSet = new Set();
     const previewTags = [];
-    const dropdownTags = [];
-    const seenTags = new Set();
 
     selectedTags.forEach(tag => {
-      if (!seenTags.has(tag)) {
-        previewTags.push(tag);
-        seenTags.add(tag);
-      }
+      if (previewSet.has(tag)) return;
+      previewSet.add(tag);
+      previewTags.push(tag);
     });
 
-    availableTags.forEach(tag => {
-      if (seenTags.has(tag)) return;
-      if (previewTags.length < previewLimit) {
+    const randomCandidates = ensureRandomPreviewTags().filter(tag => !previewSet.has(tag));
+    for (const tag of randomCandidates) {
+      previewSet.add(tag);
+      previewTags.push(tag);
+      if (previewTags.length >= targetPreviewSize) break;
+    }
+
+    if (previewTags.length < targetPreviewSize) {
+      for (const tag of availableTags) {
+        if (previewSet.has(tag)) continue;
+        previewSet.add(tag);
         previewTags.push(tag);
-        seenTags.add(tag);
-      } else {
-        dropdownTags.push(tag);
+        if (previewTags.length >= targetPreviewSize) break;
       }
-    });
+    }
 
     previewTags.forEach(tag => {
       const chip = createTagChip(tag);
-      configureChip(chip, tag);
       chip.classList.add('tag-chip--preview');
+      configureTagChip(chip, tag);
       previewWrap.appendChild(chip);
     });
 
+    const dropdownTags = availableTags.filter(tag => !previewSet.has(tag));
     let dropdownWrap = null;
     if (dropdownTags.length) {
       dropdownWrap = document.createElement('div');
@@ -692,8 +740,8 @@ window.showConfirmModal = showConfirmModal;
 
       dropdownTags.forEach(tag => {
         const chip = createTagChip(tag);
-        configureChip(chip, tag);
         chip.classList.add('tag-chip--list');
+        configureTagChip(chip, tag);
         dropdownWrap.appendChild(chip);
       });
     }
@@ -703,7 +751,7 @@ window.showConfirmModal = showConfirmModal;
     if (!tagsExpanded && hiddenCount > 0) {
       const summary = document.createElement('span');
       summary.className = 'tags-summary';
-      summary.textContent = `+${hiddenCount} w liście`;
+      summary.textContent = `+${hiddenCount} więcej`;
       previewWrap.appendChild(summary);
     }
 
@@ -714,7 +762,7 @@ window.showConfirmModal = showConfirmModal;
     if (toggleTagsBtn) {
       if (hiddenCount > 0) {
         toggleTagsBtn.hidden = false;
-        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj listę tagów' : `Pokaż ${hiddenCount} więcej`;
+        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${availableTags.length})`;
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
@@ -794,7 +842,6 @@ window.showConfirmModal = showConfirmModal;
       availableTags = [];
       tagMetrics = new Map();
       const tagStats = new Map();
-      let tagSequence = 0;
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
@@ -810,10 +857,8 @@ window.showConfirmModal = showConfirmModal;
 
           if (uniquePlotTags.length) {
             uniquePlotTags.forEach(tag => {
-              tagSequence += 1;
-              const current = tagStats.get(tag) || { count: 0, lastSeen: 0 };
+              const current = tagStats.get(tag) || { count: 0 };
               current.count += 1;
-              current.lastSeen = tagSequence;
               tagStats.set(tag, current);
             });
           }
@@ -867,15 +912,14 @@ window.showConfirmModal = showConfirmModal;
       tagMetrics = new Map(tagStats);
       availableTags = Array.from(tagStats.entries())
         .sort((a, b) => {
-          if (b[1].lastSeen !== a[1].lastSeen) {
-            return b[1].lastSeen - a[1].lastSeen;
-          }
           if (b[1].count !== a[1].count) {
             return b[1].count - a[1].count;
           }
           return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
         })
         .map(([tag]) => tag);
+      randomPreviewSignature = '';
+      randomPreviewTags = [];
       tagsExpanded = false;
       renderTagFilters();
       updateSortButtonsUI();

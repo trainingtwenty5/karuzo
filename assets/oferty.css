@@ -57,6 +57,17 @@
   -webkit-backdrop-filter:blur(14px);
 }
 
+@media (max-width:1366px){
+  .main-layout {
+    height:auto;
+    min-height:calc(100vh - 120px);
+  }
+  .content-container {
+    height:auto;
+    overflow-y:visible;
+  }
+}
+
 .filters-title {
   margin:0;
   font-size:1rem;
@@ -239,15 +250,6 @@
   background:linear-gradient(135deg,#f8fafc 0%,#f1f5f9 100%);
 }
 
-.tag-chip--list::after {
-  content:attr(data-count-label);
-  margin-left:auto;
-  padding-left:0.75rem;
-  font-size:0.72rem;
-  font-weight:600;
-  color:#1d4ed8;
-}
-
 .tag-chip:hover {
   border-color:#2b6cb0;
   color:#1a365d;
@@ -269,6 +271,20 @@
 .tag-chip.is-active::after {
   content:'\2713';
   font-size:0.75rem;
+}
+
+.tag-chip__label {
+  white-space:nowrap;
+}
+
+.tag-chip__count {
+  font-size:0.72rem;
+  font-weight:600;
+  color:#475569;
+}
+
+.tag-chip--list .tag-chip__count {
+  color:#1d4ed8;
 }
 
 .toggle-tags-btn {
