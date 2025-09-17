@@ -268,7 +268,10 @@ footer{background:var(--darker);color:#fff;padding:2.5rem 0 1.25rem}
     text-align:left;          /* dla tekstu */
     gap:.25rem;
   }
-  .footer-logo img{height:60px;}
+  .footer-logo img{
+    width:200px;
+    height:auto;
+  }
 
   /* menu startuje spod headera (ustawione przez zmienne) */
   .hero{padding:calc(var(--header-height) + 12px) 0 2rem;}

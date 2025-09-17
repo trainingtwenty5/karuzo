@@ -96,7 +96,10 @@ header{
     align-items:center;
     gap:.5rem;
   }
-  .logo img{height:60px;}
+  .logo img{
+    width:200px;
+    height:auto;
+  }
   .logo span{white-space:nowrap;}
 }
 
