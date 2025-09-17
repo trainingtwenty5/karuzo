@@ -214,7 +214,7 @@ window.showConfirmModal = showConfirmModal;
               <span class="tag-placeholder">Ładuję tagi…</span>
             </div>
             <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
-              Pokaż listę tagów
+              Pokaż wszystkie tagi
             </button>
           </div>
         </div>
@@ -399,6 +399,8 @@ window.showConfirmModal = showConfirmModal;
   };
   let tagsExpanded = false;
   const TAG_PREVIEW_COUNT = 5;
+  let randomPreviewTags = [];
+  let randomPreviewSignature = '';
 
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
@@ -588,11 +590,6 @@ window.showConfirmModal = showConfirmModal;
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'tag-chip';
-    if (filterState.selectedTags.has(tag)) {
-      btn.classList.add('is-active');
-    }
-    btn.setAttribute('aria-pressed', filterState.selectedTags.has(tag) ? 'true' : 'false');
-    btn.textContent = tag;
     btn.dataset.tag = tag;
     btn.addEventListener('click', () => toggleTagFilter(tag));
     return btn;
@@ -607,6 +604,110 @@ window.showConfirmModal = showConfirmModal;
       return `${count} oferty`;
     }
     return `${count} ofert`;
+  }
+
+  function pickRandomTags(source, count) {
+    const pool = Array.isArray(source) ? source.slice() : [];
+    for (let i = pool.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, Math.min(count, pool.length));
+  }
+
+  function ensureRandomPreviewTags() {
+    const signature = availableTags.join('|');
+    if (signature !== randomPreviewSignature) {
+      randomPreviewSignature = signature;
+      randomPreviewTags = pickRandomTags(availableTags, TAG_PREVIEW_COUNT);
+    } else {
+      randomPreviewTags = randomPreviewTags.filter(tag => availableTags.includes(tag));
+      const missing = Math.min(TAG_PREVIEW_COUNT, availableTags.length) - randomPreviewTags.length;
+      if (missing > 0) {
+        const pool = availableTags.filter(tag => !randomPreviewTags.includes(tag));
+        randomPreviewTags = randomPreviewTags.concat(pickRandomTags(pool, missing));
+      }
+    }
+    return randomPreviewTags.slice(0, Math.min(TAG_PREVIEW_COUNT, availableTags.length));
+  }
+
+  function formatTagLabel(tag) {
+    if (typeof tag !== 'string') return '';
+    return tag.startsWith('#') ? tag : `#${tag}`;
+  }
+
+  function computeTagDisplayCounts(filteredOffers) {
+    const counts = new Map();
+
+    if (!filterState.selectedTags.size) {
+      availableTags.forEach(tag => {
+        const total = Number(tagMetrics.get(tag)) || 0;
+        counts.set(tag, total);
+      });
+      return counts;
+    }
+
+    const matches = Array.isArray(filteredOffers) ? filteredOffers : getOffersMatchingFilters();
+    const matchCount = matches.length;
+
+    filterState.selectedTags.forEach(tag => counts.set(tag, matchCount));
+
+    matches.forEach(offer => {
+      const offerTags = Array.isArray(offer.tags) ? offer.tags : [];
+      offerTags.forEach(tag => {
+        if (filterState.selectedTags.has(tag)) return;
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      });
+    });
+
+    availableTags.forEach(tag => {
+      if (!counts.has(tag)) counts.set(tag, 0);
+    });
+
+    return counts;
+  }
+
+  function configureTagChip(chip, tag, displayCounts = null) {
+    const isActive = filterState.selectedTags.has(tag);
+    chip.classList.toggle('is-active', isActive);
+    chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    chip.dataset.tag = tag;
+    chip.innerHTML = '';
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'tag-chip__label';
+    const formattedLabel = formatTagLabel(tag);
+    labelSpan.textContent = formattedLabel;
+    chip.appendChild(labelSpan);
+
+    const countValue = displayCounts?.get(tag);
+    const numericCount = Number.isFinite(countValue) ? countValue : (Number(tagMetrics.get(tag)) || 0);
+
+    if (Number.isFinite(numericCount)) {
+      const countSpan = document.createElement('span');
+      countSpan.className = 'tag-chip__count';
+      countSpan.textContent = `(${numericCount})`;
+      chip.appendChild(countSpan);
+    }
+
+    const compatibleCount = Number.isFinite(countValue) ? countValue : 0;
+    const isCompatible = filterState.selectedTags.size > 0 && !isActive && compatibleCount > 0;
+    chip.classList.toggle('is-compatible', isCompatible);
+    if (isCompatible) {
+      chip.dataset.compatible = 'true';
+    } else {
+      chip.removeAttribute('data-compatible');
+    }
+
+    let tooltip = formattedLabel;
+    if (Number.isFinite(numericCount)) {
+      tooltip += ` • ${formatTagCount(numericCount)}`;
+    }
+    if (isCompatible) {
+      const suffix = compatibleCount === 1 ? 'ofercie' : 'ofertach';
+      tooltip += ` • razem z wybranymi w ${compatibleCount} ${suffix}`;
+    }
+    chip.title = tooltip;
   }
 
   function renderTagFilters() {
@@ -637,84 +738,51 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
 
-    const previewWrap = document.createElement('div');
-    previewWrap.className = 'tags-preview';
-    tagFiltersList.appendChild(previewWrap);
-
-    const configureChip = (chip, tag) => {
-      const stats = tagMetrics.get(tag);
-      if (stats?.count) {
-        const countLabel = formatTagCount(stats.count);
-        chip.dataset.countLabel = countLabel;
-        chip.title = `${tag} • ${countLabel}`;
-      } else {
-        chip.removeAttribute('data-count-label');
-        chip.title = tag;
-      }
-    };
-
     const selectedTags = Array.from(filterState.selectedTags).filter(tag => availableTags.includes(tag));
-    const previewLimit = Math.max(TAG_PREVIEW_COUNT, selectedTags.length);
-    const previewTags = [];
-    const dropdownTags = [];
-    const seenTags = new Set();
+    const filteredForCounts = getOffersMatchingFilters();
+    const displayCounts = computeTagDisplayCounts(filteredForCounts);
+
+    const visibleTags = tagsExpanded ? availableTags.slice() : ensureRandomPreviewTags().slice();
+    const visibleSet = new Set(visibleTags);
 
     selectedTags.forEach(tag => {
-      if (!seenTags.has(tag)) {
-        previewTags.push(tag);
-        seenTags.add(tag);
+      if (!visibleSet.has(tag)) {
+        visibleSet.add(tag);
+        visibleTags.push(tag);
       }
     });
 
-    availableTags.forEach(tag => {
-      if (seenTags.has(tag)) return;
-      if (previewTags.length < previewLimit) {
-        previewTags.push(tag);
-        seenTags.add(tag);
-      } else {
-        dropdownTags.push(tag);
-      }
-    });
-
-    previewTags.forEach(tag => {
-      const chip = createTagChip(tag);
-      configureChip(chip, tag);
-      chip.classList.add('tag-chip--preview');
-      previewWrap.appendChild(chip);
-    });
-
-    let dropdownWrap = null;
-    if (dropdownTags.length) {
-      dropdownWrap = document.createElement('div');
-      dropdownWrap.className = 'tags-dropdown';
-      dropdownWrap.hidden = !tagsExpanded;
-      tagFiltersList.appendChild(dropdownWrap);
-
-      dropdownTags.forEach(tag => {
-        const chip = createTagChip(tag);
-        configureChip(chip, tag);
-        chip.classList.add('tag-chip--list');
-        dropdownWrap.appendChild(chip);
-      });
+    const listWrap = document.createElement('div');
+    listWrap.className = 'tags-preview';
+    if (tagsExpanded) {
+      listWrap.dataset.mode = 'expanded';
     }
+    tagFiltersList.appendChild(listWrap);
 
-    const hiddenCount = dropdownTags.length;
+    visibleTags.forEach(tag => {
+      const chip = createTagChip(tag);
+      configureTagChip(chip, tag, displayCounts);
+      listWrap.appendChild(chip);
+    });
+
+    const hiddenCount = Math.max(availableTags.length - visibleSet.size, 0);
 
     if (!tagsExpanded && hiddenCount > 0) {
       const summary = document.createElement('span');
       summary.className = 'tags-summary';
-      summary.textContent = `+${hiddenCount} w liście`;
-      previewWrap.appendChild(summary);
+      summary.textContent = `+${hiddenCount} więcej`;
+      listWrap.appendChild(summary);
     }
 
-    if (!hiddenCount) {
+    const shouldShowToggle = availableTags.length > TAG_PREVIEW_COUNT;
+    if (!shouldShowToggle) {
       tagsExpanded = false;
     }
 
     if (toggleTagsBtn) {
-      if (hiddenCount > 0) {
+      if (shouldShowToggle) {
         toggleTagsBtn.hidden = false;
-        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj listę tagów' : `Pokaż ${hiddenCount} więcej`;
+        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${availableTags.length})`;
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
@@ -725,7 +793,7 @@ window.showConfirmModal = showConfirmModal;
     }
 
     tagFiltersList.dataset.expanded = tagsExpanded ? 'true' : 'false';
-    tagFiltersList.dataset.state = hiddenCount > 0 ? (tagsExpanded ? 'expanded' : 'collapsed') : 'all-visible';
+    tagFiltersList.dataset.state = shouldShowToggle ? (tagsExpanded ? 'expanded' : 'collapsed') : 'all-visible';
   }
 
   function toggleTagFilter(tag) {
@@ -794,7 +862,6 @@ window.showConfirmModal = showConfirmModal;
       availableTags = [];
       tagMetrics = new Map();
       const tagStats = new Map();
-      let tagSequence = 0;
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
@@ -810,11 +877,7 @@ window.showConfirmModal = showConfirmModal;
 
           if (uniquePlotTags.length) {
             uniquePlotTags.forEach(tag => {
-              tagSequence += 1;
-              const current = tagStats.get(tag) || { count: 0, lastSeen: 0 };
-              current.count += 1;
-              current.lastSeen = tagSequence;
-              tagStats.set(tag, current);
+              tagStats.set(tag, (tagStats.get(tag) || 0) + 1);
             });
           }
 
@@ -867,15 +930,14 @@ window.showConfirmModal = showConfirmModal;
       tagMetrics = new Map(tagStats);
       availableTags = Array.from(tagStats.entries())
         .sort((a, b) => {
-          if (b[1].lastSeen !== a[1].lastSeen) {
-            return b[1].lastSeen - a[1].lastSeen;
-          }
-          if (b[1].count !== a[1].count) {
-            return b[1].count - a[1].count;
+          if (b[1] !== a[1]) {
+            return b[1] - a[1];
           }
           return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
         })
         .map(([tag]) => tag);
+      randomPreviewSignature = '';
+      randomPreviewTags = [];
       tagsExpanded = false;
       renderTagFilters();
       updateSortButtonsUI();
@@ -911,6 +973,10 @@ window.showConfirmModal = showConfirmModal;
       const area  = Number(o.plot.pow_dzialki_m2_uldk || 0);
       const ppm2  = price && area ? (price/area).toFixed(2) : "0.00";
       const detailsUrl = `details.html?id=${o.id}&plot=${o.index}`;
+      const tagList = Array.isArray(o.tags) ? o.tags : [];
+      const tagsMarkup = tagList.length
+        ? `<div class="offer-tags"><span class="offer-tags__label">Tagi:</span><div class="offer-tags__list">${tagList.map(tag => `<span class="offer-tag">${formatTagLabel(tag)}</span>`).join('')}</div></div>`
+        : '';
 
       card.innerHTML = `
         <h5>${o.plot.Id || "Brak identyfikatora"}</h5>
@@ -919,6 +985,7 @@ window.showConfirmModal = showConfirmModal;
         <p><b>Telefon:</b> ${formatPhone(o.data.phone) || "-"}</p>
         ${price ? `<p><b>Cena całkowita:</b> ${price.toLocaleString('pl-PL')} zł <span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2} zł/m²</span></p>` : ""}
         ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ""}
+        ${tagsMarkup}
         <div class="offer-actions center">
           <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
             <i class="fas fa-info-circle"></i> Szczegóły
