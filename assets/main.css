@@ -94,7 +94,6 @@ a{color:var(--primary);text-decoration:none;transition:var(--transition);}
 .btn-google:hover{background:#c23325;color:#fff;}
 .auth-info{display:flex;gap:.65rem;align-items:flex-start;background:#eef3ff;color:#1a237e;padding:.75rem;border-radius:6px;margin-top:.85rem;font-size:.85rem;line-height:1.4;}
 .auth-info i{font-size:1.1rem;margin-top:.1rem;}
-.domain-warning{display:none;background:#ffebee;color:#c62828;padding:8px;border-radius:5px;margin-top:15px;font-size:.85rem;}
 
 /* ====== User dashboard ====== */
 .user-dashboard{display:none;margin-top:calc(var(--topbar-height) + var(--header-height) + 40px);margin-bottom:20px;padding:2rem;background:#fff;border-radius:var(--radius);box-shadow:var(--shadow-md);}

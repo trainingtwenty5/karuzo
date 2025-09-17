@@ -170,11 +170,6 @@
           </button>
         </div>
 
-        <div class="auth-info" role="note">
-          <i class="fas fa-info-circle" aria-hidden="true"></i>
-          <p>Logowanie jest dostępne wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Pozostałe pola mają charakter demonstracyjny.</p>
-        </div>
-
         <div class="form-footer">
           <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
         </div>
@@ -216,7 +211,10 @@
 
         <div class="auth-info" role="note">
           <i class="fas fa-info-circle" aria-hidden="true"></i>
-          <p>Rejestracja jest dostępna wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Formularz e-mail służy celom demonstracyjnym.</p>
+          <div>
+            <p>Rejestracja jest dostępna wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Formularz e-mail służy celom demonstracyjnym.</p>
+            <p><strong>Uwaga:</strong> Logowanie przez Google może nie działać na tej domenie. Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase (Authentication → Authorized domains).</p>
+          </div>
         </div>
 
         <div class="form-footer">
@@ -274,7 +272,7 @@
       const openModal  = (m) => {
         if (!m) return;
         m.style.display = 'flex';
-        if (m.id === 'loginModal' || m.id === 'registerModal') {
+        if (m.id === 'registerModal') {
           remindGoogleOnly();
         }
       };

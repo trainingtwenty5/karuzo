@@ -934,7 +934,7 @@ async function renderMap(plot) {
 function openModal(modal) {
   if (!modal) return;
   modal.style.display = 'flex';
-  if (modal.id === 'loginModal' || modal.id === 'registerModal') {
+  if (modal.id === 'registerModal') {
     remindGoogleOnly();
   }
 }
