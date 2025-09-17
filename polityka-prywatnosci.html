@@ -277,6 +277,76 @@
     </div>
   </main>
 
+  <!-- Login Modal -->
+  <div class="modal" id="loginModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Zaloguj się</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Hasło</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zaloguj się</button>
+      </form>
+
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+
+      <div class="form-footer">
+        <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Register Modal -->
+  <div class="modal" id="registerModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Utwórz konto</h3>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
+      </div>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="registerName">Imię i nazwisko</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="form-group">
+          <label for="registerEmail">Email</label>
+          <input type="email" id="registerEmail" required>
+        </div>
+        <div class="form-group">
+          <label for="registerPassword">Hasło</label>
+          <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="registerConfirmPassword">Potwierdź hasło</label>
+          <input type="password" id="registerConfirmPassword" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zarejestruj się</button>
+      </form>
+
+      <div class="social-login mt-3 text-center">
+        <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+
+      <div class="form-footer">
+        <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+      </div>
+    </div>
+  </div>
+
   <footer id="contact">
     <div class="container">
       <div class="footer-container">
@@ -311,6 +381,8 @@
       </div>
     </div>
   </footer>
+
+  <script type="module" src="assets/auth-basic.js"></script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
