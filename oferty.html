@@ -244,7 +244,7 @@ window.showConfirmModal = showConfirmModal;
     <div class="modal-content">
       <div class="modal-header">
         <h3>Zaloguj się</h3>
-        <button class="modal-close">&times;</button>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
       </div>
       <form id="loginForm">
         <div class="form-group">
@@ -255,15 +255,15 @@ window.showConfirmModal = showConfirmModal;
           <label for="loginPassword">Hasło</label>
           <input type="password" id="loginPassword" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Zaloguj się</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zaloguj się</button>
       </form>
-	  
-	  <div class="social-login">
-  <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
-    <i class="fab fa-google"></i> Kontynuuj z Google
-  </button>
-</div>
-	  
+
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+
       <div class="form-footer">
         <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
       </div>
@@ -275,7 +275,7 @@ window.showConfirmModal = showConfirmModal;
     <div class="modal-content">
       <div class="modal-header">
         <h3>Utwórz konto</h3>
-        <button class="modal-close">&times;</button>
+        <button class="modal-close" aria-label="Zamknij">&times;</button>
       </div>
       <form id="registerForm">
         <div class="form-group">
@@ -294,22 +294,15 @@ window.showConfirmModal = showConfirmModal;
           <label for="registerConfirmPassword">Potwierdź hasło</label>
           <input type="password" id="registerConfirmPassword" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%;">Zarejestruj się</button>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Zarejestruj się</button>
       </form>
-	  
+
       <div class="social-login mt-3 text-center">
         <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
-          <i class="fab fa-google me-1"></i> Zaloguj przez Google
+          <i class="fab fa-google"></i> Kontynuuj z Google
         </button>
+      </div>
 
-      </div>
-      
-      <div class="domain-warning" id="domainWarning">
-        <i class="fas fa-exclamation-triangle"></i> 
-        Uwaga: Logowanie przez Facebook może nie działać na tej domenie. 
-        Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase.
-      </div>
-	  
       <div class="form-footer">
         <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
       </div>
@@ -1049,7 +1042,7 @@ window.showConfirmModal = showConfirmModal;
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
     getAuth, onAuthStateChanged, signOut,
-    signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
+    signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification,
     GoogleAuthProvider, signInWithPopup, signInWithRedirect,
     setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -1078,6 +1071,17 @@ window.showConfirmModal = showConfirmModal;
   catch { try { await setPersistence(auth, browserSessionPersistence); }
   catch { await setPersistence(auth, inMemoryPersistence); } }
 
+  const REGISTER_PROMPT_KEY = 'grunteo.registerPrompt';
+
+  (function domainHint(){
+    const hint = document.getElementById('domainWarning');
+    if (!hint) return;
+    const knownGood = ['localhost','127.0.0.1','trainingtwenty5.github.io','grunteo.pl','grunte.pl'];
+    if (!knownGood.includes(location.hostname)) {
+      hint.style.display = 'block';
+    }
+  })();
+
   const googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -1094,7 +1098,6 @@ window.showConfirmModal = showConfirmModal;
   const closeBtns     = document.querySelectorAll('.modal-close');
   const switchToRegister = document.getElementById('switchToRegister');
   const switchToLogin    = document.getElementById('switchToLogin');
-
   const loginForm     = document.getElementById('loginForm');
   const registerForm  = document.getElementById('registerForm');
 
@@ -1104,14 +1107,45 @@ window.showConfirmModal = showConfirmModal;
   const googleBtnRegister = document.getElementById('googleLoginBtn');
   const googleBtnLogin    = document.getElementById('googleLoginBtnLogin');
 
+  let pendingRegisterPrompt = null;
+  let rawRegisterPrompt = null;
+  try {
+    rawRegisterPrompt = sessionStorage.getItem(REGISTER_PROMPT_KEY);
+    if (rawRegisterPrompt) {
+      sessionStorage.removeItem(REGISTER_PROMPT_KEY);
+    }
+  } catch (_) {
+    rawRegisterPrompt = null;
+  }
+
+  if (rawRegisterPrompt) {
+    try {
+      const parsed = JSON.parse(rawRegisterPrompt);
+      if (parsed && typeof parsed === 'object') {
+        pendingRegisterPrompt = parsed;
+      } else {
+        pendingRegisterPrompt = { openRegister: true };
+      }
+    } catch (_) {
+      pendingRegisterPrompt = { openRegister: true };
+    }
+  }
+
   // --- POMOCNICZE UI ---
   const openModal  = (m) => m && (m.style.display = 'flex');
   const closeModal = (m) => m && (m.style.display = 'none');
 
-  // Pokaż ostrzeżenie o domenie (jeśli nie jest autoryzowana w Firebase)
-  const domainWarning = document.getElementById('domainWarning');
-  const okDomains = ['localhost','127.0.0.1','trainingtwenty5.github.io','twojadomena.pl'];
-  if (domainWarning && !okDomains.includes(location.hostname)) domainWarning.style.display = 'block';
+  const triggerRegisterPrompt = () => {
+    if (!pendingRegisterPrompt || !pendingRegisterPrompt.openRegister) return;
+    if (registerModal) openModal(registerModal);
+    const message = pendingRegisterPrompt.message || 'Po zalogowaniu się będziesz mógł edytować swoje ogłoszenie.';
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+      window.showToast(message, pendingRegisterPrompt.type || 'info');
+    } else {
+      alert(message);
+    }
+    pendingRegisterPrompt = null;
+  };
 
   function renderMobileAuth(user) {
     const navMenu = document.querySelector('.nav-menu');
@@ -1189,29 +1223,54 @@ window.showConfirmModal = showConfirmModal;
     if (e.target.classList?.contains('modal')) closeModal(e.target);
   });
 
+  accountBtn && accountBtn.addEventListener('click', () => {
+    document.getElementById('userDashboard')?.scrollIntoView({ behavior: 'smooth' });
+  });
+
   // --- ŁADNE BŁĘDY ---
-  const niceErr = (err) => {
-    switch (err?.code) {
-      case 'auth/invalid-email': return 'Nieprawidłowy adres e-mail.';
-      case 'auth/missing-password': return 'Podaj hasło.';
+  const niceAuthError = (err) => {
+    const code = err?.code || '';
+    switch (code) {
+      case 'auth/invalid-email':
+        return 'Nieprawidłowy adres e-mail.';
+      case 'auth/missing-password':
+        return 'Podaj hasło.';
+      case 'auth/invalid-credential':
+        return 'Nieprawidłowy e-mail lub hasło.';
       case 'auth/user-not-found':
+        return 'Użytkownik nie istnieje.';
       case 'auth/wrong-password':
-      case 'auth/invalid-credential': return 'Nieprawidłowy e-mail lub hasło.';
-      case 'auth/too-many-requests': return 'Za dużo prób. Spróbuj później.';
-      case 'auth/unauthorized-domain': return `Domena ${location.hostname} nie jest dodana w Firebase (Authorized domains).`;
-      case 'auth/popup-blocked': return 'Przeglądarka zablokowała okno logowania Google.';
-      case 'auth/operation-not-supported-in-this-environment': return 'Uruchom stronę przez https (nie file://).';
-      default: return 'Błąd: ' + (err?.code || err?.message || 'nieznany');
+        return 'Błędne hasło.';
+      case 'auth/too-many-requests':
+        return 'Za dużo prób. Spróbuj ponownie później.';
+      case 'auth/unauthorized-domain':
+        return `Domena ${location.hostname} nie jest autoryzowana w Firebase (Authentication → Authorized domains).`;
+      case 'auth/network-request-failed':
+        return 'Błąd sieci. Sprawdź połączenie z internetem.';
+      case 'auth/popup-closed-by-user':
+        return 'Zamykanie okna logowania przerwało proces.';
+      case 'auth/cancelled-popup-request':
+        return 'Logowanie zostało przerwane przez inne żądanie. Spróbuj ponownie.';
+      case 'auth/popup-blocked':
+        return 'Przeglądarka zablokowała okno logowania Google. Użyj przekierowania.';
+      case 'auth/operation-not-supported-in-this-environment':
+        return 'To środowisko nie wspiera tego typu logowania (np. file://). Uruchom stronę przez https.';
+      default:
+        return `Błąd: ${code || err?.message || 'nieznany'}`;
     }
   };
 
-  // --- E-mail/hasło ---
+  // --- Email/hasło ---
   loginForm && loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('loginEmail').value.trim();
     const pass  = document.getElementById('loginPassword').value;
-    try { await signInWithEmailAndPassword(auth, email, pass); closeModal(loginModal); }
-    catch (err) { showToast(niceErr(err)); }
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (err) {
+      console.error('[login]', err);
+      alert(niceAuthError(err));
+    }
   });
 
   registerForm && registerForm.addEventListener('submit', async (e) => {
@@ -1220,35 +1279,49 @@ window.showConfirmModal = showConfirmModal;
     const email = document.getElementById('registerEmail').value.trim();
     const pass1 = document.getElementById('registerPassword').value;
     const pass2 = document.getElementById('registerConfirmPassword').value;
-    if (pass1 !== pass2) return showToast('Hasła nie są identyczne!');
+    if (pass1 !== pass2) return alert('Hasła nie są identyczne!');
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
       if (name) await updateProfile(user, { displayName: name });
-      await setDoc(doc(db, "users", user.uid), {
-        name: name || null, email, createdAt: new Date(), provider: 'password'
+      await setDoc(doc(db, 'users', user.uid), {
+        name: name || null,
+        email,
+        createdAt: new Date(),
+        provider: "password"
       }, { merge: true });
-      closeModal(registerModal);
-    } catch (err) { showToast(niceErr(err)); }
+      try {
+        await sendEmailVerification(user);
+        if (typeof window !== 'undefined') {
+          if (typeof window.showToast === 'function') {
+            window.showToast('Na Twój adres wysłaliśmy wiadomość z linkiem aktywacyjnym. Sprawdź skrzynkę i potwierdź konto.', 'info');
+          } else {
+            alert('Na Twój adres wysłaliśmy wiadomość z linkiem aktywacyjnym. Sprawdź skrzynkę i potwierdź konto.');
+          }
+        }
+      } catch (verificationError) {
+        console.error('[register][verification]', verificationError);
+      }
+    } catch (err) {
+      console.error('[register]', err);
+      alert(niceAuthError(err));
+    }
   });
 
   // --- Google ---
   async function signInWithGoogleSmart() {
-    if (location.protocol !== 'https:')
-      return showToast('Uruchom stronę przez https (nie file://).');
+    const isHttps = location.protocol === 'https:';
+    if (!isHttps) return alert('Uruchom stronę przez https (nie file://).');
     try {
-      const res = await signInWithPopup(auth, googleProvider);
-      const user = res.user;
-      const uref = doc(db, "users", user.uid);
-      const udoc = await getDoc(uref);
-      if (!udoc.exists()) {
-        await setDoc(uref, { name: user.displayName, email: user.email, createdAt: new Date(), provider: 'google' });
-      }
+      await signInWithPopup(auth, googleProvider);
       closeModal(loginModal); closeModal(registerModal);
+      document.querySelector('.nav-menu')?.classList.remove('active');
+      document.getElementById('mobileAuth')?.setAttribute('style', 'display:none;');
     } catch (err) {
-      if (['auth/popup-blocked','auth/operation-not-supported-in-this-environment'].includes(err?.code)) {
+      console.error('[google]', err);
+      if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
         await signInWithRedirect(auth, googleProvider);
       } else {
-        showToast(niceErr(err));
+        alert(niceAuthError(err));
       }
     }
   }
@@ -1262,19 +1335,20 @@ window.showConfirmModal = showConfirmModal;
       authButtons && (authButtons.style.display = 'none');
       userMenu    && (userMenu.style.display   = 'flex');
       userDashboard && (userDashboard.style.display = 'block');
-      accountBtn  && (accountBtn.innerHTML = `<i class="fas fa-user"></i> ${user.displayName || user.email}`);
-      accountBtn  && accountBtn.addEventListener('click', () => {
-        location.hash = '#userDashboard';
-        userDashboard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, { once: true });
+      if (accountBtn) {
+        const label = user.displayName || user.email || 'Moje konto';
+        accountBtn.innerHTML = `<i class="fas fa-user"></i> ${label}`;
+      }
 
       try { await loadUserOffers(user.email || null, user.uid || null); } catch(e){ console.error(e); }
       closeModal(loginModal); closeModal(registerModal);
+      pendingRegisterPrompt = null;
     } else {
       authButtons && (authButtons.style.display = 'flex');
       userMenu    && (userMenu.style.display   = 'none');
       userDashboard && (userDashboard.style.display = 'none');
       userOffers && (userOffers.innerHTML = '');
+      triggerRegisterPrompt();
     }
     renderMobileAuth(user);
   });
