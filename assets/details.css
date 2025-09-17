@@ -516,7 +516,6 @@ main.property-wrapper {
 }
 
 .share-link-input {
-  flex: 1 1 280px;
   min-width: 0;
   padding: .65rem .75rem;
   border-radius: 10px;
@@ -741,7 +740,21 @@ main.property-wrapper {
   .share-link-box {
     flex-direction: column;
     align-items: stretch;
-    gap: .5rem;
+    gap: .35rem;
+  }
+
+  .share-link-label {
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    line-height: 1.2;
+    color: var(--gray);
+  }
+
+  .share-link-input {
+    font-size: .85rem;
+    padding: .5rem .6rem;
+    border-radius: 8px;
   }
 
   .share-actions {
