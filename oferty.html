@@ -1050,7 +1050,7 @@ window.showConfirmModal = showConfirmModal;
   import {
     getAuth, onAuthStateChanged, signOut,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
-    GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+    GoogleAuthProvider, signInWithPopup, signInWithRedirect, sendEmailVerification,
     setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
@@ -1110,8 +1110,16 @@ window.showConfirmModal = showConfirmModal;
 
   // Pokaż ostrzeżenie o domenie (jeśli nie jest autoryzowana w Firebase)
   const domainWarning = document.getElementById('domainWarning');
-  const okDomains = ['localhost','127.0.0.1','trainingtwenty5.github.io','twojadomena.pl'];
-  if (domainWarning && !okDomains.includes(location.hostname)) domainWarning.style.display = 'block';
+  const okDomains = [
+    'localhost',
+    '127.0.0.1',
+    'trainingtwenty5.github.io',
+    'twojadomena.pl',
+    'grunte.pl',
+    'www.grunte.pl'
+  ];
+  const isAuthorizedHost = okDomains.includes(location.hostname) || location.hostname.endsWith('.grunte.pl');
+  if (domainWarning && !isAuthorizedHost) domainWarning.style.display = 'block';
 
   function renderMobileAuth(user) {
     const navMenu = document.querySelector('.nav-menu');
@@ -1197,8 +1205,11 @@ window.showConfirmModal = showConfirmModal;
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential': return 'Nieprawidłowy e-mail lub hasło.';
+      case 'auth/email-already-in-use': return 'Na ten e-mail istnieje już konto.';
+      case 'auth/weak-password': return 'Hasło musi mieć co najmniej 6 znaków.';
       case 'auth/too-many-requests': return 'Za dużo prób. Spróbuj później.';
       case 'auth/unauthorized-domain': return `Domena ${location.hostname} nie jest dodana w Firebase (Authorized domains).`;
+      case 'auth/network-request-failed': return 'Błąd sieci. Sprawdź połączenie z internetem.';
       case 'auth/popup-blocked': return 'Przeglądarka zablokowała okno logowania Google.';
       case 'auth/operation-not-supported-in-this-environment': return 'Uruchom stronę przez https (nie file://).';
       default: return 'Błąd: ' + (err?.code || err?.message || 'nieznany');
@@ -1225,8 +1236,24 @@ window.showConfirmModal = showConfirmModal;
       const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
       if (name) await updateProfile(user, { displayName: name });
       await setDoc(doc(db, "users", user.uid), {
-        name: name || null, email, createdAt: new Date(), provider: 'password'
+        name: name || null,
+        email,
+        emailVerified: user.emailVerified || false,
+        createdAt: new Date(),
+        provider: 'password'
       }, { merge: true });
+
+      try {
+        await sendEmailVerification(user, {
+          url: 'https://grunte.pl',
+          handleCodeInApp: false
+        });
+        showToast('Rejestracja zakończona! Sprawdź pocztę i potwierdź adres e-mail.', 'success');
+      } catch (verifyErr) {
+        console.warn('Verification e-mail error', verifyErr);
+        showToast('Nie udało się wysłać maila weryfikacyjnego. Spróbuj ponownie z sekcji profilu.', 'warning');
+      }
+
       closeModal(registerModal);
     } catch (err) { showToast(niceErr(err)); }
   });
@@ -1263,6 +1290,9 @@ window.showConfirmModal = showConfirmModal;
       userMenu    && (userMenu.style.display   = 'flex');
       userDashboard && (userDashboard.style.display = 'block');
       accountBtn  && (accountBtn.innerHTML = `<i class="fas fa-user"></i> ${user.displayName || user.email}`);
+      if (!user.emailVerified) {
+        showToast('Twoje konto wymaga potwierdzenia adresu e-mail. Sprawdź skrzynkę na poczcie.', 'warning');
+      }
       accountBtn  && accountBtn.addEventListener('click', () => {
         location.hash = '#userDashboard';
         userDashboard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
