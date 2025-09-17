@@ -524,13 +524,27 @@
 
     function restoreMarkersFromSelectedPoints() {
       if (!selectedPoints || selectedPoints.length === 0) return;
-      selectedPoints.forEach(p => {
+      selectedPoints.forEach((p) => {
         const latLng = new google.maps.LatLng(p.lat, p.lng);
-        let desktopMarker = null, mobileMarker = null;
-        if (desktopMap) desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
-        if (mobileMap)  mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
-        pointMarkers.push({ id: p.id, desktopMarker, mobileMarker });
+        let desktopMarker = null,
+            mobileMarker = null,
+            desktopInfoWindow = null,
+            mobileInfoWindow = null;
+
+        if (desktopMap) {
+          desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
+          desktopInfoWindow = createMarkerInfoWindow(desktopMarker, desktopMap);
+        }
+
+        if (mobileMap) {
+          mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
+          mobileInfoWindow = createMarkerInfoWindow(mobileMarker, mobileMap);
+        }
+
+        pointMarkers.push({ id: p.id, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow });
       });
+
+      updateMarkerLabels();
     }
 
 
@@ -633,7 +647,8 @@
 
     let desktopMap, mobileMap;
     let selectedPoints = [];
-    let pointMarkers = []; // {id, desktopMarker, mobileMarker}
+    let pointMarkers = []; // {id, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow}
+    const MARKER_NOTE_TEXT = 'Po upływie 60 sekund od przesłania danych pinezka zmienia się w ogłoszenie z obrysem działki i edytowalnym opisem.';
     let isSaving = false;
     let lastCenter = { lat: 51.63538575429843, lng: 16.45740592647929 };
     let lastZoom = 17;
@@ -735,6 +750,51 @@
       );
     }
 
+    function createMarkerInfoWindow(marker, map) {
+      if (!marker || !map) return null;
+      const infoWindow = new google.maps.InfoWindow({
+        content: '',
+        disableAutoPan: true,
+        pixelOffset: new google.maps.Size(24, -28)
+      });
+      infoWindow.open({ anchor: marker, map });
+      return infoWindow;
+    }
+
+    function createMarkerLabelContent(index) {
+      return `
+        <div class="plot-marker-label">
+          <div class="plot-marker-label__title">Działka nr ${index}</div>
+          <div class="plot-marker-label__note">${MARKER_NOTE_TEXT}</div>
+        </div>
+      `;
+    }
+
+    function updateMarkerLabels() {
+      if (!selectedPoints || selectedPoints.length === 0) {
+        pointMarkers.forEach(markerObj => {
+          if (markerObj.desktopInfoWindow) markerObj.desktopInfoWindow.close();
+          if (markerObj.mobileInfoWindow) markerObj.mobileInfoWindow.close();
+        });
+        return;
+      }
+      selectedPoints.forEach((point, index) => {
+        const markerObj = pointMarkers.find(m => m.id === point.id);
+        if (!markerObj) return;
+        const content = createMarkerLabelContent(index + 1);
+
+        if (markerObj.desktopInfoWindow && markerObj.desktopMarker && desktopMap) {
+          markerObj.desktopInfoWindow.setContent(content);
+          markerObj.desktopInfoWindow.open({ anchor: markerObj.desktopMarker, map: desktopMap });
+        }
+
+        if (markerObj.mobileInfoWindow && markerObj.mobileMarker && mobileMap) {
+          markerObj.mobileInfoWindow.setContent(content);
+          markerObj.mobileInfoWindow.open({ anchor: markerObj.mobileMarker, map: mobileMap });
+        }
+      });
+    }
+
     /* ===== PUNKTY / MARKERY ===== */
     function addPointToSelection(latLng) {
       if (!isInPoland(latLng)) { showToast("Możesz dodać punkt tylko na terenie Polski 🇵🇱", "warning"); return; }
@@ -743,10 +803,16 @@
       const point = { id: pointId, lat: latLng.lat(), lng: latLng.lng(), timestamp: new Date().toISOString() };
       selectedPoints.push(point);
 
-      let desktopMarker = null, mobileMarker = null;
-      if (desktopMap) desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
-      if (mobileMap)  mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
-      pointMarkers.push({ id: pointId, desktopMarker, mobileMarker });
+      let desktopMarker = null, mobileMarker = null, desktopInfoWindow = null, mobileInfoWindow = null;
+      if (desktopMap) {
+        desktopMarker = new google.maps.Marker({ position: latLng, map: desktopMap });
+        desktopInfoWindow = createMarkerInfoWindow(desktopMarker, desktopMap);
+      }
+      if (mobileMap) {
+        mobileMarker  = new google.maps.Marker({ position: latLng, map: mobileMap });
+        mobileInfoWindow = createMarkerInfoWindow(mobileMarker, mobileMap);
+      }
+      pointMarkers.push({ id: pointId, desktopMarker, mobileMarker, desktopInfoWindow, mobileInfoWindow });
 
       updateSelectedPointsList();
       persistSelectedPoints();
@@ -762,7 +828,12 @@
     function removePlot(pointId) {
       selectedPoints = selectedPoints.filter(p => p.id !== pointId);
       const markerObj = pointMarkers.find(m => m.id === pointId);
-      if (markerObj) { if (markerObj.desktopMarker) markerObj.desktopMarker.setMap(null); if (markerObj.mobileMarker)  markerObj.mobileMarker.setMap(null); }
+      if (markerObj) {
+        if (markerObj.desktopMarker) markerObj.desktopMarker.setMap(null);
+        if (markerObj.mobileMarker)  markerObj.mobileMarker.setMap(null);
+        if (markerObj.desktopInfoWindow) markerObj.desktopInfoWindow.close();
+        if (markerObj.mobileInfoWindow)  markerObj.mobileInfoWindow.close();
+      }
       pointMarkers = pointMarkers.filter(m => m.id !== pointId);
       updateSelectedPointsList();
       persistSelectedPoints();
@@ -770,7 +841,12 @@
 
     function clearAllPoints() {
       selectedPoints = [];
-      pointMarkers.forEach(m => { if (m.desktopMarker) m.desktopMarker.setMap(null); if (m.mobileMarker) m.mobileMarker.setMap(null); });
+      pointMarkers.forEach(m => {
+        if (m.desktopMarker) m.desktopMarker.setMap(null);
+        if (m.mobileMarker) m.mobileMarker.setMap(null);
+        if (m.desktopInfoWindow) m.desktopInfoWindow.close();
+        if (m.mobileInfoWindow)  m.mobileInfoWindow.close();
+      });
       pointMarkers = [];
       updateSelectedPointsList();
       persistSelectedPoints();
@@ -778,7 +854,11 @@
 
     function updateSelectedPointsList() {
       const container = document.getElementById('selectedPlots');
-      if (selectedPoints.length === 0) { container.innerHTML = '<p class="text-muted">Brak wskazanych działek.</p>'; return; }
+      if (selectedPoints.length === 0) {
+        container.innerHTML = '<p class="text-muted">Brak wskazanych działek.</p>';
+        updateMarkerLabels();
+        return;
+      }
       let html = '';
       selectedPoints.forEach((p, i) => {
         html += `
@@ -788,6 +868,8 @@
           </div>`;
       });
       container.innerHTML = html;
+
+      updateMarkerLabels();
     }
 
     /* ===== ZGODY – zaznacz wszystkie ===== */
