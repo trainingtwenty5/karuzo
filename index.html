@@ -573,6 +573,8 @@ window.showConfirmModal = showConfirmModal;
     }
     await useBestPersistence();
 
+    const REGISTER_PROMPT_KEY = 'grunteo.registerPrompt';
+
     // Podpowiedź o domenie
     (function domainHint(){
       const hint = document.getElementById('domainWarning');
@@ -610,6 +612,42 @@ window.showConfirmModal = showConfirmModal;
     const favoriteEmpty  = document.getElementById('favoriteOffersEmpty');
     const gBtn1         = document.getElementById('googleLoginBtn');
     const gBtn2         = document.getElementById('googleLoginBtnLogin');
+
+    let pendingRegisterPrompt = null;
+    let rawRegisterPrompt = null;
+    try {
+      rawRegisterPrompt = sessionStorage.getItem(REGISTER_PROMPT_KEY);
+      if (rawRegisterPrompt) {
+        sessionStorage.removeItem(REGISTER_PROMPT_KEY);
+      }
+    } catch (_) {
+      rawRegisterPrompt = null;
+    }
+
+    if (rawRegisterPrompt) {
+      try {
+        const parsed = JSON.parse(rawRegisterPrompt);
+        if (parsed && typeof parsed === 'object') {
+          pendingRegisterPrompt = parsed;
+        } else {
+          pendingRegisterPrompt = { openRegister: true };
+        }
+      } catch (_) {
+        pendingRegisterPrompt = { openRegister: true };
+      }
+    }
+
+    const triggerRegisterPrompt = () => {
+      if (!pendingRegisterPrompt || !pendingRegisterPrompt.openRegister) return;
+      if (registerModal) openModal(registerModal);
+      const message = pendingRegisterPrompt.message || 'Po zalogowaniu się będziesz mógł edytować swoje ogłoszenie.';
+      if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+        window.showToast(message, pendingRegisterPrompt.type || 'info');
+      } else {
+        alert(message);
+      }
+      pendingRegisterPrompt = null;
+    };
 
     const openModal  = (m) => m && (m.style.display = 'flex');
     const closeModal = (m) => m && (m.style.display = 'none');
@@ -721,6 +759,7 @@ window.showConfirmModal = showConfirmModal;
         favoriteSection && (favoriteSection.style.display = 'block');
         loadUserOffers(user.email || null, user.uid || null);
         closeModal(loginModal); closeModal(registerModal);
+        pendingRegisterPrompt = null;
       } else {
         authButtons && (authButtons.style.display = 'flex');
         userMenu    && (userMenu.style.display = 'none');
@@ -730,6 +769,7 @@ window.showConfirmModal = showConfirmModal;
         if (ownedEmpty) ownedEmpty.style.display = 'none';
         if (favoriteEmpty) favoriteEmpty.style.display = 'none';
         favoriteSection && (favoriteSection.style.display = 'none');
+        triggerRegisterPrompt();
       }
       // aktualizuj sekcję menu mobilnego
       renderMobileAuth(user);

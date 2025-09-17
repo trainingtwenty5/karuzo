@@ -1011,7 +1011,16 @@
     async function saveToDatabase() {
       if (selectedPoints.length === 0) { showToast("Żadna działka nie jest zaznaczona. Dodaj co najmniej jeden punkt.", "warning"); return; }
       const ok = await savePlots([...selectedPoints]);
-      if (ok) { clearAllPoints(); /* localStorage.removeItem(POINTS_KEY); */ }
+      if (ok) {
+        clearAllPoints(); /* localStorage.removeItem(POINTS_KEY); */
+        try {
+          sessionStorage.setItem('grunteo.registerPrompt', JSON.stringify({
+            openRegister: true,
+            message: 'Po zalogowaniu się będziesz mógł edytować swoje ogłoszenie.'
+          }));
+        } catch (_) {}
+        window.location.href = 'index.html';
+      }
     }
 
     /* ===== POBIERANIE NUMERU TEL. UŻYTKOWNIKA ===== */
