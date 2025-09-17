@@ -94,6 +94,7 @@
       <a href="oferty.html" class="nav-link active">Oferty</a>
       <a href="dodaj.html" class="nav-link">Dodaj</a>
       <a href="Kontakt.html" class="nav-link">Kontakt</a>
+      <a href="index.html#userMenu" class="nav-link">Moje konto</a>
 
       <!-- Miejsce na elementy auth w menu mobilnym -->
       <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
@@ -1167,7 +1168,7 @@ window.showConfirmModal = showConfirmModal;
         <div class="nav-link" style="font-weight:600;">
           <i class="fas fa-user"></i> ${label}
         </div>
-        <a href="#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
+        <a href="index.html#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
         <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
           <i class="fas fa-sign-out-alt"></i> Wyloguj się
         </button>
@@ -1206,9 +1207,9 @@ window.showConfirmModal = showConfirmModal;
 
     mobileAccountLink && mobileAccountLink.addEventListener('click', (e) => {
       e.preventDefault();
-      document.getElementById('userDashboard')?.scrollIntoView({behavior:'smooth'});
       navMenu?.classList.remove('active');
       mobileAuthC.style.display = 'none';
+      window.location.href = 'index.html#userDashboard';
     });
 
     mobileAuthC.style.display = navMenu?.classList.contains('active') ? 'flex' : 'none';
@@ -1232,8 +1233,9 @@ window.showConfirmModal = showConfirmModal;
     if (e.target.classList?.contains('modal')) closeModal(e.target);
   });
 
-  accountBtn && accountBtn.addEventListener('click', () => {
-    document.getElementById('userDashboard')?.scrollIntoView({ behavior: 'smooth' });
+  accountBtn && accountBtn.addEventListener('click', (event) => {
+    event.preventDefault?.();
+    window.location.href = 'index.html#userDashboard';
   });
 
   // --- ŁADNE BŁĘDY ---
