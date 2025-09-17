@@ -823,6 +823,20 @@ window.showConfirmModal = showConfirmModal;
     window.infoWin.open(map, marker);
   }
 
+  function panMapTo(position, minZoom = 16) {
+    if (!map || !position) return;
+
+    const target = position;
+    map.panTo(target);
+
+    if (typeof minZoom === 'number') {
+      const currentZoom = map.getZoom();
+      if (typeof currentZoom !== 'number' || currentZoom < minZoom) {
+        map.setZoom(minZoom);
+      }
+    }
+  }
+
   // ====== MAPA ======
   async function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
@@ -892,7 +906,12 @@ window.showConfirmModal = showConfirmModal;
           });
           markers.push(marker);
 
-          marker.addListener('click', () => openInfo(marker, infoHTML(plot, data, offerId, index)));
+          marker.addListener('click', () => {
+            if (map && typeof marker.getPosition === 'function') {
+              panMapTo(marker.getPosition(), 17);
+            }
+            openInfo(marker, infoHTML(plot, data, offerId, index));
+          });
 
           let polygon = null;
           if (geometry) {
@@ -909,6 +928,9 @@ window.showConfirmModal = showConfirmModal;
                 visible: false
               });
               polygon.addListener('click', (evt) => {
+                if (map && evt?.latLng) {
+                  panMapTo(evt.latLng, 17);
+                }
                 const fakeMarker = new google.maps.Marker({ position: evt.latLng, map: null });
                 openInfo(fakeMarker, infoHTML(plot, data, offerId, index));
               });
@@ -998,8 +1020,7 @@ window.showConfirmModal = showConfirmModal;
 
       card.addEventListener("click", (e) => {
         if (e.target.closest('a')) return;
-        map.panTo(o.marker.getPosition());
-        map.setZoom(Math.max(16, map.getZoom()));
+        panMapTo(o.marker.getPosition());
         openInfo(o.marker, infoHTML(o.plot, o.data, o.id, o.index));
       });
 
@@ -1028,8 +1049,7 @@ window.showConfirmModal = showConfirmModal;
   window.focusOfferOnMap = function(offerId, plotIndex) {
     const match = allOffers.find(o => o.id === offerId && o.index === plotIndex);
     if (!match || !map) return;
-    map.panTo(match.marker.getPosition());
-    map.setZoom(17);
+    panMapTo(match.marker.getPosition(), 17);
     openInfo(match.marker, infoHTML(match.plot, match.data, match.id, match.index));
     document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
