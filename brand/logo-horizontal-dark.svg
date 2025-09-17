@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 280" width="1000" height="280">
+<rect width="1000" height="280" fill="none"/>
+<g fill="#0c0d11" fill-rule="evenodd">
+  <path d="M 140.00,240.00 L 45.00,120.00 A 95.00,95.00 0 1 1 235.00,120.00 L 140.00,240.00 Z M 140.00,217.32 L 62.10,120.00 A 77.90,77.90 0 1 1 217.90,120.00 L 140.00,217.32 Z"/>
+  <g>
+    <path d="M 116.06,76.49 L 140.76,101.19 L 116.06,125.89 L 91.36,101.19 Z"/><path d="M 163.94,76.49 L 188.64,101.19 L 163.94,125.89 L 139.24,101.19 Z"/><path d="M 116.06,114.11 L 140.76,138.81 L 116.06,163.51 L 91.36,138.81 Z"/><path d="M 163.94,114.11 L 188.64,138.81 L 163.94,163.51 L 139.24,138.81 Z"/>
+  </g>
+</g>
+<g font-family="system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif" font-size="120" font-weight="700" fill="#0c0d11">
+  <text x="320" y="165">Grunteo</text>
+</g>
+</svg>
