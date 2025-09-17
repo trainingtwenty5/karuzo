@@ -227,7 +227,7 @@ async function signInWithGoogleSmart() {
 });
 
 accountBtn?.addEventListener("click", () => {
-  window.location.href = "oferty.html#userDashboard";
+  window.location.href = "index.html#userDashboard";
 });
 
 logoutBtn?.addEventListener("click", async () => {
@@ -248,7 +248,7 @@ function renderMobileAuth(user) {
       <div class="nav-link" style="font-weight:600;">
         <i class="fas fa-user"></i> ${label}
       </div>
-      <a href="oferty.html#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
+      <a href="index.html#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
       <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
         <i class="fas fa-sign-out-alt"></i> Wyloguj się
       </button>
@@ -289,9 +289,11 @@ function renderMobileAuth(user) {
     mobileAuthC.style.display = "none";
   });
 
-  mobileAccountLink?.addEventListener("click", () => {
+  mobileAccountLink?.addEventListener("click", (event) => {
+    event.preventDefault();
     navMenu?.classList.remove("active");
     mobileAuthC.style.display = "none";
+    window.location.href = "index.html#userDashboard";
   });
 
   mobileAuthC.style.display = navMenu?.classList.contains("active") ? "flex" : "none";

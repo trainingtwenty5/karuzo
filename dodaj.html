@@ -129,15 +129,16 @@
         <i class="fas fa-bars"></i>
       </button>
 
-      <nav class="nav-menu">
-        <a href="index.html" class="nav-link">Strona główna</a>
-        <a href="oferty.html" class="nav-link">Oferty</a>
-        <a href="dodaj.html" class="nav-link active">Dodaj</a>
-        <a href="Kontakt.html" class="nav-link">Kontakt</a>
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link active">Dodaj</a>
+      <a href="Kontakt.html" class="nav-link">Kontakt</a>
+      <a href="index.html#userMenu" class="nav-link">Moje konto</a>
 
-        <!-- Miejsce na elementy auth w menu mobilnym -->
-        <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
-      </nav>
+      <!-- Miejsce na elementy auth w menu mobilnym -->
+      <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+    </nav>
     </header>
     <!-- Toasts -->
     <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
@@ -273,10 +274,17 @@
             <div class="nav-link" style="font-weight:600;">
               <i class="fas fa-user"></i> ${label}
             </div>
+            <a href="index.html#userDashboard" class="nav-link" id="mobileAccountLink">Moje konto</a>
             <button class="btn btn-secondary" id="mobileLogoutBtn" style="width:100%;">
               <i class="fas fa-sign-out-alt"></i> Wyloguj się
             </button>
           `;
+          document.getElementById('mobileAccountLink')?.addEventListener('click', (event) => {
+            event.preventDefault();
+            navMenu?.classList.remove('active');
+            mobileAuthC.style.display = 'none';
+            window.location.href = 'index.html#userDashboard';
+          });
           document.getElementById('mobileLogoutBtn')?.addEventListener('click', async () => {
             try { await signOut(auth); } catch(e){ console.error(e); }
             navMenu?.classList.remove('active');
@@ -328,6 +336,10 @@
       closeBtns.forEach(b => b.addEventListener('click', () => closeModal(b.closest('.modal'))));
       window.addEventListener('click', (e) => { if (e.target.classList?.contains('modal')) closeModal(e.target); });
       logoutBtn?.addEventListener('click', async () => { try { await signOut(auth); } catch(e){ console.error(e); } });
+      accountBtn?.addEventListener('click', (event) => {
+        event.preventDefault?.();
+        window.location.href = 'index.html#userDashboard';
+      });
 
       loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
