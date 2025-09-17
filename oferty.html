@@ -258,12 +258,17 @@ window.showConfirmModal = showConfirmModal;
         <button type="submit" class="btn btn-primary" style="width: 100%;">Zaloguj się</button>
       </form>
 	  
-	  <div class="social-login">
-  <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
-    <i class="fab fa-google"></i> Kontynuuj z Google
-  </button>
-</div>
-	  
+      <div class="social-login">
+        <button type="button" class="btn btn-google" id="googleLoginBtnLogin">
+          <i class="fab fa-google"></i> Kontynuuj z Google
+        </button>
+      </div>
+
+      <div class="auth-info" role="note">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+        <p>Logowanie jest dostępne wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Pozostałe pola mają charakter demonstracyjny.</p>
+      </div>
+
       <div class="form-footer">
         <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
       </div>
@@ -303,13 +308,18 @@ window.showConfirmModal = showConfirmModal;
         </button>
 
       </div>
-      
-      <div class="domain-warning" id="domainWarning">
-        <i class="fas fa-exclamation-triangle"></i> 
-        Uwaga: Logowanie przez Facebook może nie działać na tej domenie. 
-        Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase.
+
+      <div class="auth-info" role="note">
+        <i class="fas fa-info-circle" aria-hidden="true"></i>
+        <p>Rejestracja jest dostępna wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Formularz e-mail służy celom demonstracyjnym.</p>
       </div>
-	  
+
+      <div class="domain-warning" id="domainWarning">
+        <i class="fas fa-exclamation-triangle"></i>
+        Uwaga: Logowanie przez Google może nie działać na tej domenie.
+        Aby rozwiązać ten problem, dodaj swoją domenę w ustawieniach Firebase (Authentication → Authorized domains).
+      </div>
+
       <div class="form-footer">
         <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
       </div>
@@ -1104,8 +1114,22 @@ window.showConfirmModal = showConfirmModal;
   const googleBtnRegister = document.getElementById('googleLoginBtn');
   const googleBtnLogin    = document.getElementById('googleLoginBtnLogin');
 
+  const googleReminderMessage = 'Logowanie i rejestracja są dostępne wyłącznie przez przycisk „Kontynuuj z Google”. Pozostałe pola mają charakter demonstracyjny.';
+  let googleReminderShown = false;
+  const remindGoogleOnly = () => {
+    if (googleReminderShown) return;
+    googleReminderShown = true;
+    showToast(googleReminderMessage, 'info');
+  };
+
   // --- POMOCNICZE UI ---
-  const openModal  = (m) => m && (m.style.display = 'flex');
+  const openModal  = (m) => {
+    if (!m) return;
+    m.style.display = 'flex';
+    if (m.id === 'loginModal' || m.id === 'registerModal') {
+      remindGoogleOnly();
+    }
+  };
   const closeModal = (m) => m && (m.style.display = 'none');
 
   // Pokaż ostrzeżenie o domenie (jeśli nie jest autoryzowana w Firebase)

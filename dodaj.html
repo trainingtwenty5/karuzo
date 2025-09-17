@@ -170,6 +170,11 @@
           </button>
         </div>
 
+        <div class="auth-info" role="note">
+          <i class="fas fa-info-circle" aria-hidden="true"></i>
+          <p>Logowanie jest dostępne wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Pozostałe pola mają charakter demonstracyjny.</p>
+        </div>
+
         <div class="form-footer">
           <p>Nie masz konta? <a href="#" id="switchToRegister">Zarejestruj się</a></p>
         </div>
@@ -207,6 +212,11 @@
           <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
             <i class="fab fa-google"></i> Kontynuuj z Google
           </button>
+        </div>
+
+        <div class="auth-info" role="note">
+          <i class="fas fa-info-circle" aria-hidden="true"></i>
+          <p>Rejestracja jest dostępna wyłącznie przez przycisk <strong>Kontynuuj z Google</strong>. Formularz e-mail służy celom demonstracyjnym.</p>
         </div>
 
         <div class="form-footer">
@@ -253,7 +263,21 @@
       const mobileAuthC = document.getElementById('mobileAuth');
       const navMenu     = document.querySelector('.nav-menu');
 
-      const openModal  = (m) => m && (m.style.display = 'flex');
+      const googleReminderMessage = 'Logowanie i rejestracja są dostępne wyłącznie przez przycisk „Kontynuuj z Google”. Pozostałe pola mają charakter demonstracyjny.';
+      let googleReminderShown = false;
+      const remindGoogleOnly = () => {
+        if (googleReminderShown) return;
+        googleReminderShown = true;
+        showToast(googleReminderMessage, 'info');
+      };
+
+      const openModal  = (m) => {
+        if (!m) return;
+        m.style.display = 'flex';
+        if (m.id === 'loginModal' || m.id === 'registerModal') {
+          remindGoogleOnly();
+        }
+      };
       const closeModal = (m) => m && (m.style.display = 'none');
 
       function renderMobileAuth(user) {

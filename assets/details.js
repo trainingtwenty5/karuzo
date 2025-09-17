@@ -104,6 +104,14 @@ const elements = {
   googleLoginBtn: document.getElementById('googleLoginBtnLogin')
 };
 
+const googleReminderMessage = 'Logowanie i rejestracja są dostępne wyłącznie przez przycisk „Kontynuuj z Google”. Pozostałe pola mają charakter demonstracyjny.';
+let googleReminderShown = false;
+const remindGoogleOnly = () => {
+  if (googleReminderShown) return;
+  googleReminderShown = true;
+  showToast(googleReminderMessage, 'info');
+};
+
 const MAP_MODES = {
   base: 'hybrid',
   mpzp: 'satellite',
@@ -826,6 +834,9 @@ function setupSaveButton() {
 function openModal(modal) {
   if (!modal) return;
   modal.style.display = 'flex';
+  if (modal.id === 'loginModal' || modal.id === 'registerModal') {
+    remindGoogleOnly();
+  }
 }
 
 function closeModal(modal) {
