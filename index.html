@@ -579,7 +579,7 @@ window.showConfirmModal = showConfirmModal;
     (function domainHint(){
       const hint = document.getElementById('domainWarning');
       if (!hint) return;
-      const knownGood = ['localhost','127.0.0.1','trainingtwenty5.github.io','grunteo.pl'];
+      const knownGood = ['localhost','127.0.0.1','trainingtwenty5.github.io','grunteo.pl','grunte.pl'];
       if (!knownGood.includes(location.hostname)) {
         hint.style.display = 'block';
       }
