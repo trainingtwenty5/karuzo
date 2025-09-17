@@ -516,6 +516,7 @@ main.property-wrapper {
 }
 
 .share-link-input {
+  flex: 1 1 280px;
   min-width: 0;
   padding: .65rem .75rem;
   border-radius: 10px;
@@ -752,6 +753,7 @@ main.property-wrapper {
   }
 
   .share-link-input {
+    flex: initial;
     font-size: .85rem;
     padding: .5rem .6rem;
     border-radius: 8px;
