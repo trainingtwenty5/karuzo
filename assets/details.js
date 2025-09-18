@@ -332,7 +332,8 @@ function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '')
     }
   });
 
-  const plotImageId = pickValue(
+  const candidateIds = [
+    fallbackId,
     plot.mapImageId,
     plot.mapId,
     plot.imageId,
@@ -344,11 +345,16 @@ function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '')
     offer.mapId,
     offer.plotId,
     offer.Id,
-    offer.id,
-    fallbackId
-  );
+    offer.id
+  ];
 
-  const trimmedId = typeof plotImageId === 'string' ? plotImageId.trim() : plotImageId ? String(plotImageId).trim() : '';
+  const trimmedId = candidateIds
+    .map(value => {
+      if (value === undefined || value === null) return '';
+      const text = typeof value === 'string' ? value : String(value);
+      return text.trim();
+    })
+    .find(value => value && /^[A-Za-z0-9_-]+$/.test(value)) || '';
   const indexNumber = Number.isFinite(plotIndex) && plotIndex >= 0 ? plotIndex : 0;
   const indexSuffix = `_${String(indexNumber).padStart(3, '0')}`;
 
