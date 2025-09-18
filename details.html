@@ -430,6 +430,21 @@
     </div>
   </footer>
 
+  <div
+    id="mapImageLightbox"
+    class="image-lightbox hidden"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-label="Powiększony podgląd mapy"
+    tabindex="-1"
+  >
+    <button type="button" class="image-lightbox__close" id="mapImageLightboxClose" aria-label="Zamknij podgląd">
+      <i class="fas fa-xmark" aria-hidden="true"></i>
+    </button>
+    <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+  </div>
+
   <script type="module" src="assets/details.js"></script>
   <div class="cookie-banner" data-cookie-banner role="dialog" aria-modal="false" aria-live="polite" tabindex="-1">
     <div class="cookie-banner__icon" aria-hidden="true">
