@@ -885,6 +885,10 @@ window.showConfirmModal = showConfirmModal;
         if (!data.plots || !data.plots.length) return;
 
         data.plots.forEach((plot, index) => {
+          if (plot && plot.mock === false) {
+            return;
+          }
+
           const lat = plot.lat;
           const lng = plot.lng;
           const geometry = plot.geometry_uldk;
@@ -971,6 +975,8 @@ window.showConfirmModal = showConfirmModal;
       console.error("Błąd pobierania ofert:", err);
     }
   }
+
+  window.loadOffers = loadOffers;
 
   // widoczność listy wg granic + sortowanie wyników
   function filterOffersByBounds(filteredOffers = null) {
@@ -1077,7 +1083,7 @@ window.showConfirmModal = showConfirmModal;
     setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getFirestore, doc, setDoc, getDoc, updateDoc, deleteDoc,
+    getFirestore, doc, setDoc, getDoc, updateDoc,
     collection, query, where, getDocs
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -1512,16 +1518,21 @@ async function deletePlot(offerId, plotIndex, title) {
       showToast('Brak działek do usunięcia.', 'error');
       return;
     }
-    const plots = data.plots;
-    plots.splice(plotIndex, 1);
-    if (plots.length === 0) {
-      await deleteDoc(offerRef);
-    } else {
-      await setDoc(offerRef, { plots }, { merge: true });
+    const plots = Array.isArray(data.plots) ? [...data.plots] : [];
+    const plot = plots[plotIndex];
+    if (!plot) {
+      showToast('Nie znaleziono wskazanej działki.', 'error');
+      return;
     }
+    const randomPlotValue = Math.floor(1000000 + Math.random() * 9000000);
+    plots[plotIndex] = { ...plot, mock: false, plot: randomPlotValue };
+    await setDoc(offerRef, { plots }, { merge: true });
     showToast('Działka usunięta', 'success');
     if (auth.currentUser) {
       loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
+    }
+    if (typeof window.loadOffers === 'function') {
+      await window.loadOffers();
     }
   } catch (err) {
     console.error('deletePlot', err);

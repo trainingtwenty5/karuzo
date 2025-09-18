@@ -556,7 +556,7 @@ window.showConfirmModal = showConfirmModal;
       setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import {
-      getFirestore, collection, query, where, getDocs, doc, setDoc, getDoc, deleteDoc
+      getFirestore, collection, query, where, getDocs, doc, setDoc, getDoc
     } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // --- Konfiguracja ---
@@ -1119,13 +1119,15 @@ window.showConfirmModal = showConfirmModal;
           showToast('Brak działek do usunięcia.', 'error');
           return;
         }
-        const plots = data.plots;
-        plots.splice(plotIndex, 1);
-        if (plots.length === 0) {
-          await deleteDoc(offerRef);
-        } else {
-          await setDoc(offerRef, { plots }, { merge: true });
+        const plots = Array.isArray(data.plots) ? [...data.plots] : [];
+        const plot = plots[plotIndex];
+        if (!plot) {
+          showToast('Nie znaleziono wskazanej działki.', 'error');
+          return;
         }
+        const randomPlotValue = Math.floor(1000000 + Math.random() * 9000000);
+        plots[plotIndex] = { ...plot, mock: false, plot: randomPlotValue };
+        await setDoc(offerRef, { plots }, { merge: true });
         showToast('Działka usunięta', 'success');
         if (auth.currentUser) {
           loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
