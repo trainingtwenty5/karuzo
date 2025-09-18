@@ -71,7 +71,12 @@ body {
 }
 
 .container-main { display:flex; min-height:100vh; }
-.map-container { flex:1; position:sticky; top:0; height:100vh; }
+.map-container {
+  flex: 1;
+  position: sticky;
+  top: var(--nav-top);
+  height: calc(100vh - var(--nav-top));
+}
 #map { height:100%; width:100%; }
 
 .plot-marker-label {
@@ -118,7 +123,12 @@ body {
 
 @media (max-width: 992px) {
   .container-main { flex-direction: column; }
-  .map-container { height: 50vh; order: 2; }
+  .map-container {
+    position: static;
+    top: auto;
+    height: 50vh;
+    order: 2;
+  }
 }
 
 #map-mobile { width: 100%; height: 40vh; border-radius: 0; }
