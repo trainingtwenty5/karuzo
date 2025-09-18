@@ -333,7 +333,7 @@ function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '')
   });
 
   const candidateIds = [
-    fallbackId,
+    typeof fallbackId === 'string' ? fallbackId.trim() : fallbackId,
     plot.mapImageId,
     plot.mapId,
     plot.imageId,
@@ -359,9 +359,18 @@ function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '')
   const indexSuffix = `_${String(indexNumber).padStart(3, '0')}`;
 
   if (trimmedId) {
+    const expectedSuffix = `_${trimmedId}${indexSuffix}.png`;
     Object.entries(MAP_LAYER_BASE_URLS).forEach(([key, baseUrl]) => {
-      if (result[key]) return;
-      result[key] = `${baseUrl}_${trimmedId}${indexSuffix}.png`;
+      const expectedUrl = `${baseUrl}${expectedSuffix}`;
+      const currentUrl = typeof result[key] === 'string' ? result[key].trim() : '';
+      if (!currentUrl) {
+        result[key] = expectedUrl;
+        return;
+      }
+      const normalizedCurrent = currentUrl.split('?')[0];
+      if (!normalizedCurrent.endsWith(expectedSuffix)) {
+        result[key] = expectedUrl;
+      }
     });
   }
 
