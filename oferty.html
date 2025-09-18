@@ -828,10 +828,34 @@ window.showConfirmModal = showConfirmModal;
     updatePolygonVisibility(filtered);
   }
 
-  function openInfo(marker, html) {
+  function openInfo(anchorOrPosition, html) {
     if (!window.infoWin) window.infoWin = new google.maps.InfoWindow();
-    window.infoWin.setContent(html);
-    window.infoWin.open(map, marker);
+    const infoWin = window.infoWin;
+
+    infoWin.close();
+    infoWin.setContent(html);
+
+    if (!map) return;
+
+    if (anchorOrPosition && typeof anchorOrPosition.getPosition === 'function') {
+      infoWin.open({ map, anchor: anchorOrPosition });
+      return;
+    }
+
+    let position = null;
+    if (anchorOrPosition) {
+      if (typeof anchorOrPosition.lat === 'function' && typeof anchorOrPosition.lng === 'function') {
+        position = anchorOrPosition;
+      } else if (typeof anchorOrPosition.lat === 'number' && typeof anchorOrPosition.lng === 'number') {
+        position = anchorOrPosition;
+      }
+    }
+
+    if (position) {
+      infoWin.setPosition(position);
+    }
+
+    infoWin.open({ map });
   }
 
   function panMapTo(position, minZoom = 16) {
@@ -943,11 +967,11 @@ window.showConfirmModal = showConfirmModal;
                 visible: false
               });
               polygon.addListener('click', (evt) => {
-                if (map && evt?.latLng) {
-                  panMapTo(evt.latLng, 17);
+                const position = evt?.latLng || null;
+                if (map && position) {
+                  panMapTo(position, 17);
                 }
-                const fakeMarker = new google.maps.Marker({ position: evt.latLng, map: null });
-                openInfo(fakeMarker, infoHTML(plot, data, offerId, index));
+                openInfo(position, infoHTML(plot, data, offerId, index));
               });
             }
           }
