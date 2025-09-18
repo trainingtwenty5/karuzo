@@ -43,7 +43,9 @@ const state = {
   currentMapMode: 'base',
   shareUrl: '',
   favorites: [],
-  savingFavorite: false
+  savingFavorite: false,
+  isLightboxOpen: false,
+  lightboxReturnFocus: null
 };
 
 const elements = {
@@ -91,6 +93,9 @@ const elements = {
   mapImageElement: document.getElementById('mapImage'),
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
+  mapImageLightbox: document.getElementById('mapImageLightbox'),
+  mapImageLightboxPicture: document.getElementById('mapImageLightboxPicture'),
+  mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
   loginBtn: document.getElementById('loginBtn'),
@@ -110,6 +115,11 @@ const elements = {
 };
 
 elements.mapImageElement?.addEventListener('error', handleMapImageError);
+elements.mapImageElement?.addEventListener('click', handleMapImageClick);
+elements.mapImageElement?.addEventListener('keydown', handleMapImageKeydown);
+elements.mapImageLightboxClose?.addEventListener('click', closeMapImageLightbox);
+elements.mapImageLightbox?.addEventListener('click', handleLightboxBackdropClick);
+document.addEventListener('keydown', handleLightboxKeydown);
 
 const MAP_MODE_DEFAULT = 'base';
 
@@ -439,17 +449,106 @@ function showMapImage(key, label) {
     elements.mapImageElement.alt = label ? `Warstwa „${label}”` : 'Podgląd warstwy mapy';
     elements.mapImageElement.dataset.layerLabel = label || '';
     elements.mapImageElement.classList.remove('hidden');
+    elements.mapImageElement.classList.add('is-interactive');
+    elements.mapImageElement.setAttribute('tabindex', '0');
+    elements.mapImageElement.setAttribute('role', 'button');
+    const accessibleLabel = label ? `Powiększ warstwę „${label}”` : 'Powiększ podgląd warstwy mapy';
+    elements.mapImageElement.setAttribute('aria-label', accessibleLabel);
     elements.mapImagePlaceholder?.classList.add('hidden');
   } else {
     elements.mapImageElement.src = '';
     elements.mapImageElement.alt = '';
     delete elements.mapImageElement.dataset.layerLabel;
     elements.mapImageElement.classList.add('hidden');
+    elements.mapImageElement.classList.remove('is-interactive');
+    elements.mapImageElement.removeAttribute('tabindex');
+    elements.mapImageElement.removeAttribute('role');
+    elements.mapImageElement.removeAttribute('aria-label');
     if (elements.mapImagePlaceholder) {
       const name = label ? `warstwy „${label}”` : 'tej warstwy';
       elements.mapImagePlaceholder.textContent = `Brak obrazu dla ${name}.`;
       elements.mapImagePlaceholder.classList.remove('hidden');
     }
+  }
+}
+
+function canOpenMapImageLightbox() {
+  if (!elements.mapImageElement) return false;
+  if (elements.mapImageElement.classList.contains('hidden')) return false;
+  const src = elements.mapImageElement.getAttribute('src');
+  return Boolean(src);
+}
+
+function openMapImageLightbox() {
+  if (!canOpenMapImageLightbox() || !elements.mapImageLightbox || !elements.mapImageLightboxPicture) {
+    return;
+  }
+
+  const src = elements.mapImageElement.getAttribute('src');
+  const baseAlt = elements.mapImageElement.getAttribute('alt') || '';
+  const label = elements.mapImageElement.dataset?.layerLabel;
+  const accessibleLabel = label
+    ? `Powiększony widok warstwy „${label}”`
+    : baseAlt || 'Powiększony podgląd warstwy mapy';
+
+  state.lightboxReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  elements.mapImageLightboxPicture.src = src;
+  elements.mapImageLightboxPicture.alt = accessibleLabel;
+  elements.mapImageLightbox.classList.remove('hidden');
+  elements.mapImageLightbox.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('lightbox-open');
+  state.isLightboxOpen = true;
+  requestAnimationFrame(() => {
+    elements.mapImageLightbox?.focus();
+  });
+}
+
+function closeMapImageLightbox() {
+  if (!state.isLightboxOpen) return;
+  if (elements.mapImageLightbox) {
+    elements.mapImageLightbox.classList.add('hidden');
+    elements.mapImageLightbox.setAttribute('aria-hidden', 'true');
+  }
+  if (elements.mapImageLightboxPicture) {
+    elements.mapImageLightboxPicture.src = '';
+    elements.mapImageLightboxPicture.alt = '';
+  }
+  document.body.classList.remove('lightbox-open');
+  state.isLightboxOpen = false;
+  if (state.lightboxReturnFocus instanceof HTMLElement) {
+    state.lightboxReturnFocus.focus();
+  }
+  state.lightboxReturnFocus = null;
+}
+
+function handleMapImageClick(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  openMapImageLightbox();
+}
+
+function handleMapImageKeydown(event) {
+  if (!event) return;
+  if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+    event.preventDefault();
+    openMapImageLightbox();
+  }
+}
+
+function handleLightboxBackdropClick(event) {
+  if (!elements.mapImageLightbox || !event) return;
+  if (event.target === elements.mapImageLightbox) {
+    closeMapImageLightbox();
+  }
+}
+
+function handleLightboxKeydown(event) {
+  if (!state.isLightboxOpen || !event) return;
+  if (event.key === 'Escape' || event.key === 'Esc') {
+    event.preventDefault();
+    closeMapImageLightbox();
   }
 }
 
@@ -760,6 +859,10 @@ function handleMapImageError() {
   elements.mapImageElement.src = '';
   elements.mapImageElement.alt = '';
   elements.mapImageElement.classList.add('hidden');
+  elements.mapImageElement.classList.remove('is-interactive');
+  elements.mapImageElement.removeAttribute('tabindex');
+  elements.mapImageElement.removeAttribute('role');
+  elements.mapImageElement.removeAttribute('aria-label');
   elements.mapImagePlaceholder.textContent = `Brak obrazu dla ${name}.`;
   elements.mapImagePlaceholder.classList.remove('hidden');
 }
