@@ -109,6 +109,8 @@ const elements = {
   googleLoginBtn: document.getElementById('googleLoginBtnLogin')
 };
 
+elements.mapImageElement?.addEventListener('error', handleMapImageError);
+
 const MAP_MODE_DEFAULT = 'base';
 
 const MAP_MODES = {
@@ -118,6 +120,14 @@ const MAP_MODES = {
   teren: { type: 'image', key: 'teren' },
   mpzp: { type: 'image', key: 'mpzp' },
   studium: { type: 'image', key: 'studium' }
+};
+
+const MAP_LAYER_BASE_URLS = {
+  lokalizacja: 'https://grunteo.s3.eu-west-3.amazonaws.com/Orto_Esri%2BGrunty/MARGE_Orto_Esri%2BGrunty',
+  media: 'https://grunteo.s3.eu-west-3.amazonaws.com/Cyclosm_Esri%2BGESUT/MARGE_Cyclosm_Esri%2BGESUT',
+  teren: 'https://grunteo.s3.eu-west-3.amazonaws.com/GRID%2BGrunty/MARGE_GRID%2BGrunty',
+  mpzp: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP%2BGrunty/MARGE_MPZP%2BGrunty',
+  studium: 'https://grunteo.s3.eu-west-3.amazonaws.com/Studium%2BGrunty/MARGE_Studium%2BGrunty'
 };
 
 const MAP_LAYER_ALIASES = {
@@ -242,7 +252,7 @@ function extractLayerImages(source) {
   return result;
 }
 
-function collectMapImages(plot = {}, offer = {}) {
+function collectMapImages(plot = {}, offer = {}, plotIndex = 0) {
   const sources = [
     plot.mapImages,
     plot.mapTiles,
@@ -322,6 +332,32 @@ function collectMapImages(plot = {}, offer = {}) {
     }
   });
 
+  const plotImageId = pickValue(
+    plot.mapImageId,
+    plot.mapId,
+    plot.imageId,
+    plot.imagesId,
+    plot.plotId,
+    plot.Id,
+    plot.id,
+    offer.mapImageId,
+    offer.mapId,
+    offer.plotId,
+    offer.Id,
+    offer.id
+  );
+
+  const trimmedId = typeof plotImageId === 'string' ? plotImageId.trim() : plotImageId ? String(plotImageId).trim() : '';
+  const indexNumber = Number.isFinite(plotIndex) && plotIndex >= 0 ? plotIndex : 0;
+  const indexSuffix = `_${String(indexNumber).padStart(3, '0')}`;
+
+  if (trimmedId) {
+    Object.entries(MAP_LAYER_BASE_URLS).forEach(([key, baseUrl]) => {
+      if (result[key]) return;
+      result[key] = `${baseUrl}_${trimmedId}${indexSuffix}.png`;
+    });
+  }
+
   return result;
 }
 
@@ -385,11 +421,13 @@ function showMapImage(key, label) {
   if (hasUrl) {
     elements.mapImageElement.src = url;
     elements.mapImageElement.alt = label ? `Warstwa „${label}”` : 'Podgląd warstwy mapy';
+    elements.mapImageElement.dataset.layerLabel = label || '';
     elements.mapImageElement.classList.remove('hidden');
     elements.mapImagePlaceholder?.classList.add('hidden');
   } else {
     elements.mapImageElement.src = '';
     elements.mapImageElement.alt = '';
+    delete elements.mapImageElement.dataset.layerLabel;
     elements.mapImageElement.classList.add('hidden');
     if (elements.mapImagePlaceholder) {
       const name = label ? `warstwy „${label}”` : 'tej warstwy';
@@ -665,7 +703,7 @@ function renderOffer(data, plot) {
   setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '—');
   setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), 'Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.');
 
-  updateMapImages(collectMapImages(plot, data));
+  updateMapImages(collectMapImages(plot, data, state.plotIndex));
 
   const utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilities(utilities);
@@ -697,6 +735,17 @@ function setMapMode(mode) {
   } else {
     showMapCanvas(config.mapType);
   }
+}
+
+function handleMapImageError() {
+  if (!elements.mapImageElement || !elements.mapImagePlaceholder) return;
+  const label = elements.mapImageElement.dataset?.layerLabel;
+  const name = label ? `warstwy „${label}”` : 'tej warstwy';
+  elements.mapImageElement.src = '';
+  elements.mapImageElement.alt = '';
+  elements.mapImageElement.classList.add('hidden');
+  elements.mapImagePlaceholder.textContent = `Brak obrazu dla ${name}.`;
+  elements.mapImagePlaceholder.classList.remove('hidden');
 }
 
 function setupMapModeButtons() {
