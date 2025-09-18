@@ -1,15 +1,7 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-VH07LRZ8GK"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-
-    gtag('config', 'G-VH07LRZ8GK');
-  </script>
+  <!-- Google tag (gtag.js) i Hotjar są inicjowane po akceptacji cookies w assets/cookies.js -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Grunteo - Szczegóły działki</title>
@@ -38,17 +30,27 @@
   <link rel="stylesheet" href="assets/header.css" />
   <link rel="stylesheet" href="assets/details.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
+  <!-- Google tag (gtag.js) -->
+  <script type="text/plain" data-cookie-consent="analytics" data-cookie-src="https://www.googletagmanager.com/gtag/js?id=G-VH07LRZ8GK" data-cookie-async="true"></script>
+  <script type="text/plain" data-cookie-consent="analytics">
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-VH07LRZ8GK', { 'anonymize_ip': true });
+  </script>
+
   <!-- Hotjar Tracking Code for grunteo.pl -->
-  <script>
+  <script type="text/plain" data-cookie-consent="analytics">
     (function(h,o,t,j,a,r){
-        h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments)};
-        h._hjSettings={hjid:6523622,hjsv:6};
-        a=o.getElementsByTagName('head')[0];
-        r=o.createElement('script');r.async=1;
-        r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
-        a.appendChild(r);
+      h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments);};
+      h._hjSettings={hjid:6523622,hjsv:6};
+      a=o.getElementsByTagName('head')[0];
+      r=o.createElement('script');r.async=1;
+      r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+      a.appendChild(r);
     })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
   </script>
+
 </head>
 <body class="property-page" style="padding-top: calc(var(--topbar-height) + var(--header-height));">
   <div class="top-navbar">
@@ -412,5 +414,31 @@
   </footer>
 
   <script type="module" src="assets/details.js"></script>
+  <div class="cookie-banner" data-cookie-banner role="dialog" aria-modal="false" aria-live="polite" tabindex="-1">
+    <div class="cookie-banner__icon" aria-hidden="true">
+      <i class="fas fa-cookie-bite"></i>
+    </div>
+    <div class="cookie-banner__content">
+      <h3 class="cookie-banner__title">Szanujemy Twoją prywatność</h3>
+      <p class="cookie-banner__text">
+        Korzystamy z plików cookies, aby zapewnić prawidłowe działanie serwisu, analizować ruch i rozwijać nasze usługi.
+        Szczegółowe informacje znajdziesz w <a href="RODO.html">Informacji RODO</a> oraz w
+        <a href="polityka-prywatnosci.html">Polityce prywatności i cookies</a>.
+      </p>
+      <div class="cookie-banner__actions">
+        <button type="button" class="btn btn-primary cookie-banner__btn" data-cookie-accept>Akceptuję wszystkie</button>
+        <button type="button" class="btn btn-secondary cookie-banner__btn" data-cookie-decline>Tylko niezbędne</button>
+        <a class="cookie-banner__link" href="polityka-prywatnosci.html#cookies">
+          <i class="fas fa-sliders" aria-hidden="true"></i>
+          Zarządzaj ustawieniami
+        </a>
+      </div>
+    </div>
+  </div>
+  <button class="cookie-preferences" type="button" data-cookie-preferences hidden aria-haspopup="dialog" aria-expanded="false">
+    <i class="fas fa-cookie-bite" aria-hidden="true"></i>
+    Ustawienia cookies
+  </button>
+  <script src="assets/cookies.js"></script>
 </body>
 </html>
