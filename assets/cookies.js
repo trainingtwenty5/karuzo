@@ -144,6 +144,11 @@
     manageTrigger?.setAttribute('aria-expanded', 'true');
   };
 
+  const storedConsentState = storage.get();
+  if (storedConsentState){
+    hideBanner();
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     ensureConsentDefaults();
 
@@ -154,10 +159,8 @@
     const declineBtn = banner.querySelector('[data-cookie-decline]');
     const manageTrigger = document.querySelector('[data-cookie-preferences]');
 
-    const storedState = storage.get();
-    if (storedState){
-      hideBanner();
-      applyConsentState(storedState);
+    if (storedConsentState){
+      applyConsentState(storedConsentState);
     }else{
       banner.setAttribute('aria-hidden', 'false');
       banner.setAttribute('aria-modal', 'true');
