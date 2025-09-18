@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <!-- Google tag (gtag.js) i Hotjar są inicjowane po akceptacji cookies w assets/cookies.js -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Regulamin serwisu — Grunteo</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="icon" type="image/svg+xml" href="https://grunteo.pl/brand/logo-mark.svg" />
+  <link rel="apple-touch-icon" sizes="180x180" href="https://grunteo.pl/brand/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="https://grunteo.pl/brand/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="https://grunteo.pl/brand/favicon-16x16.png" />
+  <link rel="manifest" href="https://grunteo.pl/brand/site.webmanifest" />
+  <link rel="mask-icon" href="https://grunteo.pl/brand/safari-pinned-tab.svg" color="#0c0d11" />
+  <link rel="shortcut icon" href="https://grunteo.pl/brand/favicon.ico" />
+  <meta name="apple-mobile-web-app-title" content="Grunteo" />
+  <meta name="application-name" content="Grunteo" />
+  <meta name="msapplication-TileColor" content="#0c0d11" />
+  <meta name="msapplication-config" content="https://grunteo.pl/brand/browserconfig.xml" />
+  <meta name="theme-color" content="#0c0d11" />
+  <meta property="og:image" content="https://grunteo.pl/brand/og-image.png" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Logo Grunteo" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://grunteo.pl/brand/og-image.png" />
+  <link rel="stylesheet" href="assets/main.css" />
+  <link rel="stylesheet" href="assets/header.css" />
+  <link rel="stylesheet" href="assets/legal.css" />
+  <!-- Google tag (gtag.js) -->
+  <script type="text/plain" data-cookie-consent="analytics" data-cookie-src="https://www.googletagmanager.com/gtag/js?id=G-VH07LRZ8GK" data-cookie-async="true"></script>
+  <script type="text/plain" data-cookie-consent="analytics">
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-VH07LRZ8GK', { 'anonymize_ip': true });
+  </script>
+
+  <!-- Hotjar Tracking Code for grunteo.pl -->
+  <script type="text/plain" data-cookie-consent="analytics">
+    (function(h,o,t,j,a,r){
+      h.hj=h.hj||function(){(h.hj.q=h.hj.q||[]).push(arguments);};
+      h._hjSettings={hjid:6523622,hjsv:6};
+      a=o.getElementsByTagName('head')[0];
+      r=o.createElement('script');r.async=1;
+      r.src=t+h._hjSettings.hjid+j+h._hjSettings.hjsv;
+      a.appendChild(r);
+    })(window,document,'https://static.hotjar.com/c/hotjar-','.js?sv=');
+  </script>
+
+</head>
+<body class="legal-page">
+  <div class="top-navbar">
+    <div class="contact-info">
+      <i class="fas fa-clock"></i> Poniedziałek - Piątek 9:00 - 18:00
+      <span><i class="fas fa-phone"></i> +48 505 849 404</span>
+    </div>
+
+    <div class="auth-buttons" id="authButtons">
+      <button class="btn btn-outline-primary btn-sm" id="loginBtn">
+        <i class="fas fa-sign-in-alt"></i> Zaloguj się
+      </button>
+      <button class="btn btn-primary btn-sm" id="registerBtn">
+        <i class="fas fa-user-plus"></i> Zarejestruj się
+      </button>
+    </div>
+
+    <div class="user-menu" id="userMenu" style="display:none;">
+      <button class="btn btn-outline-primary btn-sm" id="accountBtn">
+        <i class="fas fa-user"></i> Moje konto
+      </button>
+      <button class="btn btn-secondary btn-sm" id="logoutBtn">
+        <i class="fas fa-sign-out-alt"></i> Wyloguj
+      </button>
+    </div>
+  </div>
+
+  <header>
+    <a href="index.html" class="logo">
+      <img src="https://grunteo.pl/brand/logo-horizontal-dark.svg" alt="Logo serwisu">
+    </a>
+
+    <nav class="desktop-nav">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj</a>
+      <a href="Kontakt.html" class="nav-link">Kontakt</a>
+    </nav>
+
+    <a href="dodaj.html" class="desktop-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+    <a href="dodaj.html" class="mobile-add-offer">
+      <i class="fas fa-plus"></i> Dodaj ofertę
+    </a>
+
+    <button class="mobile-menu-btn" aria-label="Otwórz menu">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="nav-menu">
+      <a href="index.html" class="nav-link">Strona główna</a>
+      <a href="oferty.html" class="nav-link">Oferty</a>
+      <a href="dodaj.html" class="nav-link">Dodaj</a>
+      <a href="Kontakt.html" class="nav-link">Kontakt</a>
+      <a href="index.html#userMenu" class="nav-link">Moje konto</a>
+      <div class="mobile-auth" id="mobileAuth" style="display:none;"></div>
+    </nav>
+  </header>
+
+  <main class="legal-main">
+    <div class="container">
+      <div class="legal-wrapper">
+        <span class="legal-tagline"><i class="fas fa-scroll" aria-hidden="true"></i> Zasady korzystania z portalu</span>
+        <h1>Regulamin serwisu Grunteo</h1>
+        <p class="legal-lead">Niniejszy regulamin określa zasady korzystania z portalu ogłoszeń Grunteo. Prosimy o zapoznanie się z nim przed dodaniem oferty lub skorzystaniem z naszych usług.</p>
+
+        <section class="legal-section" id="general">
+          <h2>Postanowienia ogólne</h2>
+          <div class="legal-card">
+            <p><strong>Właściciel serwisu:</strong> Grunteo z siedzibą we Wrocławiu, ul. Edwarda Suchardy 4, 50-362 Wrocław.</p>
+            <p><strong>Kontakt:</strong> <a href="mailto:info@grunteo.pl">info@grunteo.pl</a>, tel. +48 505 849 404.</p>
+          </div>
+          <p class="legal-paragraph">Regulamin definiuje prawa i obowiązki Użytkowników oraz zasady świadczenia usług drogą elektroniczną przez portal Grunteo. Korzystanie z serwisu oznacza akceptację jego postanowień.</p>
+        </section>
+
+        <section class="legal-section" id="usage">
+          <h2>Korzystanie z portalu</h2>
+          <p class="legal-paragraph">Użytkownicy mogą przeglądać oferty, dodawać ogłoszenia oraz kontaktować się z innymi osobami zainteresowanymi nieruchomościami. Korzystanie z wybranych funkcji może wymagać rejestracji konta.</p>
+          <ul class="legal-list">
+            <li>Podając dane w formularzach, Użytkownik oświadcza, że są one zgodne ze stanem faktycznym.</li>
+            <li>Dodając ogłoszenia, Użytkownik odpowiada za zgodność treści z obowiązującym prawem oraz zasadami współżycia społecznego.</li>
+            <li>Portal może usuwać treści naruszające regulamin, przepisy prawa lub dobre obyczaje.</li>
+          </ul>
+        </section>
+
+        <section class="legal-section" id="responsibility">
+          <h2>Odpowiedzialność za informacje i dane mapowe</h2>
+          <p class="legal-paragraph">Właściciel portalu nie ponosi odpowiedzialności za poprawność danych przekazywanych przez Użytkowników, w szczególności dotyczących powierzchni i numerów działek, ani za warstwy mapowe prezentowane w serwisie.</p>
+          <p class="legal-paragraph">Dane rastrowe wykorzystywane w mapach (MPZP, GESUT, Studium, ortofotomapa, rzeźba terenu) pochodzą z usług zewnętrznych: CyclOSM (XYZ Tiles), ESRI World Imagery / Ortofotomapa (ArcGIS REST), GRID ShadedRelief (WMS), GESUT – Krajowa Integracja Uzbrojenia Terenu, MPZP – Krajowa Integracja Miejscowych Planów Zagospodarowania Przestrzennego oraz Studium – Krajowa Integracja Studium Kierunków Zagospodarowania Przestrzennego. Aktualność i dokładność tych danych zależy wyłącznie od wskazanych dostawców.</p>
+        </section>
+
+        <section class="legal-section" id="final">
+          <h2>Postanowienia końcowe</h2>
+          <p class="legal-paragraph">Regulamin może być aktualizowany wraz z rozwojem funkcji serwisu lub zmianami przepisów prawa. Nowa wersja wchodzi w życie w momencie opublikowania jej na stronie Grunteo.</p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <div class="auth-modal" id="authModal" aria-hidden="true" role="dialog">
+    <div class="modal-dialog" role="document">
+      <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+        <span aria-hidden="true">&times;</span>
+      </button>
+      <div class="modal-content">
+        <h2 class="modal-title">Zaloguj się lub załóż konto</h2>
+        <p class="modal-subtitle">Dzięki kontu dodasz ogłoszenia, zapiszesz wyszukiwania i szybciej skontaktujesz się ze stroną transakcji.</p>
+
+        <form id="loginForm" class="auth-form">
+          <div class="form-group">
+            <label for="loginEmail">Adres e-mail</label>
+            <input type="email" id="loginEmail" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Hasło</label>
+            <input type="password" id="loginPassword" class="form-control" required />
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Zaloguj się</button>
+        </form>
+
+        <div class="auth-divider">
+          <span>lub</span>
+        </div>
+
+        <form id="registerForm" class="auth-form">
+          <div class="form-group">
+            <label for="registerName">Imię</label>
+            <input type="text" id="registerName" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="registerSurname">Nazwisko</label>
+            <input type="text" id="registerSurname" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="registerEmail">Adres e-mail</label>
+            <input type="email" id="registerEmail" class="form-control" required />
+          </div>
+          <div class="form-group">
+            <label for="registerPassword">Hasło</label>
+            <input type="password" id="registerPassword" class="form-control" required />
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Załóż konto</button>
+        </form>
+
+        <div class="social-login mt-3 text-center">
+          <button type="button" class="btn btn-google w-100 mb-2" id="googleLoginBtn">
+            <i class="fab fa-google"></i> Kontynuuj z Google
+          </button>
+        </div>
+
+        <div class="form-footer">
+          <p>Masz już konto? <a href="#" id="switchToLogin">Zaloguj się</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer id="contact">
+    <div class="container">
+      <div class="footer-container">
+        <div class="footer-about">
+          <a href="index.html" class="footer-logo">
+            <img src="https://grunteo.pl/brand/logo-horizontal-dark.svg" alt="Logo serwisu">
+          </a>
+          <p>Bezpłatne ogłoszenia nieruchomości. Szybka sprzedaż działek bez zbędnych kosztów i formalności.</p>
+        </div>
+
+        <div class="footer-links">
+          <h3>Przydatne linki</h3>
+          <ul>
+            <li><a href="index.html">Strona główna</a></li>
+            <li><a href="oferty.html">Oferty</a></li>
+            <li><a href="dodaj.html">Dodaj ofertę</a></li>
+            <li><a href="RODO.html">Informacja RODO</a></li>
+            <li><a href="polityka-prywatnosci.html">Polityka prywatności</a></li>
+            <li><a href="Kontakt.html">Kontakt</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-contact">
+          <h3>Kontakt</h3>
+          <p><i class="fas fa-envelope"></i> info@grunteo.pl</p>
+          <p><i class="fas fa-phone"></i> +48 123 456 789</p>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        © 2025. Wszelkie prawa zastrzeżone.
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="assets/auth-basic.js"></script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+      const navMenu = document.querySelector('.nav-menu');
+      const mobileAuth = document.getElementById('mobileAuth');
+
+      mobileMenuBtn?.addEventListener('click', function () {
+        navMenu?.classList.toggle('active');
+        if (mobileAuth) {
+          mobileAuth.style.display = navMenu?.classList.contains('active') ? 'flex' : 'none';
+        }
+      });
+
+      window.addEventListener('resize', function () {
+        if (window.innerWidth > 768) {
+          navMenu?.classList.remove('active');
+          if (mobileAuth) {
+            mobileAuth.style.display = 'none';
+          }
+        }
+      });
+    });
+  </script>
+  <div class="cookie-banner" data-cookie-banner role="dialog" aria-modal="false" aria-live="polite" tabindex="-1">
+    <div class="cookie-banner__icon" aria-hidden="true">
+      <i class="fas fa-cookie-bite"></i>
+    </div>
+    <div class="cookie-banner__content">
+      <h3 class="cookie-banner__title">Szanujemy Twoją prywatność</h3>
+      <p class="cookie-banner__text">
+        Korzystamy z plików cookies, aby zapewnić prawidłowe działanie serwisu, analizować ruch i rozwijać nasze usługi.
+        Szczegółowe informacje znajdziesz w <a href="RODO.html">Informacji RODO</a> oraz w
+        <a href="polityka-prywatnosci.html">Polityce prywatności i cookies</a>.
+      </p>
+      <div class="cookie-banner__actions">
+        <button type="button" class="btn btn-primary cookie-banner__btn" data-cookie-accept>Akceptuję wszystkie</button>
+        <button type="button" class="btn btn-secondary cookie-banner__btn" data-cookie-decline>Tylko niezbędne</button>
+        <a class="cookie-banner__link" href="polityka-prywatnosci.html#cookies">
+          <i class="fas fa-sliders" aria-hidden="true"></i>
+          Zarządzaj ustawieniami
+        </a>
+      </div>
+    </div>
+  </div>
+  <button class="cookie-preferences" type="button" data-cookie-preferences hidden aria-haspopup="dialog" aria-expanded="false">
+    <i class="fas fa-cookie-bite" aria-hidden="true"></i>
+    Ustawienia cookies
+  </button>
+  <script src="assets/cookies.js"></script>
+</body>
+</html>
