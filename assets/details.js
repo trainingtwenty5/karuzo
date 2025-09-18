@@ -123,11 +123,11 @@ const MAP_MODES = {
 };
 
 const MAP_LAYER_BASE_URLS = {
-  lokalizacja: 'https://grunteo.s3.eu-west-3.amazonaws.com/Orto_Esri%2BGrunty/MARGE_Orto_Esri%2BGrunty',
-  media: 'https://grunteo.s3.eu-west-3.amazonaws.com/Cyclosm_Esri%2BGESUT/MARGE_Cyclosm_Esri%2BGESUT',
-  teren: 'https://grunteo.s3.eu-west-3.amazonaws.com/GRID%2BGrunty/MARGE_GRID%2BGrunty',
-  mpzp: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP%2BGrunty/MARGE_MPZP%2BGrunty',
-  studium: 'https://grunteo.s3.eu-west-3.amazonaws.com/Studium%2BGrunty/MARGE_Studium%2BGrunty'
+  lokalizacja: 'https://grunteo.s3.eu-west-3.amazonaws.com/Orto_Esri+Grunty/MARGE_Orto_Esri+Grunty',
+  media: 'https://grunteo.s3.eu-west-3.amazonaws.com/Cyclosm_Esri+GESUT/MARGE_Cyclosm_Esri+GESUT',
+  teren: 'https://grunteo.s3.eu-west-3.amazonaws.com/GRID+Grunty/MARGE_GRID+Grunty',
+  mpzp: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP+Grunty/MARGE_MPZP+Grunty',
+  studium: 'https://grunteo.s3.eu-west-3.amazonaws.com/Studium+Grunty/MARGE_Studium+Grunty'
 };
 
 const MAP_LAYER_ALIASES = {
@@ -252,7 +252,7 @@ function extractLayerImages(source) {
   return result;
 }
 
-function collectMapImages(plot = {}, offer = {}, plotIndex = 0) {
+function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '') {
   const sources = [
     plot.mapImages,
     plot.mapTiles,
@@ -344,7 +344,8 @@ function collectMapImages(plot = {}, offer = {}, plotIndex = 0) {
     offer.mapId,
     offer.plotId,
     offer.Id,
-    offer.id
+    offer.id,
+    fallbackId
   );
 
   const trimmedId = typeof plotImageId === 'string' ? plotImageId.trim() : plotImageId ? String(plotImageId).trim() : '';
@@ -703,7 +704,7 @@ function renderOffer(data, plot) {
   setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '—');
   setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), 'Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.');
 
-  updateMapImages(collectMapImages(plot, data, state.plotIndex));
+  updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
 
   const utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilities(utilities);
