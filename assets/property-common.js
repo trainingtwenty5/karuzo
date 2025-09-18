@@ -40,7 +40,7 @@ export { doc, getDoc, updateDoc, serverTimestamp, setDoc, onAuthStateChanged, co
 
 export function parseQueryParams() {
   const params = new URLSearchParams(window.location.search);
-  const offerId = params.get("id") || "";
+  const offerId = (params.get("id") || "").trim();
   const plotParam = params.get("plot");
   const plotIndex = plotParam !== null ? Number.parseInt(plotParam, 10) : 0;
   return {

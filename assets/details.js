@@ -39,6 +39,8 @@ const state = {
   map: null,
   marker: null,
   polygon: null,
+  mapImages: {},
+  currentMapMode: 'base',
   shareUrl: '',
   favorites: [],
   savingFavorite: false
@@ -85,6 +87,9 @@ const elements = {
   inquiryForm: document.getElementById('inquiryForm'),
   mapSection: document.getElementById('mapSection'),
   mapElement: document.getElementById('propertyMap'),
+  mapImageContainer: document.getElementById('mapImageContainer'),
+  mapImageElement: document.getElementById('mapImage'),
+  mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
@@ -104,10 +109,37 @@ const elements = {
   googleLoginBtn: document.getElementById('googleLoginBtnLogin')
 };
 
+elements.mapImageElement?.addEventListener('error', handleMapImageError);
+
+const MAP_MODE_DEFAULT = 'base';
+
 const MAP_MODES = {
-  base: 'hybrid',
-  mpzp: 'satellite',
-  studium: 'terrain'
+  base: { type: 'map', mapType: 'hybrid' },
+  lokalizacja: { type: 'image', key: 'lokalizacja' },
+  media: { type: 'image', key: 'media' },
+  teren: { type: 'image', key: 'teren' },
+  mpzp: { type: 'image', key: 'mpzp' },
+  studium: { type: 'image', key: 'studium' }
+};
+
+const S3_BUCKET = 'grunteo';
+const S3_REGION = 'eu-west-3';
+const S3_BASE_URL = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com`;
+
+const MAP_LAYER_FOLDERS = {
+  lokalizacja: 'Orto_Esri+Grunty',
+  media: 'Cyclosm_Esri+GESUT',
+  teren: 'GRID+Grunty',
+  mpzp: 'MPZP+Grunty',
+  studium: 'Studium+Grunty'
+};
+
+const MAP_LAYER_ALIASES = {
+  lokalizacja: ['lokalizacja', 'location', 'localization', 'orto', 'orthophoto', 'aerial'],
+  media: ['media', 'uzbrojenie', 'utilities', 'gesut', 'cyclosm'],
+  teren: ['teren', 'terrain', 'grid', 'ground', 'siatka'],
+  mpzp: ['mpzp', 'plan', 'zoning', 'miejscowyplan'],
+  studium: ['studium', 'study', 'uwarunkowania', 'kierunki']
 };
 
 function pickValue(...values) {
@@ -153,6 +185,294 @@ function setMultilineText(element, value, fallback = '—') {
     ? fallback
     : sanitizeMultilineText(value);
   element.textContent = text;
+}
+
+function normalizeLayerKey(key) {
+  return String(key || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function resolveImageUrl(value) {
+  if (!value) return '';
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (/^(https?:)?\/\//i.test(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+      return trimmed;
+    }
+    return '';
+  }
+  if (typeof value === 'object') {
+    const candidate = value.url ?? value.href ?? value.src ?? value.value ?? value.link;
+    if (typeof candidate === 'string') {
+      return resolveImageUrl(candidate);
+    }
+  }
+  return '';
+}
+
+function matchLayerKey(rawKey) {
+  const normalized = normalizeLayerKey(rawKey);
+  if (!normalized) return '';
+  for (const [target, aliases] of Object.entries(MAP_LAYER_ALIASES)) {
+    if (normalized === target) {
+      return target;
+    }
+    for (const alias of aliases) {
+      if (normalized === alias || normalized.includes(alias) || alias.includes(normalized)) {
+        return target;
+      }
+    }
+  }
+  return '';
+}
+
+function extractLayerImages(source) {
+  const result = {};
+  if (!source) return result;
+  if (Array.isArray(source)) {
+    source.forEach(item => Object.assign(result, extractLayerImages(item)));
+    return result;
+  }
+  if (typeof source !== 'object') return result;
+  const candidateKey = source.key ?? source.type ?? source.layer ?? source.name ?? source.label;
+  const candidateUrl = source.url ?? source.href ?? source.src ?? source.value ?? source.link;
+  const matchedKey = matchLayerKey(candidateKey);
+  const resolvedUrl = resolveImageUrl(candidateUrl);
+  if (matchedKey && resolvedUrl) {
+    result[matchedKey] = resolvedUrl;
+  }
+  Object.entries(source).forEach(([key, value]) => {
+    const layerKey = matchLayerKey(key);
+    if (!layerKey) return;
+    const url = resolveImageUrl(value);
+    if (url) {
+      result[layerKey] = url;
+    }
+  });
+  return result;
+}
+
+function normalizeFrameIndex(index) {
+  if (!Number.isFinite(index)) {
+    return 0;
+  }
+  return Math.max(0, Math.trunc(index));
+}
+
+function buildLayerImageUrl(folder, offerId, frameIndex) {
+  const trimmedFolder = typeof folder === 'string' ? folder.trim() : '';
+  const trimmedId = typeof offerId === 'string' ? offerId.trim() : '';
+  if (!trimmedFolder || !trimmedId) {
+    return '';
+  }
+  const normalizedFrame = String(normalizeFrameIndex(frameIndex)).padStart(3, '0');
+  const filename = `MARGE_${trimmedFolder}_${trimmedId}_${normalizedFrame}.png`;
+  const encodedFolder = encodeURIComponent(trimmedFolder);
+  const encodedFilename = encodeURIComponent(filename);
+  return `${S3_BASE_URL}/${encodedFolder}/${encodedFilename}`;
+}
+
+function collectMapImages(plot = {}, offer = {}, plotIndex = 0, offerId = '') {
+  const sources = [
+    plot.mapImages,
+    plot.mapTiles,
+    plot.mapLayers,
+    plot.planImages,
+    plot.planTiles,
+    plot.mapPreviews,
+    plot.mapGallery,
+    offer.mapImages,
+    offer.mapTiles,
+    offer.mapLayers,
+    offer.planImages,
+    offer.planTiles,
+    offer.mapPreviews,
+    offer.mapGallery
+  ];
+  const result = {};
+  sources.forEach(source => Object.assign(result, extractLayerImages(source)));
+
+  const directFields = {
+    lokalizacja: [
+      plot.mapLokalizacja,
+      plot.lokalizacjaMap,
+      plot.mapLocation,
+      plot.locationMap,
+      offer.mapLokalizacja,
+      offer.lokalizacjaMap,
+      offer.mapLocation,
+      offer.locationMap
+    ],
+    media: [
+      plot.mapMedia,
+      plot.mediaMap,
+      plot.mapUzbrojenie,
+      plot.mapGesut,
+      offer.mapMedia,
+      offer.mediaMap,
+      offer.mapUzbrojenie,
+      offer.mapGesut
+    ],
+    teren: [
+      plot.mapTeren,
+      plot.terrainMap,
+      plot.mapGrid,
+      plot.gridMap,
+      offer.mapTeren,
+      offer.terrainMap,
+      offer.mapGrid,
+      offer.gridMap
+    ],
+    mpzp: [
+      plot.mapMpzp,
+      plot.mapMPZP,
+      plot.mpzpMap,
+      plot.planMap,
+      offer.mapMpzp,
+      offer.mapMPZP,
+      offer.mpzpMap,
+      offer.planMap
+    ],
+    studium: [
+      plot.mapStudium,
+      plot.studiumMap,
+      offer.mapStudium,
+      offer.studiumMap
+    ]
+  };
+
+  Object.entries(directFields).forEach(([key, values]) => {
+    if (result[key]) return;
+    for (const value of values) {
+      const url = resolveImageUrl(value);
+      if (url) {
+        result[key] = url;
+        break;
+      }
+    }
+  });
+
+  const images = { ...result };
+  const trimmedId = typeof offerId === 'string' ? offerId.trim() : '';
+  const frameIndex = normalizeFrameIndex(plotIndex);
+
+  if (trimmedId) {
+    Object.entries(MAP_LAYER_FOLDERS).forEach(([key, folder]) => {
+      const expectedUrl = buildLayerImageUrl(folder, trimmedId, frameIndex);
+      if (expectedUrl) {
+        images[key] = expectedUrl;
+      }
+    });
+  }
+
+  return images;
+}
+
+function getMapModeLabel(mode) {
+  const button = elements.mapModeButtons.find(btn => btn.dataset.mode === mode);
+  return button ? button.textContent.trim() : '';
+}
+
+function setActiveMapButton(mode) {
+  elements.mapModeButtons.forEach(btn => {
+    if (btn.dataset.mode === mode) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
+function showMapCanvas(mapType) {
+  if (elements.mapImageContainer) {
+    elements.mapImageContainer.classList.add('hidden');
+  }
+  if (elements.mapImageElement) {
+    elements.mapImageElement.src = '';
+    elements.mapImageElement.alt = '';
+    elements.mapImageElement.classList.add('hidden');
+  }
+  if (elements.mapImagePlaceholder) {
+    elements.mapImagePlaceholder.classList.add('hidden');
+  }
+  if (elements.mapElement) {
+    elements.mapElement.classList.remove('hidden');
+  }
+  if (!state.map || typeof google === 'undefined' || !google?.maps) return;
+  const type = typeof mapType === 'string' ? mapType.toLowerCase() : 'hybrid';
+  const mapTypeId = type === 'terrain'
+    ? google.maps.MapTypeId.TERRAIN
+    : type === 'satellite'
+      ? google.maps.MapTypeId.SATELLITE
+      : google.maps.MapTypeId.HYBRID;
+  state.map.setMapTypeId(mapTypeId);
+  if (google.maps.event && typeof google.maps.event.trigger === 'function') {
+    const center = typeof state.map.getCenter === 'function' ? state.map.getCenter() : null;
+    google.maps.event.trigger(state.map, 'resize');
+    if (center && typeof state.map.setCenter === 'function') {
+      state.map.setCenter(center);
+    }
+  }
+}
+
+function showMapImage(key, label) {
+  if (!elements.mapImageContainer || !elements.mapImageElement) return;
+  const url = key ? state.mapImages[key] : '';
+  const hasUrl = typeof url === 'string' && url.trim().length > 0;
+
+  if (elements.mapElement) {
+    elements.mapElement.classList.add('hidden');
+  }
+  elements.mapImageContainer.classList.remove('hidden');
+
+  if (hasUrl) {
+    elements.mapImageElement.src = url;
+    elements.mapImageElement.alt = label ? `Warstwa „${label}”` : 'Podgląd warstwy mapy';
+    elements.mapImageElement.dataset.layerLabel = label || '';
+    elements.mapImageElement.classList.remove('hidden');
+    elements.mapImagePlaceholder?.classList.add('hidden');
+  } else {
+    elements.mapImageElement.src = '';
+    elements.mapImageElement.alt = '';
+    delete elements.mapImageElement.dataset.layerLabel;
+    elements.mapImageElement.classList.add('hidden');
+    if (elements.mapImagePlaceholder) {
+      const name = label ? `warstwy „${label}”` : 'tej warstwy';
+      elements.mapImagePlaceholder.textContent = `Brak obrazu dla ${name}.`;
+      elements.mapImagePlaceholder.classList.remove('hidden');
+    }
+  }
+}
+
+function updateMapImages(images) {
+  const nextImages = images && typeof images === 'object' && !Array.isArray(images)
+    ? { ...images }
+    : {};
+  state.mapImages = nextImages;
+  elements.mapModeButtons.forEach(btn => {
+    const mode = btn.dataset.mode;
+    const config = MAP_MODES[mode];
+    if (config?.type === 'image') {
+      const hasImage = Boolean(state.mapImages[config.key]);
+      btn.classList.toggle('is-disabled', !hasImage);
+      if (!hasImage) {
+        btn.setAttribute('title', 'Brak obrazu dla tej warstwy');
+      } else {
+        btn.removeAttribute('title');
+      }
+    } else {
+      btn.classList.remove('is-disabled');
+      btn.removeAttribute('title');
+    }
+  });
+  if (!state.currentMapMode) {
+    state.currentMapMode = MAP_MODE_DEFAULT;
+  }
+  setMapMode(state.currentMapMode);
 }
 
 function formatPhoneNumber(phone) {
@@ -394,6 +714,8 @@ function renderOffer(data, plot) {
   setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '—');
   setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), 'Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.');
 
+  updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
+
   const utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilities(utilities);
 
@@ -415,21 +737,32 @@ function renderOffer(data, plot) {
 }
 
 function setMapMode(mode) {
-  if (!state.map) return;
-  const type = MAP_MODES[mode] || MAP_MODES.base;
-  state.map.setMapTypeId(type === 'hybrid'
-    ? google.maps.MapTypeId.HYBRID
-    : type === 'satellite'
-      ? google.maps.MapTypeId.SATELLITE
-      : google.maps.MapTypeId.TERRAIN);
+  const targetMode = MAP_MODES[mode] ? mode : MAP_MODE_DEFAULT;
+  const config = MAP_MODES[targetMode] || MAP_MODES[MAP_MODE_DEFAULT];
+  state.currentMapMode = targetMode;
+  setActiveMapButton(targetMode);
+  if (config.type === 'image') {
+    showMapImage(config.key, getMapModeLabel(targetMode));
+  } else {
+    showMapCanvas(config.mapType);
+  }
+}
+
+function handleMapImageError() {
+  if (!elements.mapImageElement || !elements.mapImagePlaceholder) return;
+  const label = elements.mapImageElement.dataset?.layerLabel;
+  const name = label ? `warstwy „${label}”` : 'tej warstwy';
+  elements.mapImageElement.src = '';
+  elements.mapImageElement.alt = '';
+  elements.mapImageElement.classList.add('hidden');
+  elements.mapImagePlaceholder.textContent = `Brak obrazu dla ${name}.`;
+  elements.mapImagePlaceholder.classList.remove('hidden');
 }
 
 function setupMapModeButtons() {
   elements.mapModeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.classList.contains('active')) return;
-      elements.mapModeButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
       setMapMode(btn.dataset.mode);
     });
   });
@@ -557,6 +890,8 @@ async function renderMap(plot) {
       state.map.fitBounds(bounds, { top: 32, right: 32, bottom: 32, left: 32 });
     }
   }
+
+  setMapMode(state.currentMapMode || MAP_MODE_DEFAULT);
 }
 
 function setupInquiryForm() {
@@ -1016,6 +1351,7 @@ async function loadProperty() {
     }
     state.offerData = data;
     state.plotData = plot;
+    state.currentMapMode = MAP_MODE_DEFAULT;
     renderOffer(data, plot);
     await renderMap(plot);
     showContent();
@@ -1028,7 +1364,7 @@ async function loadProperty() {
 async function init() {
   syncMobileMenu();
   const { offerId, plotIndex } = parseQueryParams();
-  state.offerId = offerId;
+  state.offerId = typeof offerId === 'string' ? offerId.trim() : '';
   state.plotIndex = plotIndex;
   initFirebase();
   setupAuthUI();

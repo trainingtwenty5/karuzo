@@ -174,12 +174,19 @@
           <div class="map-toolbar">
             <h3>Mapa i lokalizacja</h3>
             <div class="map-modes" role="group" aria-label="Warstwy mapy">
-              <button class="map-mode-btn active" data-mode="base">Mapa</button>
-              <button class="map-mode-btn" data-mode="mpzp">MPZP</button>
-              <button class="map-mode-btn" data-mode="studium">Studium</button>
+              <button class="map-mode-btn active" data-mode="base" type="button">Mapa</button>
+              <button class="map-mode-btn" data-mode="lokalizacja" type="button">Lokalizacja</button>
+              <button class="map-mode-btn" data-mode="media" type="button">Media</button>
+              <button class="map-mode-btn" data-mode="teren" type="button">Teren</button>
+              <button class="map-mode-btn" data-mode="mpzp" type="button">MPZP</button>
+              <button class="map-mode-btn" data-mode="studium" type="button">Studium</button>
             </div>
           </div>
           <div id="propertyMap" role="region" aria-label="Mapa działki"></div>
+          <div id="mapImageContainer" class="map-image hidden" aria-live="polite">
+            <img id="mapImage" class="map-image-picture hidden" alt="Podgląd warstwy mapy" loading="lazy">
+            <p id="mapImagePlaceholder" class="map-image-placeholder hidden">Brak obrazu dla wybranej warstwy.</p>
+          </div>
           <div class="location-details">
             <div class="location-card">
               <h4>Adres</h4>

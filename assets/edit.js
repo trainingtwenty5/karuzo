@@ -1205,7 +1205,7 @@ async function loadProperty() {
 async function init() {
   syncMobileMenu();
   const { offerId, plotIndex } = parseQueryParams();
-  state.offerId = offerId;
+  state.offerId = typeof offerId === 'string' ? offerId.trim() : '';
   state.plotIndex = plotIndex;
   if (!offerId) {
     showError('Nie wskazano oferty do edycji.');
