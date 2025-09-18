@@ -1010,6 +1010,10 @@ async function loadProperty() {
       showError('Nie odnaleziono wskazanej działki.');
       return;
     }
+    if (data.mock === false || plot.mock === false) {
+      showError('Ogłoszenie nie istnieje lub zostało usunięte.');
+      return;
+    }
     state.offerData = data;
     state.plotData = plot;
     renderOffer(data, plot);
