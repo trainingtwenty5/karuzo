@@ -1094,7 +1094,9 @@ function validatePlot(plot) {
 function buildUpdatedPlot() {
   const base = cloneDeep(state.plotData || {});
   base.title = stripHtml(elements.propertyTitle.innerHTML).trim() || 'Działka';
-  base.location = stripHtml(elements.propertyLocation.innerHTML).trim();
+  const locationText = stripHtml(elements.propertyLocation.innerHTML).trim();
+  base.location = locationText;
+  base.city = locationText;
   base.propertyType = (elements.propertyTypeSelect?.value || '').trim();
   base.ownershipStatus = (elements.ownershipFormSelect?.value || '').trim();
   base.price = state.price;
@@ -1130,9 +1132,26 @@ async function handleSave() {
     const offerRef = doc(db, 'propertyListings', state.offerId);
     const plots = Array.isArray(state.offerData?.plots) ? cloneDeep(state.offerData.plots) : [];
     plots[state.plotIndex] = updatedPlot;
-    await updateDoc(offerRef, { plots, updatedAt: serverTimestamp() });
+
+    const locationValue = typeof updatedPlot.location === 'string' ? updatedPlot.location.trim() : '';
+    const updatePayload = { plots, updatedAt: serverTimestamp(), city: locationValue };
+    if (typeof state.offerData?.location === 'string' || state.offerData?.location === undefined || state.offerData?.location === null) {
+      updatePayload.location = locationValue;
+    } else if (state.offerData?.location && typeof state.offerData.location === 'object') {
+      updatePayload['location.city'] = locationValue;
+    }
+
+    await updateDoc(offerRef, updatePayload);
     showToast('Zapisano zmiany.', 'success');
     state.offerData.plots = plots;
+    if (state.offerData) {
+      state.offerData.city = locationValue;
+      if (typeof state.offerData.location === 'string' || state.offerData.location === undefined || state.offerData.location === null) {
+        state.offerData.location = locationValue;
+      } else if (typeof state.offerData.location === 'object') {
+        state.offerData.location = { ...state.offerData.location, city: locationValue };
+      }
+    }
     state.plotData = cloneDeep(updatedPlot);
     renderPriceUpdatedAt(new Date());
     setPriceEdit(state.price);

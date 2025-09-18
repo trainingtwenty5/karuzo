@@ -474,21 +474,35 @@ window.showConfirmModal = showConfirmModal;
     return "";
   }
 
+  function pickDisplayValue(values, fallback = "") {
+    for (const value of values) {
+      if (typeof value !== "string") continue;
+      const trimmed = value.trim();
+      if (trimmed) return trimmed;
+    }
+    return fallback;
+  }
+
   function infoHTML(plot, data, offerId, plotIndex) {
     const price = Number(plot.price || 0);
     const area  = Number(plot.pow_dzialki_m2_uldk || 0);
     const ppm2  = price && area ? (price/area).toFixed(0) : null;
-    const city  = data.city || "brak";
+    const locationLabel = pickDisplayValue(
+      [plot.location, plot.city, data.city, data.location],
+      "brak"
+    );
+    const rawName = typeof data.firstName === "string" ? data.firstName.trim() : "";
+    const shortName = rawName ? rawName.split(/\s+/)[0] : "";
     const phone = formatPhone(data.phone);
     const detailsUrl = `details.html?id=${offerId}&plot=${plotIndex}`;
 
     return `
       <div class="map-info-window">
         <h3>${plot.Id || "Brak identyfikatora"}</h3>
-        <p><b>Miejscowość:</b> ${city}</p>
+        <p><b>Miejscowość:</b> ${locationLabel}</p>
         ${price ? `<p><b>Cena:</b> ${price.toLocaleString('pl-PL')} zł${ppm2 ? ` <span style="color:#718096;">(${ppm2} zł/m²)</span>` : ''}</p>` : ''}
         ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
-        ${data.firstName ? `<p><b>Imię:</b> ${data.firstName}</p>` : ''}
+        ${shortName ? `<p><b>Imię:</b> ${shortName}</p>` : ''}
         <p><b>Telefon:</b> ${phone || 'brak'}</p>
         <div class="mini-actions center">
           <a class="btn-mini" target="_blank" href="${detailsUrl}">Szczegóły</a>
@@ -1500,13 +1514,20 @@ async function loadUserOffers(email, uid) {
         const area  = Number(plot.pow_dzialki_m2_uldk || plot.area || plot.areaM2 || 0);
         const ppm2  = price && area ? Math.round(price/area) : 0;
         const detailsUrl = `details.html?id=${offerId}&plot=${originalIndex}`;
+        const locationSources = [plot.location, plot.city, offer.city];
+        if (typeof offer.location === 'string') {
+          locationSources.push(offer.location);
+        } else if (offer.location && typeof offer.location === 'object') {
+          locationSources.push(offer.location.city, offer.location.town, offer.location.municipality);
+        }
+        const locationLabel = pickDisplayValue(locationSources, 'Nie podano');
 
         const el = document.createElement('div');
         el.className = 'offer-card';
         el.innerHTML = `
           <h3 class="offer-title">${plot.Id || `Działka ${i+1}`}</h3>
           <div class="offer-details">
-            <p><strong>Lokalizacja:</strong> ${offer.city || offer.location?.city || 'Nie podano'}</p>
+            <p><strong>Lokalizacja:</strong> ${locationLabel}</p>
             ${area  ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
             ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
               ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>`:''}

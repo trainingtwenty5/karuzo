@@ -507,7 +507,7 @@
 }
 
 .map-info-window { font-size:.95rem; max-width:320px; }
-.map-info-window h3 { font-size:1.05rem; margin:0 0 .4rem; }
+.map-info-window h3 { font-size:1.05rem; margin:0 0 .4rem; text-align:center; }
 .map-info-window p { margin:.2rem 0; font-size:.9rem; }
 .map-info-window .mini-actions { margin-top:.55rem; display:flex; gap:.5rem; justify-content:center; }
 .map-info-window .btn-mini {
@@ -535,7 +535,7 @@
 
 @media (max-width:768px){
   .map-info-window { font-size:.9rem; max-width:400px; }
-  .map-info-window h3 { font-size:1rem; white-space:nowrap; }
+  .map-info-window h3 { font-size:1rem; white-space:nowrap; text-align:center; }
   .map-info-window p { font-size:.85rem; white-space:nowrap; }
   .map-info-window .mini-actions { flex-wrap:wrap; }
   .gm-ui-hover-effect {
