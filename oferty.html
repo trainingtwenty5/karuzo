@@ -885,6 +885,10 @@ window.showConfirmModal = showConfirmModal;
         if (!data.plots || !data.plots.length) return;
 
         data.plots.forEach((plot, index) => {
+          if (plot && plot.mock === false) {
+            return;
+          }
+
           const lat = plot.lat;
           const lng = plot.lng;
           const geometry = plot.geometry_uldk;
@@ -971,6 +975,8 @@ window.showConfirmModal = showConfirmModal;
       console.error("Błąd pobierania ofert:", err);
     }
   }
+
+  window.loadOffers = loadOffers;
 
   // widoczność listy wg granic + sortowanie wyników
   function filterOffersByBounds(filteredOffers = null) {
@@ -1523,6 +1529,9 @@ async function deletePlot(offerId, plotIndex, title) {
     showToast('Działka usunięta', 'success');
     if (auth.currentUser) {
       loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
+    }
+    if (typeof window.loadOffers === 'function') {
+      await window.loadOffers();
     }
   } catch (err) {
     console.error('deletePlot', err);
