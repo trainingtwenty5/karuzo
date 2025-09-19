@@ -48,6 +48,8 @@ const state = {
   lightboxReturnFocus: null
 };
 
+const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
+
 const elements = {
   loadingState: document.getElementById('loadingState'),
   errorState: document.getElementById('errorState'),
@@ -163,29 +165,42 @@ function pickValue(...values) {
 
 function formatPrice(value) {
   const formatted = formatCurrency(value);
-  return formatted ? `${formatted}` : '—';
+  return formatted ? `${formatted}` : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function formatPerSqm(price, area) {
   if (!Number.isFinite(price) || !Number.isFinite(area) || area <= 0) {
-    return '—';
+    return EMPTY_FIELD_PLACEHOLDER;
   }
   const result = Math.round(price / area);
   const formatted = formatNumber(result);
-  return formatted ? `${formatted} zł/m²` : '—';
+  return formatted ? `${formatted} zł/m²` : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function formatAreaText(value) {
   const formatted = formatArea(value);
-  return formatted ? formatted : '—';
+  return formatted ? formatted : EMPTY_FIELD_PLACEHOLDER;
 }
 
-function setTextContent(element, value, fallback = '—') {
+function formatPlotNumber(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const text = String(value).trim();
+  if (!text) {
+    return null;
+  }
+  const segments = text.split('.');
+  const suffix = segments[segments.length - 1].trim();
+  return suffix || text;
+}
+
+function setTextContent(element, value, fallback = EMPTY_FIELD_PLACEHOLDER) {
   if (!element) return;
   element.textContent = textContentOrFallback(value, fallback);
 }
 
-function setMultilineText(element, value, fallback = '—') {
+function setMultilineText(element, value, fallback = EMPTY_FIELD_PLACEHOLDER) {
   if (!element) return;
   const text = value === null || value === undefined || value === ''
     ? fallback
@@ -736,7 +751,9 @@ function setArea(area) {
 
 function renderPriceMetadata(priceUpdatedAt) {
   const formatted = formatDateTime(priceUpdatedAt);
-  elements.priceUpdatedAt.textContent = formatted ? `Aktualizacja: ${formatted}` : 'Aktualizacja: —';
+  elements.priceUpdatedAt.textContent = formatted
+    ? `Aktualizacja: ${formatted}`
+    : `Aktualizacja: ${EMPTY_FIELD_PLACEHOLDER}`;
   elements.pricePerSqm.textContent = formatPerSqm(state.price, state.area);
 }
 
@@ -804,18 +821,19 @@ function renderOffer(data, plot) {
 
   renderPriceMetadata(pickValue(plot.priceUpdatedAt, data.updatedAt, data.timestamp));
 
-  setTextContent(elements.plotNumber, pickValue(plot.plotNumber, plot.Id, plot.number), '—');
-  setTextContent(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
-  setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status), '—');
+  const plotNumber = formatPlotNumber(pickValue(plot.plotNumber, plot.Id, plot.number));
+  setTextContent(elements.plotNumber, plotNumber);
+  setTextContent(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw));
+  setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status));
 
   setMultilineText(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address), 'Dodaj adres działki');
   setMultilineText(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access), 'Opisz komunikację, dostęp do drogi, najbliższe punkty orientacyjne.');
 
   renderPlanBadges(pickValue(plot.planBadges, data.planBadges));
   setTextContent(elements.planDesignation, pickValue(plot.planDesignation, plot.planUsage, data.planDesignation), 'Brak informacji');
-  setTextContent(elements.planHeight, pickValue(plot.planHeight, data.planHeight), '—');
-  setTextContent(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity), '—');
-  setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '—');
+  setTextContent(elements.planHeight, pickValue(plot.planHeight, data.planHeight));
+  setTextContent(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity));
+  setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen));
   setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), 'Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.');
 
   updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
@@ -1190,7 +1208,7 @@ function buildFavoriteEntry() {
   const contactEmail = pickValue(plot.contactEmail, offer.contactEmail, offer.email);
   const ownerUid = pickValue(plot.ownerUid, plot.ownerId, plot.userUid, offer.ownerUid, offer.userUid, offer.uid, offer.ownerId, offer.createdBy);
   const ownerEmail = pickValue(plot.ownerEmail, offer.ownerEmail, offer.userEmail, offer.email);
-  const plotNumber = pickValue(plot.plotNumber, plot.Id, plot.number);
+  const plotNumber = formatPlotNumber(pickValue(plot.plotNumber, plot.Id, plot.number));
 
   return {
     offerId: state.offerId,
@@ -1204,7 +1222,7 @@ function buildFavoriteEntry() {
     contactName: contactName ? String(contactName).trim() : null,
     contactPhone: contactPhone ? String(contactPhone).trim() : null,
     contactEmail: contactEmail ? String(contactEmail).trim() : null,
-    plotNumber: plotNumber ? String(plotNumber).trim() : null,
+    plotNumber: plotNumber ? plotNumber : null,
     savedAt: Date.now()
   };
 }
