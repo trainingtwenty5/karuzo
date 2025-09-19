@@ -163,29 +163,39 @@ function pickValue(...values) {
 
 function formatPrice(value) {
   const formatted = formatCurrency(value);
-  return formatted ? `${formatted}` : '—';
+  return formatted ? `${formatted}` : '';
 }
 
 function formatPerSqm(price, area) {
   if (!Number.isFinite(price) || !Number.isFinite(area) || area <= 0) {
-    return '—';
+    return '';
   }
   const result = Math.round(price / area);
   const formatted = formatNumber(result);
-  return formatted ? `${formatted} zł/m²` : '—';
+  return formatted ? `${formatted} zł/m²` : '';
 }
 
 function formatAreaText(value) {
   const formatted = formatArea(value);
-  return formatted ? formatted : '—';
+  return formatted ? formatted : '';
 }
 
-function setTextContent(element, value, fallback = '—') {
+function extractPlotNumberSegment(value) {
+  if (value === undefined || value === null) return value;
+  const str = String(value).trim();
+  if (!str) return '';
+  const lastDotIndex = str.lastIndexOf('.');
+  if (lastDotIndex === -1) return str;
+  const segment = str.slice(lastDotIndex + 1).trim();
+  return segment || str;
+}
+
+function setTextContent(element, value, fallback = '') {
   if (!element) return;
   element.textContent = textContentOrFallback(value, fallback);
 }
 
-function setMultilineText(element, value, fallback = '—') {
+function setMultilineText(element, value, fallback = '') {
   if (!element) return;
   const text = value === null || value === undefined || value === ''
     ? fallback
@@ -736,7 +746,7 @@ function setArea(area) {
 
 function renderPriceMetadata(priceUpdatedAt) {
   const formatted = formatDateTime(priceUpdatedAt);
-  elements.priceUpdatedAt.textContent = formatted ? `Aktualizacja: ${formatted}` : 'Aktualizacja: —';
+  elements.priceUpdatedAt.textContent = formatted ? `Aktualizacja: ${formatted}` : 'Aktualizacja: ';
   elements.pricePerSqm.textContent = formatPerSqm(state.price, state.area);
 }
 
@@ -781,18 +791,18 @@ function mergeUtilities(dataUtilities, plotUtilities) {
 }
 
 function renderOffer(data, plot) {
-  const title = pickValue(plot.title, plot.name, plot.Id, `Działka ${state.plotIndex + 1}`);
+  const title = pickValue(plot.title, plot.name, plot.Id);
   elements.propertyTitle.textContent = textContentOrFallback(title, 'Działka');
   document.title = `Grunteo - ${textContentOrFallback(title, 'Działka')}`;
 
-  const location = pickValue(plot.location, plot.city, data.city, data.location, 'Polska');
-  setTextContent(elements.propertyLocation, location, 'Polska');
+  const location = pickValue(plot.location, plot.city, data.city, data.location);
+  setTextContent(elements.propertyLocation, location, '');
 
-  const propertyType = pickValue(plot.propertyType, plot.type, data.propertyType, 'Rodzaj');
-  setTextContent(elements.propertyType, propertyType, 'Rodzaj');
+  const propertyType = pickValue(plot.propertyType, plot.type, data.propertyType);
+  setTextContent(elements.propertyType, propertyType, '');
 
-  const ownership = pickValue(plot.ownershipStatus, plot.ownership, data.ownershipStatus, 'Własność');
-  setTextContent(elements.ownershipStatus, ownership, 'Własność');
+  const ownership = pickValue(plot.ownershipStatus, plot.ownership, data.ownershipStatus);
+  setTextContent(elements.ownershipStatus, ownership, '');
 
   const priceRaw = pickValue(plot.price, data.price);
   const price = parseNumberFromText(priceRaw);
@@ -804,26 +814,27 @@ function renderOffer(data, plot) {
 
   renderPriceMetadata(pickValue(plot.priceUpdatedAt, data.updatedAt, data.timestamp));
 
-  setTextContent(elements.plotNumber, pickValue(plot.plotNumber, plot.Id, plot.number), '—');
-  setTextContent(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
-  setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status), '—');
+  const plotNumberValue = pickValue(plot.plotNumber, plot.Id, plot.number);
+  setTextContent(elements.plotNumber, extractPlotNumberSegment(plotNumberValue), '');
+  setTextContent(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '');
+  setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status), '');
 
-  setMultilineText(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address), 'Dodaj adres działki');
-  setMultilineText(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access), 'Opisz komunikację, dostęp do drogi, najbliższe punkty orientacyjne.');
+  setMultilineText(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address), '');
+  setMultilineText(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access), '');
 
   renderPlanBadges(pickValue(plot.planBadges, data.planBadges));
-  setTextContent(elements.planDesignation, pickValue(plot.planDesignation, plot.planUsage, data.planDesignation), 'Brak informacji');
-  setTextContent(elements.planHeight, pickValue(plot.planHeight, data.planHeight), '—');
-  setTextContent(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity), '—');
-  setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '—');
-  setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), 'Uzupełnij najważniejsze zapisy z planu miejscowego lub studium.');
+  setTextContent(elements.planDesignation, pickValue(plot.planDesignation, plot.planUsage, data.planDesignation), '');
+  setTextContent(elements.planHeight, pickValue(plot.planHeight, data.planHeight), '');
+  setTextContent(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity), '');
+  setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '');
+  setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), '');
 
   updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
 
   const utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilities(utilities);
 
-  setMultilineText(elements.descriptionText, pickValue(plot.description, data.description), 'Brak opisu');
+  setMultilineText(elements.descriptionText, pickValue(plot.description, data.description), '');
 
   renderTags(pickValue(plot.tags, data.tags));
 
