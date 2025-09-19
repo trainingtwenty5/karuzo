@@ -54,6 +54,8 @@ const state = {
   hasLoaded: false
 };
 
+const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
+
 const elements = {
   loadingState: document.getElementById('loadingState'),
   errorState: document.getElementById('errorState'),
@@ -133,21 +135,48 @@ function pickValue(...values) {
 
 function formatPerSqm(price, area) {
   if (!Number.isFinite(price) || !Number.isFinite(area) || area <= 0) {
-    return '—';
+    return EMPTY_FIELD_PLACEHOLDER;
   }
   const ppm = Math.round(price / area);
   const formatted = formatNumber(ppm);
-  return formatted ? `${formatted} zł/m²` : '—';
+  return formatted ? `${formatted} zł/m²` : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function formatPrice(value) {
   const formatted = formatCurrency(value);
-  return formatted ? `${formatted}` : '—';
+  return formatted ? `${formatted}` : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function formatAreaText(value) {
   const formatted = formatArea(value);
-  return formatted ? formatted : '—';
+  return formatted ? formatted : EMPTY_FIELD_PLACEHOLDER;
+}
+
+function applyPlaceholder(element, value) {
+  if (!element) return;
+  const text = textContentOrFallback(value, '');
+  element.textContent = text || EMPTY_FIELD_PLACEHOLDER;
+}
+
+function applyMultilinePlaceholder(element, value) {
+  if (!element) return;
+  const sanitized = sanitizeMultilineText(value || '');
+  const trimmed = sanitized.trim();
+  element.textContent = trimmed ? sanitized : EMPTY_FIELD_PLACEHOLDER;
+}
+
+function normalizePlaceholderValue(value) {
+  if (value === null || value === undefined) return '';
+  const text = String(value).trim();
+  if (!text) return '';
+  return text.toLowerCase() === EMPTY_FIELD_PLACEHOLDER.toLowerCase() ? '' : text;
+}
+
+function normalizeMultilineValue(value) {
+  const sanitized = sanitizeMultilineText(value || '');
+  const trimmed = sanitized.trim();
+  if (!trimmed) return '';
+  return trimmed.toLowerCase() === EMPTY_FIELD_PLACEHOLDER.toLowerCase() ? '' : sanitized;
 }
 
 function extractPlotNumberSegment(value) {
@@ -187,7 +216,9 @@ function updatePricePerSqm() {
 
 function renderPriceUpdatedAt(value) {
   const formatted = formatDateTime(value);
-  elements.priceUpdatedAt.textContent = formatted ? `Aktualizacja: ${formatted}` : 'Aktualizacja: —';
+  elements.priceUpdatedAt.textContent = formatted
+    ? `Aktualizacja: ${formatted}`
+    : `Aktualizacja: ${EMPTY_FIELD_PLACEHOLDER}`;
 }
 
 function ensureSelectOption(select, value) {
@@ -695,8 +726,8 @@ function renderEditor(data, plot) {
   elements.propertyTitle.textContent = textContentOrFallback(title, 'Działka');
   document.title = `Edycja działki - ${textContentOrFallback(title, 'Działka')}`;
 
-  const location = pickValue(plot.location, plot.city, data.city, data.location, 'Polska');
-  elements.propertyLocation.textContent = textContentOrFallback(location, 'Polska');
+  const location = pickValue(plot.location, plot.city, data.city, data.location);
+  applyPlaceholder(elements.propertyLocation, location);
 
   let propertyType = pickValue(plot.propertyType, plot.type, data.propertyType, '');
   if (typeof propertyType === 'string' && propertyType.trim().toLowerCase() === 'rodzaj') {
@@ -717,8 +748,8 @@ function renderEditor(data, plot) {
   renderPriceUpdatedAt(pickValue(plot.priceUpdatedAt, data.updatedAt, data.timestamp));
 
   const plotNumberValue = pickValue(plot.plotNumber, plot.Id, plot.number);
-  elements.plotNumber.textContent = textContentOrFallback(extractPlotNumberSegment(plotNumberValue), '—');
-  elements.landRegister.textContent = textContentOrFallback(pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
+  applyPlaceholder(elements.plotNumber, extractPlotNumberSegment(plotNumberValue));
+  applyPlaceholder(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw));
   const statusValue = pickValue(plot.status, plot.offerStatus, data.status, '');
   setSelectValue(elements.plotOwnershipSelect, statusValue, '');
   if (!elements.plotOwnershipSelect?.value) {
@@ -728,21 +759,21 @@ function renderEditor(data, plot) {
     }
   }
 
-  elements.locationAddress.textContent = sanitizeMultilineText(pickValue(plot.locationAddress, data.address, plot.address) || '');
-  elements.locationAccess.textContent = sanitizeMultilineText(pickValue(plot.locationAccess, plot.access, data.access) || '');
+  applyMultilinePlaceholder(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address));
+  applyMultilinePlaceholder(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access));
 
   state.planBadges = cloneDeep(pickValue(plot.planBadges, data.planBadges));
   renderPlanBadges(state.planBadges);
-  elements.planDesignation.textContent = textContentOrFallback(pickValue(plot.planDesignation, plot.planUsage, data.planDesignation), 'Brak informacji');
-  elements.planHeight.textContent = textContentOrFallback(pickValue(plot.planHeight, data.planHeight), '—');
-  elements.planIntensity.textContent = textContentOrFallback(pickValue(plot.planIntensity, data.planIntensity), '—');
-  elements.planGreen.textContent = textContentOrFallback(pickValue(plot.planGreen, data.planGreen), '—');
-  elements.planNotes.textContent = sanitizeMultilineText(pickValue(plot.planNotes, data.planNotes) || '');
+  applyPlaceholder(elements.planDesignation, pickValue(plot.planDesignation, plot.planUsage, data.planDesignation));
+  applyPlaceholder(elements.planHeight, pickValue(plot.planHeight, data.planHeight));
+  applyPlaceholder(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity));
+  applyPlaceholder(elements.planGreen, pickValue(plot.planGreen, data.planGreen));
+  applyMultilinePlaceholder(elements.planNotes, pickValue(plot.planNotes, data.planNotes));
 
   state.utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilitiesEdit();
 
-  elements.descriptionText.textContent = sanitizeMultilineText(pickValue(plot.description, data.description) || '');
+  applyMultilinePlaceholder(elements.descriptionText, pickValue(plot.description, data.description));
 
   const normalizedTags = ensureArray(pickValue(plot.tags, data.tags))
     .map(normalizeTag)
@@ -1094,7 +1125,7 @@ function validatePlot(plot) {
 function buildUpdatedPlot() {
   const base = cloneDeep(state.plotData || {});
   base.title = stripHtml(elements.propertyTitle.innerHTML).trim() || 'Działka';
-  const locationText = stripHtml(elements.propertyLocation.innerHTML).trim();
+  const locationText = normalizePlaceholderValue(stripHtml(elements.propertyLocation.innerHTML));
   base.location = locationText;
   base.city = locationText;
   base.propertyType = (elements.propertyTypeSelect?.value || '').trim();
@@ -1104,16 +1135,16 @@ function buildUpdatedPlot() {
   base.priceUpdatedAt = new Date().toISOString();
   base.pow_dzialki_m2_uldk = state.area;
   base.area = state.area;
-  base.landRegister = stripHtml(elements.landRegister.innerHTML).trim();
+  base.landRegister = normalizePlaceholderValue(stripHtml(elements.landRegister.innerHTML));
   base.status = (elements.plotOwnershipSelect?.value || '').trim();
-  base.locationAddress = sanitizeMultilineText(elements.locationAddress.textContent || '');
-  base.locationAccess = sanitizeMultilineText(elements.locationAccess.textContent || '');
-  base.planDesignation = stripHtml(elements.planDesignation.innerHTML).trim();
-  base.planHeight = stripHtml(elements.planHeight.innerHTML).trim();
-  base.planIntensity = stripHtml(elements.planIntensity.innerHTML).trim();
-  base.planGreen = stripHtml(elements.planGreen.innerHTML).trim();
-  base.planNotes = sanitizeMultilineText(elements.planNotes.textContent || '');
-  base.description = sanitizeMultilineText(elements.descriptionText.textContent || '');
+  base.locationAddress = normalizeMultilineValue(elements.locationAddress.textContent || '');
+  base.locationAccess = normalizeMultilineValue(elements.locationAccess.textContent || '');
+  base.planDesignation = normalizePlaceholderValue(stripHtml(elements.planDesignation.innerHTML));
+  base.planHeight = normalizePlaceholderValue(stripHtml(elements.planHeight.innerHTML));
+  base.planIntensity = normalizePlaceholderValue(stripHtml(elements.planIntensity.innerHTML));
+  base.planGreen = normalizePlaceholderValue(stripHtml(elements.planGreen.innerHTML));
+  base.planNotes = normalizeMultilineValue(elements.planNotes.textContent || '');
+  base.description = normalizeMultilineValue(elements.descriptionText.textContent || '');
   base.utilities = { ...state.utilities };
   base.tags = [...state.tags];
   base.planBadges = state.planBadges || base.planBadges || [];
