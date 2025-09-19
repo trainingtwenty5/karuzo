@@ -285,8 +285,15 @@
 
 @media (max-width: 768px) {
   .edit-toolbar {
-    position: static;
+    top: calc(var(--nav-top) + 12px);
+    margin: 0 0 1.5rem;
+    padding: .65rem;
+    background: rgba(255, 255, 255, .95);
+    border-radius: 14px;
+    box-shadow: var(--shadow-md);
     justify-content: stretch;
+    z-index: 12;
+    backdrop-filter: blur(6px);
   }
 
   .edit-toolbar .btn {
