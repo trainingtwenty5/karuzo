@@ -426,6 +426,7 @@ window.showConfirmModal = showConfirmModal;
   const TAG_PREVIEW_COUNT = 5;
   let randomPreviewTags = [];
   let randomPreviewSignature = '';
+  let currentVisibleOffers = [];
 
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
@@ -675,6 +676,46 @@ window.showConfirmModal = showConfirmModal;
     return tag.startsWith('#') ? tag : `#${tag}`;
   }
 
+  function updateTagCollectionsForVisibleOffers(visibleOffers) {
+    currentVisibleOffers = Array.isArray(visibleOffers) ? visibleOffers.slice() : [];
+
+    const metrics = new Map();
+
+    currentVisibleOffers.forEach(offer => {
+      const offerTags = Array.isArray(offer.tags) ? offer.tags : [];
+      offerTags.forEach(tag => {
+        metrics.set(tag, (metrics.get(tag) || 0) + 1);
+      });
+    });
+
+    filterState.selectedTags.forEach(tag => {
+      if (!metrics.has(tag)) {
+        metrics.set(tag, 0);
+      }
+    });
+
+    tagMetrics = metrics;
+
+    const sortedTags = Array.from(metrics.entries())
+      .sort((a, b) => {
+        if (b[1] !== a[1]) {
+          return b[1] - a[1];
+        }
+        return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
+      })
+      .map(([tag]) => tag);
+
+    const previousSignature = availableTags.join('|');
+    availableTags = sortedTags;
+
+    if (availableTags.join('|') !== previousSignature) {
+      randomPreviewSignature = '';
+      randomPreviewTags = [];
+    }
+
+    renderTagFilters();
+  }
+
   function computeTagDisplayCounts(filteredOffers) {
     const counts = new Map();
 
@@ -752,12 +793,6 @@ window.showConfirmModal = showConfirmModal;
   function renderTagFilters() {
     if (!tagFiltersList) return;
 
-    for (const tag of Array.from(filterState.selectedTags)) {
-      if (!availableTags.includes(tag)) {
-        filterState.selectedTags.delete(tag);
-      }
-    }
-
     tagFiltersList.innerHTML = '';
     tagFiltersList.classList.remove('is-empty');
 
@@ -777,8 +812,8 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
 
-    const selectedTags = Array.from(filterState.selectedTags).filter(tag => availableTags.includes(tag));
-    const filteredForCounts = getOffersMatchingFilters();
+    const selectedTags = Array.from(filterState.selectedTags);
+    const filteredForCounts = currentVisibleOffers.length ? currentVisibleOffers : getOffersMatchingFilters();
     const displayCounts = computeTagDisplayCounts(filteredForCounts);
 
     const visibleTags = tagsExpanded ? availableTags.slice() : ensureRandomPreviewTags().slice();
@@ -938,7 +973,7 @@ window.showConfirmModal = showConfirmModal;
       allOffers = [];
       availableTags = [];
       tagMetrics = new Map();
-      const tagStats = new Map();
+      currentVisibleOffers = [];
 
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
@@ -955,12 +990,6 @@ window.showConfirmModal = showConfirmModal;
           const offerId = docSnap.id;
           const tags = normalizeTags(plot.tags);
           const uniquePlotTags = Array.from(new Set(tags));
-
-          if (uniquePlotTags.length) {
-            uniquePlotTags.forEach(tag => {
-              tagStats.set(tag, (tagStats.get(tag) || 0) + 1);
-            });
-          }
 
           const marker = new google.maps.Marker({
             position: { lat, lng },
@@ -1016,15 +1045,7 @@ window.showConfirmModal = showConfirmModal;
         });
       });
 
-      tagMetrics = new Map(tagStats);
-      availableTags = Array.from(tagStats.entries())
-        .sort((a, b) => {
-          if (b[1] !== a[1]) {
-            return b[1] - a[1];
-          }
-          return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
-        })
-        .map(([tag]) => tag);
+      availableTags = [];
       randomPreviewSignature = '';
       randomPreviewTags = [];
       tagsExpanded = false;
@@ -1045,10 +1066,12 @@ window.showConfirmModal = showConfirmModal;
     if (!bounds) return;
 
     const base = Array.isArray(filteredOffers) ? filteredOffers : getOffersMatchingFilters();
+    const visibleOffers = base.filter(o => bounds.contains(o.marker.getPosition()));
+    updateTagCollectionsForVisibleOffers(visibleOffers);
+
     const listContainer = document.getElementById("offersList");
     if (!listContainer) return;
 
-    const visibleOffers = base.filter(o => bounds.contains(o.marker.getPosition()));
     const sortedOffers = sortOffers(visibleOffers);
 
     listContainer.innerHTML = "";
