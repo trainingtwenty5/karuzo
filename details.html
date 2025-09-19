@@ -439,10 +439,38 @@
     aria-label="Powiększony podgląd mapy"
     tabindex="-1"
   >
-    <button type="button" class="image-lightbox__close" id="mapImageLightboxClose" aria-label="Zamknij podgląd">
-      <i class="fas fa-xmark" aria-hidden="true"></i>
-    </button>
-    <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+    <div class="image-lightbox__controls" role="toolbar" aria-label="Sterowanie powiększeniem">
+      <button
+        type="button"
+        class="image-lightbox__control"
+        id="mapImageLightboxZoomIn"
+        aria-label="Przybliż obraz"
+        title="Przybliż"
+      >
+        <i class="fas fa-plus" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        class="image-lightbox__control"
+        id="mapImageLightboxZoomOut"
+        aria-label="Oddal obraz"
+        title="Oddal"
+      >
+        <i class="fas fa-minus" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        class="image-lightbox__control image-lightbox__close"
+        id="mapImageLightboxClose"
+        aria-label="Zamknij podgląd"
+        title="Zamknij"
+      >
+        <i class="fas fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="image-lightbox__viewport">
+      <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+    </div>
   </div>
 
   <script type="module" src="assets/details.js"></script>
