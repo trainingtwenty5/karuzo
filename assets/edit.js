@@ -54,6 +54,8 @@ const state = {
   hasLoaded: false
 };
 
+const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
+
 const elements = {
   loadingState: document.getElementById('loadingState'),
   errorState: document.getElementById('errorState'),
@@ -133,21 +135,21 @@ function pickValue(...values) {
 
 function formatPerSqm(price, area) {
   if (!Number.isFinite(price) || !Number.isFinite(area) || area <= 0) {
-    return '—';
+    return EMPTY_FIELD_PLACEHOLDER;
   }
   const ppm = Math.round(price / area);
   const formatted = formatNumber(ppm);
-  return formatted ? `${formatted} zł/m²` : '—';
+  return formatted ? `${formatted} zł/m²` : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function formatPrice(value) {
   const formatted = formatCurrency(value);
-  return formatted ? `${formatted}` : '—';
+  return formatted ? `${formatted}` : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function formatAreaText(value) {
   const formatted = formatArea(value);
-  return formatted ? formatted : '—';
+  return formatted ? formatted : EMPTY_FIELD_PLACEHOLDER;
 }
 
 function extractPlotNumberSegment(value) {
@@ -187,7 +189,9 @@ function updatePricePerSqm() {
 
 function renderPriceUpdatedAt(value) {
   const formatted = formatDateTime(value);
-  elements.priceUpdatedAt.textContent = formatted ? `Aktualizacja: ${formatted}` : 'Aktualizacja: —';
+  elements.priceUpdatedAt.textContent = formatted
+    ? `Aktualizacja: ${formatted}`
+    : `Aktualizacja: ${EMPTY_FIELD_PLACEHOLDER}`;
 }
 
 function ensureSelectOption(select, value) {
@@ -717,8 +721,8 @@ function renderEditor(data, plot) {
   renderPriceUpdatedAt(pickValue(plot.priceUpdatedAt, data.updatedAt, data.timestamp));
 
   const plotNumberValue = pickValue(plot.plotNumber, plot.Id, plot.number);
-  elements.plotNumber.textContent = textContentOrFallback(extractPlotNumberSegment(plotNumberValue), '—');
-  elements.landRegister.textContent = textContentOrFallback(pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '—');
+  elements.plotNumber.textContent = textContentOrFallback(extractPlotNumberSegment(plotNumberValue), EMPTY_FIELD_PLACEHOLDER);
+  elements.landRegister.textContent = textContentOrFallback(pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), EMPTY_FIELD_PLACEHOLDER);
   const statusValue = pickValue(plot.status, plot.offerStatus, data.status, '');
   setSelectValue(elements.plotOwnershipSelect, statusValue, '');
   if (!elements.plotOwnershipSelect?.value) {
@@ -734,9 +738,9 @@ function renderEditor(data, plot) {
   state.planBadges = cloneDeep(pickValue(plot.planBadges, data.planBadges));
   renderPlanBadges(state.planBadges);
   elements.planDesignation.textContent = textContentOrFallback(pickValue(plot.planDesignation, plot.planUsage, data.planDesignation), 'Brak informacji');
-  elements.planHeight.textContent = textContentOrFallback(pickValue(plot.planHeight, data.planHeight), '—');
-  elements.planIntensity.textContent = textContentOrFallback(pickValue(plot.planIntensity, data.planIntensity), '—');
-  elements.planGreen.textContent = textContentOrFallback(pickValue(plot.planGreen, data.planGreen), '—');
+  elements.planHeight.textContent = textContentOrFallback(pickValue(plot.planHeight, data.planHeight), EMPTY_FIELD_PLACEHOLDER);
+  elements.planIntensity.textContent = textContentOrFallback(pickValue(plot.planIntensity, data.planIntensity), EMPTY_FIELD_PLACEHOLDER);
+  elements.planGreen.textContent = textContentOrFallback(pickValue(plot.planGreen, data.planGreen), EMPTY_FIELD_PLACEHOLDER);
   elements.planNotes.textContent = sanitizeMultilineText(pickValue(plot.planNotes, data.planNotes) || '');
 
   state.utilities = mergeUtilities(data.utilities, plot.utilities);
