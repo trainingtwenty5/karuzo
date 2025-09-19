@@ -45,7 +45,10 @@ const state = {
   favorites: [],
   savingFavorite: false,
   isLightboxOpen: false,
-  lightboxReturnFocus: null
+  lightboxReturnFocus: null,
+  lightboxZoom: 1,
+  lightboxBaseWidth: 0,
+  lightboxBaseHeight: 0
 };
 
 const elements = {
@@ -96,6 +99,8 @@ const elements = {
   mapImageLightbox: document.getElementById('mapImageLightbox'),
   mapImageLightboxPicture: document.getElementById('mapImageLightboxPicture'),
   mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
+  mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
+  mapImageLightboxZoomOut: document.getElementById('mapImageLightboxZoomOut'),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
   loginBtn: document.getElementById('loginBtn'),
@@ -119,9 +124,18 @@ elements.mapImageElement?.addEventListener('click', handleMapImageClick);
 elements.mapImageElement?.addEventListener('keydown', handleMapImageKeydown);
 elements.mapImageLightboxClose?.addEventListener('click', closeMapImageLightbox);
 elements.mapImageLightbox?.addEventListener('click', handleLightboxBackdropClick);
+elements.mapImageLightboxZoomIn?.addEventListener('click', handleLightboxZoomIn);
+elements.mapImageLightboxZoomOut?.addEventListener('click', handleLightboxZoomOut);
 document.addEventListener('keydown', handleLightboxKeydown);
 
+updateZoomButtonsState();
+
 const MAP_MODE_DEFAULT = 'base';
+
+const LIGHTBOX_ZOOM_DEFAULT = 1;
+const LIGHTBOX_ZOOM_MIN = 0.5;
+const LIGHTBOX_ZOOM_MAX = 3;
+const LIGHTBOX_ZOOM_STEP = 0.25;
 
 const MAP_MODES = {
   base: { type: 'map', mapType: 'hybrid' },
@@ -159,6 +173,12 @@ function pickValue(...values) {
     return value;
   }
   return null;
+}
+
+function clamp(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return value;
+  return Math.min(Math.max(value, min), max);
 }
 
 function formatPrice(value) {
@@ -489,6 +509,137 @@ function canOpenMapImageLightbox() {
   return Boolean(src);
 }
 
+function computeLightboxBaseSize() {
+  if (!elements.mapImageLightboxPicture) return null;
+  const naturalWidth = elements.mapImageLightboxPicture.naturalWidth || elements.mapImageElement?.naturalWidth || 0;
+  const naturalHeight = elements.mapImageLightboxPicture.naturalHeight || elements.mapImageElement?.naturalHeight || 0;
+  if (!naturalWidth || !naturalHeight) return null;
+
+  const viewportWidth = Math.max((window.innerWidth || naturalWidth) - 64, 320);
+  const viewportHeight = Math.max((window.innerHeight || naturalHeight) - 160, 320);
+  const ratio = Math.min(1, viewportWidth / naturalWidth, viewportHeight / naturalHeight);
+
+  return {
+    width: naturalWidth * ratio,
+    height: naturalHeight * ratio
+  };
+}
+
+function applyLightboxZoom() {
+  if (!elements.mapImageLightboxPicture) return;
+  const baseWidth = state.lightboxBaseWidth || elements.mapImageLightboxPicture.naturalWidth || elements.mapImageLightboxPicture.clientWidth;
+  if (!baseWidth) {
+    updateZoomButtonsState();
+    return;
+  }
+  const width = baseWidth * state.lightboxZoom;
+  elements.mapImageLightboxPicture.style.width = `${width}px`;
+  elements.mapImageLightboxPicture.style.height = 'auto';
+  elements.mapImageLightboxPicture.style.maxWidth = 'none';
+  elements.mapImageLightboxPicture.style.maxHeight = 'none';
+  updateZoomButtonsState();
+}
+
+function initializeLightboxZoom() {
+  state.lightboxBaseWidth = 0;
+  state.lightboxBaseHeight = 0;
+  if (!elements.mapImageLightboxPicture) {
+    updateZoomButtonsState();
+    return;
+  }
+
+  const size = computeLightboxBaseSize();
+  if (size) {
+    state.lightboxBaseWidth = size.width;
+    state.lightboxBaseHeight = size.height;
+  } else {
+    const fallbackWidth = elements.mapImageElement?.clientWidth || elements.mapImageLightboxPicture.clientWidth || 0;
+    const fallbackHeight = elements.mapImageElement?.clientHeight || elements.mapImageLightboxPicture.clientHeight || 0;
+    state.lightboxBaseWidth = fallbackWidth;
+    state.lightboxBaseHeight = fallbackHeight;
+  }
+
+  state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+  applyLightboxZoom();
+}
+
+function prepareLightboxZoom() {
+  if (!elements.mapImageLightboxPicture) {
+    updateZoomButtonsState();
+    return;
+  }
+
+  const apply = () => {
+    initializeLightboxZoom();
+  };
+
+  if (elements.mapImageLightboxPicture.complete && elements.mapImageLightboxPicture.naturalWidth) {
+    apply();
+  } else {
+    elements.mapImageLightboxPicture.addEventListener('load', apply, { once: true });
+  }
+}
+
+function adjustLightboxZoom(delta) {
+  if (!state.isLightboxOpen) {
+    updateZoomButtonsState();
+    return;
+  }
+  const next = clamp(state.lightboxZoom + delta, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX);
+  if (Math.abs(next - state.lightboxZoom) < 0.001) {
+    updateZoomButtonsState();
+    return;
+  }
+  state.lightboxZoom = next;
+  applyLightboxZoom();
+}
+
+function handleLightboxZoomIn(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  adjustLightboxZoom(LIGHTBOX_ZOOM_STEP);
+}
+
+function handleLightboxZoomOut(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  adjustLightboxZoom(-LIGHTBOX_ZOOM_STEP);
+}
+
+function resetLightboxZoomState() {
+  state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+  state.lightboxBaseWidth = 0;
+  state.lightboxBaseHeight = 0;
+  if (elements.mapImageLightboxPicture) {
+    elements.mapImageLightboxPicture.style.width = '';
+    elements.mapImageLightboxPicture.style.height = '';
+    elements.mapImageLightboxPicture.style.maxWidth = '';
+    elements.mapImageLightboxPicture.style.maxHeight = '';
+  }
+  updateZoomButtonsState();
+}
+
+function updateZoomButtonsState() {
+  const zoomIn = elements.mapImageLightboxZoomIn;
+  const zoomOut = elements.mapImageLightboxZoomOut;
+  if (!zoomIn || !zoomOut) return;
+
+  const isOpen = state.isLightboxOpen;
+  const canZoomIn = isOpen && state.lightboxZoom < (LIGHTBOX_ZOOM_MAX - 0.001);
+  const canZoomOut = isOpen && state.lightboxZoom > (LIGHTBOX_ZOOM_MIN + 0.001);
+
+  zoomIn.disabled = !canZoomIn;
+  zoomOut.disabled = !canZoomOut;
+  zoomIn.setAttribute('aria-disabled', (!canZoomIn).toString());
+  zoomOut.setAttribute('aria-disabled', (!canZoomOut).toString());
+  zoomIn.classList.toggle('is-disabled', !canZoomIn);
+  zoomOut.classList.toggle('is-disabled', !canZoomOut);
+}
+
 function openMapImageLightbox() {
   if (!canOpenMapImageLightbox() || !elements.mapImageLightbox || !elements.mapImageLightboxPicture) {
     return;
@@ -504,10 +655,12 @@ function openMapImageLightbox() {
   state.lightboxReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   elements.mapImageLightboxPicture.src = src;
   elements.mapImageLightboxPicture.alt = accessibleLabel;
+  state.isLightboxOpen = true;
+  prepareLightboxZoom();
   elements.mapImageLightbox.classList.remove('hidden');
   elements.mapImageLightbox.setAttribute('aria-hidden', 'false');
   document.body.classList.add('lightbox-open');
-  state.isLightboxOpen = true;
+  updateZoomButtonsState();
   requestAnimationFrame(() => {
     elements.mapImageLightbox?.focus();
   });
@@ -525,6 +678,7 @@ function closeMapImageLightbox() {
   }
   document.body.classList.remove('lightbox-open');
   state.isLightboxOpen = false;
+  resetLightboxZoomState();
   if (state.lightboxReturnFocus instanceof HTMLElement) {
     state.lightboxReturnFocus.focus();
   }
@@ -556,6 +710,16 @@ function handleLightboxBackdropClick(event) {
 
 function handleLightboxKeydown(event) {
   if (!state.isLightboxOpen || !event) return;
+  if (event.key === '+' || event.key === '=' || event.key === 'Add') {
+    event.preventDefault();
+    adjustLightboxZoom(LIGHTBOX_ZOOM_STEP);
+    return;
+  }
+  if (event.key === '-' || event.key === '_' || event.key === 'Subtract') {
+    event.preventDefault();
+    adjustLightboxZoom(-LIGHTBOX_ZOOM_STEP);
+    return;
+  }
   if (event.key === 'Escape' || event.key === 'Esc') {
     event.preventDefault();
     closeMapImageLightbox();
