@@ -151,7 +151,9 @@ const MAP_MODES = {
   media: { type: 'image', key: 'media' },
   teren: { type: 'image', key: 'teren' },
   mpzp: { type: 'image', key: 'mpzp' },
-  studium: { type: 'image', key: 'studium' }
+  mpzpskan: { type: 'image', key: 'mpzpskan' },
+  studium: { type: 'image', key: 'studium' },
+  uzytkigruntowe: { type: 'image', key: 'uzytkigruntowe' }
 };
 
 const MAP_LAYER_BASE_URLS = {
@@ -159,7 +161,9 @@ const MAP_LAYER_BASE_URLS = {
   media: 'https://grunteo.s3.eu-west-3.amazonaws.com/Cyclosm_Esri%2BGESUT/MARGE_Cyclosm_Esri%2BGESUT',
   teren: 'https://grunteo.s3.eu-west-3.amazonaws.com/GRID%2BGrunty/MARGE_GRID%2BGrunty',
   mpzp: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP%2BGrunty/MARGE_MPZP%2BGrunty',
-  studium: 'https://grunteo.s3.eu-west-3.amazonaws.com/Studium%2BGrunty/MARGE_Studium%2BGrunty'
+  mpzpskan: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP_rastrowe%2BGrunty/MARGE_MPZP_rastrowe%2BGrunty',
+  studium: 'https://grunteo.s3.eu-west-3.amazonaws.com/Studium%2BGrunty/MARGE_Studium%2BGrunty',
+  uzytkigruntowe: 'https://grunteo.s3.eu-west-3.amazonaws.com/Uzytki%2BGrunty/MARGE_Uzytki%2BGrunty'
 };
 
 const MAP_LAYER_ALIASES = {
@@ -167,7 +171,9 @@ const MAP_LAYER_ALIASES = {
   media: ['media', 'uzbrojenie', 'utilities', 'gesut', 'cyclosm'],
   teren: ['teren', 'terrain', 'grid', 'ground', 'siatka'],
   mpzp: ['mpzp', 'plan', 'zoning', 'miejscowyplan'],
-  studium: ['studium', 'study', 'uwarunkowania', 'kierunki']
+  mpzpskan: ['mpzpskan', 'mpzpraster', 'mpzprastrowe', 'mpzpscan', 'planraster', 'planrasterowy', 'planzdjecie', 'skanmpzp', 'skanplanu'],
+  studium: ['studium', 'study', 'uwarunkowania', 'kierunki'],
+  uzytkigruntowe: ['uzytkigruntowe', 'uzytki', 'uzytkirolne', 'landuse', 'landusage', 'pokryciegruntu']
 };
 
 const TAG_SUGGESTION_LIMIT = 18;
@@ -378,11 +384,61 @@ function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '')
       offer.mpzpMap,
       offer.planMap
     ],
+    mpzpskan: [
+      plot.mapMpzpSkan,
+      plot.mapMpzpScan,
+      plot.mapMpzpRaster,
+      plot.mapMpzpRastrowe,
+      plot.mapMPZPSkan,
+      plot.mapMPZPScan,
+      plot.mapMPZPRaster,
+      plot.mpzpSkan,
+      plot.mpzpScan,
+      plot.mpzpRaster,
+      plot.planRaster,
+      plot.planScan,
+      plot.planSkan,
+      offer.mapMpzpSkan,
+      offer.mapMpzpScan,
+      offer.mapMpzpRaster,
+      offer.mapMpzpRastrowe,
+      offer.mapMPZPSkan,
+      offer.mapMPZPScan,
+      offer.mapMPZPRaster,
+      offer.mpzpSkan,
+      offer.mpzpScan,
+      offer.mpzpRaster,
+      offer.planRaster,
+      offer.planScan,
+      offer.planSkan
+    ],
     studium: [
       plot.mapStudium,
       plot.studiumMap,
       offer.mapStudium,
       offer.studiumMap
+    ],
+    uzytkigruntowe: [
+      plot.mapUzytki,
+      plot.mapUzytkiGruntowe,
+      plot.mapUzytkiGruntu,
+      plot.mapUzytkiRolne,
+      plot.uzytkiMap,
+      plot.uzytkiGruntoweMap,
+      plot.mapLandUse,
+      plot.landUseMap,
+      plot.landuseMap,
+      plot.mapLandcover,
+      offer.mapUzytki,
+      offer.mapUzytkiGruntowe,
+      offer.mapUzytkiGruntu,
+      offer.mapUzytkiRolne,
+      offer.uzytkiMap,
+      offer.uzytkiGruntoweMap,
+      offer.mapLandUse,
+      offer.landUseMap,
+      offer.landuseMap,
+      offer.mapLandcover
     ]
   };
 
