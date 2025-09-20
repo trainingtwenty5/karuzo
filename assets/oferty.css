@@ -402,6 +402,10 @@
   font-size:1.5rem;
 }
 
+.user-header .mobile-browse-offers {
+  display:none;
+}
+
 @media (max-width:992px){
   .main-layout {
     flex-direction:column;
@@ -438,6 +442,14 @@
   }
   .user-header { flex-direction:column; gap:1rem; align-items:flex-start; }
   .user-header h2 { font-size:1.3rem; }
+  .user-header .mobile-browse-offers,
+  .user-header #dashboardAddOffer {
+    width:100%;
+    justify-content:center;
+  }
+  .user-header .mobile-browse-offers {
+    display:flex;
+  }
 }
 
 .toast-container {
