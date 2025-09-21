@@ -264,6 +264,10 @@ main.property-wrapper {
   z-index: 1300;
 }
 
+.image-lightbox--light {
+  background: rgba(255, 255, 255, .95);
+}
+
 .image-lightbox__viewport {
   position: relative;
   max-width: min(1200px, 90vw);
@@ -275,6 +279,11 @@ main.property-wrapper {
   border-radius: 18px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, .35);
   background: rgba(12, 13, 17, .35);
+}
+
+.image-lightbox--light .image-lightbox__viewport {
+  background: #fff;
+  box-shadow: 0 20px 60px rgba(12, 13, 17, .15);
 }
 
 .image-lightbox__picture {
@@ -309,11 +318,21 @@ main.property-wrapper {
   transition: background .2s ease, transform .2s ease;
 }
 
+.image-lightbox--light .image-lightbox__control {
+  background: rgba(12, 13, 17, .08);
+  color: var(--darker);
+}
+
 .image-lightbox__control:hover,
 .image-lightbox__control:focus {
   background: rgba(255, 255, 255, .18);
   outline: none;
   transform: scale(1.05);
+}
+
+.image-lightbox--light .image-lightbox__control:hover,
+.image-lightbox--light .image-lightbox__control:focus {
+  background: rgba(12, 13, 17, .15);
 }
 
 .image-lightbox__control:disabled,
@@ -323,6 +342,12 @@ main.property-wrapper {
   cursor: not-allowed;
   transform: none;
   pointer-events: none;
+}
+
+.image-lightbox--light .image-lightbox__control:disabled,
+.image-lightbox--light .image-lightbox__control.is-disabled {
+  background: rgba(12, 13, 17, .05);
+  color: rgba(12, 13, 17, .45);
 }
 
 .image-lightbox__control i {
