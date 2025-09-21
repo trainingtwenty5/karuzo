@@ -428,6 +428,243 @@ window.showConfirmModal = showConfirmModal;
   let randomPreviewSignature = '';
   let currentVisibleOffers = [];
 
+  const OFFERS_CACHE_KEY = 'grunteo::offers-cache::v1';
+  const OFFERS_CACHE_VERSION = 1;
+  const DEFAULT_OFFERS_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minut
+
+  function getOffersCacheTTL() {
+    const override = Number(window.__OFFERS_CACHE_TTL_MS__);
+    if (Number.isFinite(override) && override > 0) {
+      return override;
+    }
+    return DEFAULT_OFFERS_CACHE_TTL_MS;
+  }
+
+  function getRevisionHint() {
+    if (typeof window.__OFFERS_REVISION_HINT__ === 'string' && window.__OFFERS_REVISION_HINT__.trim()) {
+      return window.__OFFERS_REVISION_HINT__.trim();
+    }
+    if (typeof window.__OFFERS_REVISION_HINT__ === 'number' && Number.isFinite(window.__OFFERS_REVISION_HINT__)) {
+      return String(window.__OFFERS_REVISION_HINT__);
+    }
+    return null;
+  }
+
+  function toMillis(value) {
+    if (!value) return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if (typeof value.toMillis === 'function') {
+      return value.toMillis();
+    }
+    if (typeof value.seconds === 'number') {
+      const nanos = typeof value.nanoseconds === 'number' ? value.nanoseconds : 0;
+      return value.seconds * 1000 + Math.floor(nanos / 1e6);
+    }
+    return 0;
+  }
+
+  function computeOffersRevisionSignature(documents) {
+    if (!Array.isArray(documents) || !documents.length) {
+      return '0';
+    }
+    let latest = 0;
+    documents.forEach(doc => {
+      const data = doc?.data;
+      const candidates = [
+        data?.updatedAt,
+        data?.lastUpdated,
+        data?.lastModified,
+        data?.modifiedAt,
+        data?.createdAt,
+        data?.timestamp
+      ];
+      candidates.forEach(candidate => {
+        const millis = toMillis(candidate);
+        if (millis > latest) {
+          latest = millis;
+        }
+      });
+    });
+    if (!latest) {
+      return String(Date.now());
+    }
+    return String(latest);
+  }
+
+  function readOffersCache() {
+    try {
+      const raw = window.localStorage?.getItem(OFFERS_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      if (parsed.version !== OFFERS_CACHE_VERSION) return null;
+      if (!Array.isArray(parsed.items)) return null;
+      if (typeof parsed.cachedAt !== 'number') return null;
+      return parsed;
+    } catch (err) {
+      console.warn('Nie można odczytać cache ofert:', err);
+      return null;
+    }
+  }
+
+  function saveOffersCache(payload) {
+    try {
+      if (!payload || typeof payload !== 'object') return;
+      const toStore = {
+        version: OFFERS_CACHE_VERSION,
+        cachedAt: payload.cachedAt,
+        revisionSignature: payload.revisionSignature,
+        revisionHint: payload.revisionHint,
+        items: payload.items
+      };
+      window.localStorage?.setItem(OFFERS_CACHE_KEY, JSON.stringify(toStore));
+    } catch (err) {
+      console.warn('Nie można zapisać cache ofert:', err);
+    }
+  }
+
+  function isCacheFresh(cache, revisionHint) {
+    if (!cache) return false;
+    const ttl = getOffersCacheTTL();
+    if (!Number.isFinite(cache.cachedAt) || Date.now() - cache.cachedAt > ttl) {
+      return false;
+    }
+    if (revisionHint != null && cache.revisionHint != null && String(revisionHint) !== String(cache.revisionHint)) {
+      return false;
+    }
+    return true;
+  }
+
+  function clearOffersState() {
+    const listContainer = document.getElementById('offersList');
+    if (listContainer) {
+      listContainer.innerHTML = '';
+    }
+
+    allOffers.forEach(offer => {
+      if (offer.marker) {
+        offer.marker.setMap(null);
+      }
+      if (offer.polygon) {
+        offer.polygon.setMap(null);
+      }
+    });
+
+    markers.forEach(marker => marker.setMap(null));
+    if (markerCluster) {
+      markerCluster.clearMarkers();
+      markerCluster = null;
+    }
+
+    markers = [];
+    allOffers = [];
+    availableTags = [];
+    tagMetrics = new Map();
+    currentVisibleOffers = [];
+  }
+
+  function applyOffers(documents) {
+    clearOffersState();
+
+    if (!Array.isArray(documents) || !documents.length) {
+      randomPreviewSignature = '';
+      randomPreviewTags = [];
+      tagsExpanded = false;
+      renderTagFilters();
+      updateSortButtonsUI();
+      applyFilters();
+      return;
+    }
+
+    documents.forEach(doc => {
+      const docId = doc?.id;
+      const data = doc?.data;
+      if (!data?.plots || !data.plots.length) return;
+
+      data.plots.forEach((plot, index) => {
+        if (plot && plot.mock === false) {
+          return;
+        }
+
+        const lat = plot.lat;
+        const lng = plot.lng;
+        const geometry = plot.geometry_uldk;
+        const tags = normalizeTags(plot.tags);
+        const uniquePlotTags = Array.from(new Set(tags));
+
+        const marker = new google.maps.Marker({
+          position: { lat, lng },
+          map,
+          title: data.firstName || 'Oferta',
+          icon: { url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' }
+        });
+        markers.push(marker);
+
+        marker.addListener('click', () => {
+          if (map && typeof marker.getPosition === 'function') {
+            panMapTo(marker.getPosition(), 17);
+          }
+          openInfo(marker, infoHTML(plot, data, docId, index));
+        });
+
+        let polygon = null;
+        if (geometry) {
+          const coords = parseGeometry(geometry);
+          if (coords.length) {
+            polygon = new google.maps.Polygon({
+              paths: coords,
+              strokeColor: '#FF0000',
+              strokeOpacity: 0.9,
+              strokeWeight: 3,
+              fillColor: '#FF0000',
+              fillOpacity: 0.15,
+              map: null,
+              visible: false
+            });
+            polygon.addListener('click', (evt) => {
+              const position = evt?.latLng || null;
+              if (map && position) {
+                panMapTo(position, 17);
+              }
+              openInfo(position, infoHTML(plot, data, docId, index));
+            });
+          }
+        }
+
+        const entry = {
+          id: docId,
+          key: `${docId}__${index}`,
+          data,
+          plot,
+          index,
+          marker,
+          polygon,
+          tags: uniquePlotTags
+        };
+
+        allOffers.push(entry);
+      });
+    });
+
+    randomPreviewSignature = '';
+    randomPreviewTags = [];
+    tagsExpanded = false;
+    renderTagFilters();
+    updateSortButtonsUI();
+    applyFilters();
+  }
+
+  async function fetchOffersFromFirestore() {
+    const snapshot = await window.getDocs(window.collection(window.db, 'propertyListings'));
+    const documents = snapshot.docs.map(docSnap => ({ id: docSnap.id, data: docSnap.data() }));
+    const revisionSignature = computeOffersRevisionSignature(documents);
+    return { items: documents, revisionSignature };
+  }
+
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
   const sortButtons = document.querySelectorAll('[data-sort-key]');
@@ -957,107 +1194,51 @@ window.showConfirmModal = showConfirmModal;
     }, { passive: false });
   }
 
-  async function loadOffers() {
+  async function loadOffers(options = {}) {
+    const forceRefresh = Boolean(options?.forceRefresh);
+    const revisionHint = getRevisionHint();
+    const cache = readOffersCache();
+    const hasFreshCache = !forceRefresh && isCacheFresh(cache, revisionHint);
+
+    if (hasFreshCache) {
+      applyOffers(cache.items);
+      return;
+    }
+
+    if (cache?.items?.length) {
+      applyOffers(cache.items);
+    }
+
     try {
-      const snapshot = await window.getDocs(window.collection(window.db, "propertyListings"));
-      const listContainer = document.getElementById("offersList");
-      if (listContainer) listContainer.innerHTML = "";
-
-      allOffers.forEach(offer => {
-        if (offer.marker) offer.marker.setMap(null);
-        if (offer.polygon) offer.polygon.setMap(null);
-      });
-
-      markers.forEach(marker => marker.setMap(null));
-      markers = [];
-      allOffers = [];
-      availableTags = [];
-      tagMetrics = new Map();
-      currentVisibleOffers = [];
-
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (!data.plots || !data.plots.length) return;
-
-        data.plots.forEach((plot, index) => {
-          if (plot && plot.mock === false) {
-            return;
-          }
-
-          const lat = plot.lat;
-          const lng = plot.lng;
-          const geometry = plot.geometry_uldk;
-          const offerId = docSnap.id;
-          const tags = normalizeTags(plot.tags);
-          const uniquePlotTags = Array.from(new Set(tags));
-
-          const marker = new google.maps.Marker({
-            position: { lat, lng },
-            map,
-            title: data.firstName || "Oferta",
-            icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
-          });
-          markers.push(marker);
-
-          marker.addListener('click', () => {
-            if (map && typeof marker.getPosition === 'function') {
-              panMapTo(marker.getPosition(), 17);
-            }
-            openInfo(marker, infoHTML(plot, data, offerId, index));
-          });
-
-          let polygon = null;
-          if (geometry) {
-            const coords = parseGeometry(geometry);
-            if (coords.length) {
-              polygon = new google.maps.Polygon({
-                paths: coords,
-                strokeColor: "#FF0000",
-                strokeOpacity: 0.9,
-                strokeWeight: 3,
-                fillColor: "#FF0000",
-                fillOpacity: 0.15,
-                map: null,
-                visible: false
-              });
-              polygon.addListener('click', (evt) => {
-                const position = evt?.latLng || null;
-                if (map && position) {
-                  panMapTo(position, 17);
-                }
-                openInfo(position, infoHTML(plot, data, offerId, index));
-              });
-            }
-          }
-
-          const entry = {
-            id: offerId,
-            key: `${offerId}__${index}`,
-            data,
-            plot,
-            index,
-            marker,
-            polygon,
-            tags: uniquePlotTags
-          };
-
-          allOffers.push(entry);
-        });
-      });
-
-      availableTags = [];
-      randomPreviewSignature = '';
-      randomPreviewTags = [];
-      tagsExpanded = false;
-      renderTagFilters();
-      updateSortButtonsUI();
-      applyFilters();
+      const fresh = await fetchOffersFromFirestore();
+      const payload = {
+        items: fresh.items,
+        cachedAt: Date.now(),
+        revisionSignature: fresh.revisionSignature,
+        revisionHint: revisionHint != null ? String(revisionHint) : fresh.revisionSignature
+      };
+      saveOffersCache(payload);
+      applyOffers(fresh.items);
     } catch (err) {
-      console.error("Błąd pobierania ofert:", err);
+      console.error('Błąd pobierania ofert:', err);
+      if (!cache?.items?.length) {
+        const listContainer = document.getElementById('offersList');
+        if (listContainer) {
+          listContainer.innerHTML = '<p class="no-offers">Nie udało się pobrać ofert. Spróbuj ponownie później.</p>';
+        }
+      }
     }
   }
 
   window.loadOffers = loadOffers;
+  window.clearOffersCache = () => {
+    try {
+      window.localStorage?.removeItem(OFFERS_CACHE_KEY);
+    } catch (err) {
+      console.warn('Nie można wyczyścić cache ofert:', err);
+    }
+  };
+  window.refreshOffersFromNetwork = () => loadOffers({ forceRefresh: true });
 
   // widoczność listy wg granic + sortowanie wyników
   function filterOffersByBounds(filteredOffers = null) {
