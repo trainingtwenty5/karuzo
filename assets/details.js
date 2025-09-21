@@ -713,6 +713,10 @@ function openMapImageLightbox() {
   elements.mapImageLightboxPicture.alt = accessibleLabel;
   state.isLightboxOpen = true;
   prepareLightboxZoom();
+  if (elements.mapImageLightbox) {
+    const useLightTheme = state.currentMapMode === 'uzytkigruntowe';
+    elements.mapImageLightbox.classList.toggle('image-lightbox--light', useLightTheme);
+  }
   elements.mapImageLightbox.classList.remove('hidden');
   elements.mapImageLightbox.setAttribute('aria-hidden', 'false');
   document.body.classList.add('lightbox-open');
