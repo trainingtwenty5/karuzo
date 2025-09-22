@@ -58,7 +58,13 @@ const state = {
   lightboxReturnFocus: null,
   lightboxZoom: 1,
   lightboxBaseWidth: 0,
-  lightboxBaseHeight: 0
+  lightboxBaseHeight: 0,
+  lightboxPanPointerId: null,
+  lightboxPanStartX: 0,
+  lightboxPanStartY: 0,
+  lightboxPanScrollLeft: 0,
+  lightboxPanScrollTop: 0,
+  isLightboxPanning: false
 };
 
 const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
@@ -105,6 +111,7 @@ const elements = {
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
   mapImageLightbox: document.getElementById('mapImageLightbox'),
+  mapImageLightboxViewport: document.getElementById('mapImageLightboxViewport'),
   mapImageLightboxPicture: document.getElementById('mapImageLightboxPicture'),
   mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
   mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
@@ -135,6 +142,11 @@ elements.mapImageLightbox?.addEventListener('click', handleLightboxBackdropClick
 elements.mapImageLightboxZoomIn?.addEventListener('click', handleLightboxZoomIn);
 elements.mapImageLightboxZoomOut?.addEventListener('click', handleLightboxZoomOut);
 document.addEventListener('keydown', handleLightboxKeydown);
+elements.mapImageLightboxViewport?.addEventListener('pointerdown', handleLightboxPointerDown);
+elements.mapImageLightboxViewport?.addEventListener('pointermove', handleLightboxPointerMove);
+elements.mapImageLightboxViewport?.addEventListener('pointerup', handleLightboxPointerUp);
+elements.mapImageLightboxViewport?.addEventListener('pointercancel', handleLightboxPointerCancel);
+window.addEventListener('resize', handleLightboxViewportResize);
 
 updateZoomButtonsState();
 
@@ -1262,6 +1274,7 @@ function applyLightboxZoom() {
   const baseWidth = state.lightboxBaseWidth || elements.mapImageLightboxPicture.naturalWidth || elements.mapImageLightboxPicture.clientWidth;
   if (!baseWidth) {
     updateZoomButtonsState();
+    updateLightboxDraggableState();
     return;
   }
   const width = baseWidth * state.lightboxZoom;
@@ -1270,6 +1283,100 @@ function applyLightboxZoom() {
   elements.mapImageLightboxPicture.style.maxWidth = 'none';
   elements.mapImageLightboxPicture.style.maxHeight = 'none';
   updateZoomButtonsState();
+  updateLightboxDraggableState();
+}
+
+function updateLightboxDraggableState() {
+  const viewport = elements.mapImageLightboxViewport;
+  const picture = elements.mapImageLightboxPicture;
+  if (!viewport || !picture) return;
+
+  const canDrag = state.isLightboxOpen && (
+    (picture.scrollWidth - viewport.clientWidth) > 1 ||
+    (picture.scrollHeight - viewport.clientHeight) > 1
+  );
+
+  viewport.classList.toggle('is-draggable', canDrag);
+  if (!canDrag) {
+    cancelLightboxPan();
+  }
+}
+
+function cancelLightboxPan() {
+  const viewport = elements.mapImageLightboxViewport;
+  if (!viewport) return;
+
+  const pointerId = state.lightboxPanPointerId;
+  if (pointerId !== null && typeof viewport.releasePointerCapture === 'function') {
+    const canRelease = typeof viewport.hasPointerCapture !== 'function' || viewport.hasPointerCapture(pointerId);
+    if (canRelease) {
+      try {
+        viewport.releasePointerCapture(pointerId);
+      } catch (_) {
+        // ignore release errors
+      }
+    }
+  }
+
+  state.isLightboxPanning = false;
+  state.lightboxPanPointerId = null;
+  viewport.classList.remove('is-dragging');
+}
+
+function handleLightboxPointerDown(event) {
+  const viewport = elements.mapImageLightboxViewport;
+  if (!viewport || !state.isLightboxOpen || !event) return;
+  if (viewport.classList.contains('is-draggable') === false) return;
+  if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+  state.isLightboxPanning = true;
+  state.lightboxPanPointerId = event.pointerId;
+  state.lightboxPanStartX = event.clientX;
+  state.lightboxPanStartY = event.clientY;
+  state.lightboxPanScrollLeft = viewport.scrollLeft;
+  state.lightboxPanScrollTop = viewport.scrollTop;
+  viewport.classList.add('is-dragging');
+
+  if (typeof viewport.setPointerCapture === 'function') {
+    try {
+      viewport.setPointerCapture(event.pointerId);
+    } catch (_) {
+      // ignore capture errors
+    }
+  }
+
+  event.preventDefault();
+}
+
+function handleLightboxPointerMove(event) {
+  const viewport = elements.mapImageLightboxViewport;
+  if (!viewport || !state.isLightboxPanning || !event) return;
+  if (event.pointerId !== state.lightboxPanPointerId) return;
+
+  const deltaX = event.clientX - state.lightboxPanStartX;
+  const deltaY = event.clientY - state.lightboxPanStartY;
+  viewport.scrollLeft = state.lightboxPanScrollLeft - deltaX;
+  viewport.scrollTop = state.lightboxPanScrollTop - deltaY;
+
+  event.preventDefault();
+}
+
+function finishLightboxPointerInteraction(event) {
+  if (event && event.pointerId !== state.lightboxPanPointerId) return;
+  cancelLightboxPan();
+}
+
+function handleLightboxPointerUp(event) {
+  finishLightboxPointerInteraction(event);
+}
+
+function handleLightboxPointerCancel(event) {
+  finishLightboxPointerInteraction(event);
+}
+
+function handleLightboxViewportResize() {
+  if (!state.isLightboxOpen) return;
+  updateLightboxDraggableState();
 }
 
 function initializeLightboxZoom() {
@@ -1298,12 +1405,15 @@ function initializeLightboxZoom() {
 function prepareLightboxZoom() {
   if (!elements.mapImageLightboxPicture) {
     updateZoomButtonsState();
+    updateLightboxDraggableState();
     return;
   }
 
   const apply = () => {
     initializeLightboxZoom();
   };
+
+  updateLightboxDraggableState();
 
   if (elements.mapImageLightboxPicture.complete && elements.mapImageLightboxPicture.naturalWidth) {
     apply();
@@ -1343,6 +1453,7 @@ function handleLightboxZoomOut(event) {
 }
 
 function resetLightboxZoomState() {
+  cancelLightboxPan();
   state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
   state.lightboxBaseWidth = 0;
   state.lightboxBaseHeight = 0;
@@ -1353,6 +1464,7 @@ function resetLightboxZoomState() {
     elements.mapImageLightboxPicture.style.maxHeight = '';
   }
   updateZoomButtonsState();
+  updateLightboxDraggableState();
 }
 
 function updateZoomButtonsState() {
@@ -1389,6 +1501,7 @@ function openMapImageLightbox() {
   elements.mapImageLightboxPicture.alt = accessibleLabel;
   state.isLightboxOpen = true;
   prepareLightboxZoom();
+  updateLightboxDraggableState();
   elements.mapImageLightbox.classList.remove('hidden');
   elements.mapImageLightbox.setAttribute('aria-hidden', 'false');
   document.body.classList.add('lightbox-open');

@@ -281,6 +281,17 @@ main.property-wrapper {
   background: rgba(12, 13, 17, .35);
 }
 
+.image-lightbox__viewport.is-draggable,
+.image-lightbox__viewport.is-draggable .image-lightbox__picture {
+  cursor: grab;
+}
+
+.image-lightbox__viewport.is-dragging,
+.image-lightbox__viewport.is-dragging .image-lightbox__picture {
+  cursor: grabbing;
+  user-select: none;
+}
+
 .image-lightbox--light .image-lightbox__viewport {
   background: #fff;
   box-shadow: 0 20px 60px rgba(12, 13, 17, .15);
