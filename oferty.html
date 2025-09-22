@@ -1163,7 +1163,11 @@ window.showConfirmModal = showConfirmModal;
     getAuth, onAuthStateChanged, signOut,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification,
     GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-    setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+    setPersistence,
+    indexedDBLocalPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence,
+    inMemoryPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
     getFirestore, doc, setDoc, getDoc, updateDoc,
@@ -1186,9 +1190,29 @@ window.showConfirmModal = showConfirmModal;
   const db   = getFirestore(app);
   auth.languageCode = 'pl';
 
-  try { await setPersistence(auth, browserLocalPersistence); }
-  catch { try { await setPersistence(auth, browserSessionPersistence); }
-  catch { await setPersistence(auth, inMemoryPersistence); } }
+  const persistenceChain = [
+    ['indexedDB', indexedDBLocalPersistence],
+    ['localStorage', browserLocalPersistence],
+    ['session', browserSessionPersistence],
+    ['memory', inMemoryPersistence]
+  ];
+
+  let configured = false;
+  let lastError = null;
+  for (const [label, persistence] of persistenceChain) {
+    try {
+      await setPersistence(auth, persistence);
+      configured = true;
+      break;
+    } catch (error) {
+      lastError = error;
+      console.warn(`⚠️ Nie udało się ustawić persystencji Firebase (${label}).`, error);
+    }
+  }
+
+  if (!configured && lastError) {
+    console.error('❌ Wszystkie tryby persystencji Firebase nie powiodły się. Sesja może być niestabilna.', lastError);
+  }
 
   const REGISTER_PROMPT_KEY = 'grunteo.registerPrompt';
 

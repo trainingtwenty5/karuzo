@@ -11,6 +11,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   setPersistence,
+  indexedDBLocalPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
   inMemoryPersistence
@@ -37,14 +38,26 @@ const db = getFirestore(app);
 auth.languageCode = "pl";
 
 async function configurePersistence() {
-  try {
-    await setPersistence(auth, browserLocalPersistence);
-  } catch (error) {
+  const persistenceChain = [
+    ["indexedDB", indexedDBLocalPersistence],
+    ["localStorage", browserLocalPersistence],
+    ["session", browserSessionPersistence],
+    ["memory", inMemoryPersistence]
+  ];
+
+  let lastError = null;
+  for (const [label, persistence] of persistenceChain) {
     try {
-      await setPersistence(auth, browserSessionPersistence);
-    } catch (fallbackError) {
-      await setPersistence(auth, inMemoryPersistence);
+      await setPersistence(auth, persistence);
+      return;
+    } catch (error) {
+      lastError = error;
+      console.warn(`⚠️ Nie udało się ustawić persystencji Firebase (${label}).`, error);
     }
+  }
+
+  if (lastError) {
+    console.error("❌ Wszystkie tryby persystencji Firebase nie powiodły się. Sesja może być niestabilna.", lastError);
   }
 }
 
