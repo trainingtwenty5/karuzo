@@ -11,6 +11,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   setPersistence,
+  indexedDBLocalPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
   inMemoryPersistence
@@ -36,16 +37,23 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 auth.languageCode = "pl";
 
+const persistencePriority = [
+  { label: "indexedDB", value: indexedDBLocalPersistence },
+  { label: "local", value: browserLocalPersistence },
+  { label: "session", value: browserSessionPersistence },
+  { label: "memory", value: inMemoryPersistence }
+];
+
 async function configurePersistence() {
-  try {
-    await setPersistence(auth, browserLocalPersistence);
-  } catch (error) {
+  for (const option of persistencePriority) {
     try {
-      await setPersistence(auth, browserSessionPersistence);
-    } catch (fallbackError) {
-      await setPersistence(auth, inMemoryPersistence);
+      await setPersistence(auth, option.value);
+      return option.label;
+    } catch (error) {
+      console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
     }
   }
+  return null;
 }
 
 await configurePersistence();
