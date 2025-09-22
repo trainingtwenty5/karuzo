@@ -43,10 +43,18 @@
 
   <!-- Firebase SDK (APP, Firestore, Analytics, Auth) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
     import { getFirestore, collection, addDoc, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-    import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import {
+      initializeAuth,
+      getAuth,
+      setPersistence,
+      indexedDBLocalPersistence,
+      browserLocalPersistence,
+      browserSessionPersistence,
+      inMemoryPersistence
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
@@ -57,10 +65,65 @@
       appId: "1:829161895559:web:d832541aac05b35847ea22"
     };
 
-    const app = initializeApp(firebaseConfig);
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     getAnalytics(app);
     const db = getFirestore(app);
-    const auth = getAuth(app);
+
+    const globalScope = typeof window !== 'undefined' ? window : globalThis;
+    const persistenceState = globalScope.__firebaseAuthPersistence || { configured: false, label: null };
+    if (!globalScope.__firebaseAuthPersistence) {
+      globalScope.__firebaseAuthPersistence = persistenceState;
+    }
+
+    const persistenceOptions = [
+      { label: 'indexedDB', value: indexedDBLocalPersistence },
+      { label: 'local',     value: browserLocalPersistence },
+      { label: 'session',   value: browserSessionPersistence },
+      { label: 'memory',    value: inMemoryPersistence }
+    ];
+
+    const markPersistence = (label) => {
+      persistenceState.configured = true;
+      persistenceState.label = label;
+    };
+
+    function setupAuth() {
+      try {
+        const authInstance = initializeAuth(app, {
+          persistence: persistenceOptions.map((option) => option.value)
+        });
+        markPersistence(persistenceOptions[0].label);
+        return { auth: authInstance, skipPersistence: true };
+      } catch (error) {
+        if (error?.code !== 'auth/already-initialized') {
+          console.warn('[auth] initializeAuth nie powiodło się, używam getAuth().', error);
+        }
+        return {
+          auth: getAuth(app),
+          skipPersistence: persistenceState.configured
+        };
+      }
+    }
+
+    async function configurePersistence(authInstance, skipPersistence) {
+      if (skipPersistence) {
+        return persistenceState.label;
+      }
+      for (const option of persistenceOptions) {
+        try {
+          await setPersistence(authInstance, option.value);
+          markPersistence(option.label);
+          return option.label;
+        } catch (error) {
+          console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+        }
+      }
+      return null;
+    }
+
+    const { auth, skipPersistence } = setupAuth();
+    auth.languageCode = 'pl';
+    await configurePersistence(auth, skipPersistence);
 
     // Udostępniamy do zwykłych skryptów
     window.db = db;
@@ -252,19 +315,48 @@
         getAuth, onAuthStateChanged, signOut,
         signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
         GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-        setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+        setPersistence, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
       import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
       const auth = getAuth();
       const db = getFirestore();
 
-      async function useBestPersistence() {
-        try { await setPersistence(auth, browserLocalPersistence); }
-        catch { try { await setPersistence(auth, browserSessionPersistence); }
-          catch { await setPersistence(auth, inMemoryPersistence); } }
+      const globalScope = typeof window !== 'undefined' ? window : globalThis;
+      const persistenceState = globalScope.__firebaseAuthPersistence || { configured: false, label: null };
+      if (!globalScope.__firebaseAuthPersistence) {
+        globalScope.__firebaseAuthPersistence = persistenceState;
       }
-      await useBestPersistence();
+
+      const persistenceOptions = [
+        { label: 'indexedDB', value: indexedDBLocalPersistence },
+        { label: 'local',     value: browserLocalPersistence },
+        { label: 'session',   value: browserSessionPersistence },
+        { label: 'memory',    value: inMemoryPersistence }
+      ];
+
+      const markPersistence = (label) => {
+        persistenceState.configured = true;
+        persistenceState.label = label;
+      };
+
+      async function ensurePersistence(skipIfConfigured = true) {
+        if (skipIfConfigured && persistenceState.configured) {
+          return persistenceState.label;
+        }
+        for (const option of persistenceOptions) {
+          try {
+            await setPersistence(auth, option.value);
+            markPersistence(option.label);
+            return option.label;
+          } catch (error) {
+            console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+          }
+        }
+        return null;
+      }
+
+      await ensurePersistence();
 
       const googleProvider = new GoogleAuthProvider();
       googleProvider.setCustomParameters({ prompt: 'select_account' });

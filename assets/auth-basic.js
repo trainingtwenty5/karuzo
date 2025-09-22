@@ -1,5 +1,6 @@
 import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
+  initializeAuth,
   getAuth,
   onAuthStateChanged,
   signOut,
@@ -11,6 +12,7 @@ import {
   signInWithPopup,
   signInWithRedirect,
   setPersistence,
+  indexedDBLocalPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
   inMemoryPersistence
@@ -32,23 +34,66 @@ const firebaseConfig = {
 };
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
 const db = getFirestore(app);
-auth.languageCode = "pl";
 
-async function configurePersistence() {
+const globalScope = typeof window !== "undefined" ? window : globalThis;
+const persistenceState = globalScope.__firebaseAuthPersistence || {
+  configured: false,
+  label: null
+};
+if (!globalScope.__firebaseAuthPersistence) {
+  globalScope.__firebaseAuthPersistence = persistenceState;
+}
+
+const persistencePriority = [
+  { label: "indexedDB", value: indexedDBLocalPersistence },
+  { label: "local", value: browserLocalPersistence },
+  { label: "session", value: browserSessionPersistence },
+  { label: "memory", value: inMemoryPersistence }
+];
+
+function markPersistence(label) {
+  persistenceState.configured = true;
+  persistenceState.label = label;
+}
+
+function setupAuth() {
   try {
-    await setPersistence(auth, browserLocalPersistence);
+    const authInstance = initializeAuth(app, {
+      persistence: persistencePriority.map((option) => option.value)
+    });
+    markPersistence(persistencePriority[0].label);
+    return { auth: authInstance, skipPersistence: true };
   } catch (error) {
-    try {
-      await setPersistence(auth, browserSessionPersistence);
-    } catch (fallbackError) {
-      await setPersistence(auth, inMemoryPersistence);
+    if (error?.code !== "auth/already-initialized") {
+      console.warn("[auth] initializeAuth nie powiodło się, używam getAuth().", error);
     }
+    return {
+      auth: getAuth(app),
+      skipPersistence: persistenceState.configured
+    };
   }
 }
 
-await configurePersistence();
+async function configurePersistence(authInstance, skipPersistence) {
+  if (skipPersistence) {
+    return persistenceState.label;
+  }
+  for (const option of persistencePriority) {
+    try {
+      await setPersistence(authInstance, option.value);
+      markPersistence(option.label);
+      return option.label;
+    } catch (error) {
+      console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+    }
+  }
+  return null;
+}
+
+const { auth, skipPersistence } = setupAuth();
+auth.languageCode = "pl";
+await configurePersistence(auth, skipPersistence);
 
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: "select_account" });

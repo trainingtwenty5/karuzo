@@ -10,8 +10,14 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
+  initializeAuth,
   getAuth,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
@@ -23,17 +29,87 @@ const firebaseConfig = {
   appId: "1:829161895559:web:d832541aac05b35847ea22"
 };
 
+const persistencePriority = [
+  { label: "indexedDB", value: indexedDBLocalPersistence },
+  { label: "local", value: browserLocalPersistence },
+  { label: "session", value: browserSessionPersistence },
+  { label: "memory", value: inMemoryPersistence }
+];
+
+const globalScope = typeof window !== "undefined" ? window : globalThis;
+const persistenceState = globalScope.__firebaseAuthPersistence || {
+  configured: false,
+  label: null
+};
+if (!globalScope.__firebaseAuthPersistence) {
+  globalScope.__firebaseAuthPersistence = persistenceState;
+}
+
 let firebaseCache = null;
+let persistencePromise = null;
+
+function markPersistence(label) {
+  persistenceState.configured = true;
+  persistenceState.label = label;
+}
+
+function ensurePersistence(authInstance, skipPersistence) {
+  if (skipPersistence) {
+    if (!persistencePromise) {
+      persistencePromise = Promise.resolve(persistenceState.label);
+    }
+    return persistencePromise;
+  }
+  if (!persistencePromise) {
+    persistencePromise = (async () => {
+      for (const option of persistencePriority) {
+        try {
+          await setPersistence(authInstance, option.value);
+          markPersistence(option.label);
+          return option.label;
+        } catch (error) {
+          console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+        }
+      }
+      return null;
+    })();
+  }
+  return persistencePromise;
+}
+
+function setupAuth(app) {
+  try {
+    const authInstance = initializeAuth(app, {
+      persistence: persistencePriority.map((option) => option.value)
+    });
+    markPersistence(persistencePriority[0].label);
+    return { auth: authInstance, skipPersistence: true };
+  } catch (error) {
+    if (error?.code !== "auth/already-initialized") {
+      console.warn("[auth] initializeAuth nie powiodło się, używam getAuth().", error);
+    }
+    return {
+      auth: getAuth(app),
+      skipPersistence: persistenceState.configured
+    };
+  }
+}
 
 export function initFirebase() {
   if (firebaseCache) {
     return firebaseCache;
   }
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const { auth, skipPersistence } = setupAuth(app);
   const db = getFirestore(app);
-  const auth = getAuth(app);
   firebaseCache = { app, db, auth };
+  ensurePersistence(auth, skipPersistence);
   return firebaseCache;
+}
+
+export function authPersistenceReady() {
+  initFirebase();
+  return ensurePersistence(firebaseCache.auth, true);
 }
 
 export { doc, getDoc, updateDoc, serverTimestamp, setDoc, onAuthStateChanged, collection, getDocs };

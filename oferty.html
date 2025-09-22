@@ -1341,10 +1341,11 @@ window.showConfirmModal = showConfirmModal;
 <script type="module">
   import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import {
+    initializeAuth,
     getAuth, onAuthStateChanged, signOut,
     signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendEmailVerification,
     GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-    setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+    setPersistence, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
     getFirestore, doc, setDoc, getDoc, updateDoc,
@@ -1363,13 +1364,63 @@ window.showConfirmModal = showConfirmModal;
 
   // --- INIT ---
   const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  const auth = getAuth(app);
   const db   = getFirestore(app);
-  auth.languageCode = 'pl';
 
-  try { await setPersistence(auth, browserLocalPersistence); }
-  catch { try { await setPersistence(auth, browserSessionPersistence); }
-  catch { await setPersistence(auth, inMemoryPersistence); } }
+  const globalScope = typeof window !== 'undefined' ? window : globalThis;
+  const persistenceState = globalScope.__firebaseAuthPersistence || { configured: false, label: null };
+  if (!globalScope.__firebaseAuthPersistence) {
+    globalScope.__firebaseAuthPersistence = persistenceState;
+  }
+
+  const persistenceOptions = [
+    { label: 'indexedDB', value: indexedDBLocalPersistence },
+    { label: 'local',     value: browserLocalPersistence },
+    { label: 'session',   value: browserSessionPersistence },
+    { label: 'memory',    value: inMemoryPersistence }
+  ];
+
+  const markPersistence = (label) => {
+    persistenceState.configured = true;
+    persistenceState.label = label;
+  };
+
+  function setupAuth() {
+    try {
+      const authInstance = initializeAuth(app, {
+        persistence: persistenceOptions.map((option) => option.value)
+      });
+      markPersistence(persistenceOptions[0].label);
+      return { auth: authInstance, skipPersistence: true };
+    } catch (error) {
+      if (error?.code !== 'auth/already-initialized') {
+        console.warn('[auth] initializeAuth nie powiodło się, używam getAuth().', error);
+      }
+      return {
+        auth: getAuth(app),
+        skipPersistence: persistenceState.configured
+      };
+    }
+  }
+
+  async function configurePersistence(authInstance, skipPersistence) {
+    if (skipPersistence) {
+      return persistenceState.label;
+    }
+    for (const option of persistenceOptions) {
+      try {
+        await setPersistence(authInstance, option.value);
+        markPersistence(option.label);
+        return option.label;
+      } catch (error) {
+        console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+      }
+    }
+    return null;
+  }
+
+  const { auth, skipPersistence } = setupAuth();
+  auth.languageCode = 'pl';
+  await configurePersistence(auth, skipPersistence);
 
   const REGISTER_PROMPT_KEY = 'grunteo.registerPrompt';
 
