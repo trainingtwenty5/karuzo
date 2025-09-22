@@ -252,18 +252,32 @@
         getAuth, onAuthStateChanged, signOut,
         signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile,
         GoogleAuthProvider, signInWithPopup, signInWithRedirect,
-        setPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
+        setPersistence, indexedDBLocalPersistence, browserLocalPersistence, browserSessionPersistence, inMemoryPersistence
       } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
       import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
       const auth = getAuth();
       const db = getFirestore();
 
+      const persistenceOptions = [
+        { label: 'indexedDB', value: indexedDBLocalPersistence },
+        { label: 'local',     value: browserLocalPersistence },
+        { label: 'session',   value: browserSessionPersistence },
+        { label: 'memory',    value: inMemoryPersistence }
+      ];
+
       async function useBestPersistence() {
-        try { await setPersistence(auth, browserLocalPersistence); }
-        catch { try { await setPersistence(auth, browserSessionPersistence); }
-          catch { await setPersistence(auth, inMemoryPersistence); } }
+        for (const option of persistenceOptions) {
+          try {
+            await setPersistence(auth, option.value);
+            return option.label;
+          } catch (error) {
+            console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+          }
+        }
+        return null;
       }
+
       await useBestPersistence();
 
       const googleProvider = new GoogleAuthProvider();

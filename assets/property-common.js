@@ -10,8 +10,14 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
+  initializeAuth,
   getAuth,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  inMemoryPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
@@ -23,15 +29,49 @@ const firebaseConfig = {
   appId: "1:829161895559:web:d832541aac05b35847ea22"
 };
 
+const persistencePriority = [
+  { label: "indexedDB", value: indexedDBLocalPersistence },
+  { label: "local", value: browserLocalPersistence },
+  { label: "session", value: browserSessionPersistence },
+  { label: "memory", value: inMemoryPersistence }
+];
+
 let firebaseCache = null;
+let persistenceConfigured = false;
+
+function configureAuthPersistence(auth) {
+  if (persistenceConfigured) {
+    return;
+  }
+  persistenceConfigured = true;
+  (async () => {
+    for (const option of persistencePriority) {
+      try {
+        await setPersistence(auth, option.value);
+        return;
+      } catch (error) {
+        console.warn(`[auth] Nie udało się ustawić persystencji ${option.label}.`, error);
+      }
+    }
+  })();
+}
 
 export function initFirebase() {
   if (firebaseCache) {
     return firebaseCache;
   }
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  let auth;
+  try {
+    auth = initializeAuth(app, {
+      persistence: persistencePriority.map((option) => option.value)
+    });
+    persistenceConfigured = true;
+  } catch (error) {
+    auth = getAuth(app);
+    configureAuthPersistence(auth);
+  }
   const db = getFirestore(app);
-  const auth = getAuth(app);
   firebaseCache = { app, db, auth };
   return firebaseCache;
 }
