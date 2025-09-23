@@ -385,12 +385,48 @@
         window.location.href = 'index.html#userDashboard';
       });
 
+      const niceAuthError = (err) => {
+        const code = err?.code || '';
+        switch (code) {
+          case 'auth/invalid-email':
+            return 'Nieprawidłowy adres e-mail.';
+          case 'auth/missing-password':
+            return 'Podaj hasło.';
+          case 'auth/invalid-credential':
+            return 'Nieprawidłowy e-mail lub hasło.';
+          case 'auth/user-not-found':
+            return 'Użytkownik nie istnieje.';
+          case 'auth/wrong-password':
+            return 'Błędne hasło.';
+          case 'auth/too-many-requests':
+            return 'Za dużo prób. Spróbuj ponownie później.';
+          case 'auth/unauthorized-domain':
+            return `Domena ${location.hostname} nie jest autoryzowana w Firebase (Authentication → Authorized domains).`;
+          case 'auth/network-request-failed':
+            return 'Błąd sieci. Sprawdź połączenie z internetem.';
+          case 'auth/popup-closed-by-user':
+            return 'Zamykanie okna logowania przerwało proces.';
+          case 'auth/cancelled-popup-request':
+            return 'Logowanie zostało przerwane przez inne żądanie. Spróbuj ponownie.';
+          case 'auth/popup-blocked':
+            return 'Przeglądarka zablokowała okno logowania Google. Użyj przekierowania.';
+          case 'auth/operation-not-supported-in-this-environment':
+            return 'To środowisko nie wspiera tego typu logowania (np. file://). Uruchom stronę przez https.';
+          default:
+            return `Błąd: ${code || err?.message || 'nieznany'}`;
+        }
+      };
+
       loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('loginEmail').value.trim();
         const pass  = document.getElementById('loginPassword').value;
-        try { await signInWithEmailAndPassword(auth, email, pass); }
-        catch (err) { alert(err.message); }
+        try {
+          await signInWithEmailAndPassword(auth, email, pass);
+        } catch (err) {
+          console.error('[login]', err);
+          showToast(niceAuthError(err), 'error');
+        }
       });
 
       registerForm?.addEventListener('submit', async (e) => {
@@ -399,19 +435,26 @@
         const email = document.getElementById('registerEmail').value.trim();
         const pass1 = document.getElementById('registerPassword').value;
         const pass2 = document.getElementById('registerConfirmPassword').value;
-        if (pass1 !== pass2) return alert('Hasła nie są identyczne!');
+        if (pass1 !== pass2) {
+          showToast('Hasła nie są identyczne!', 'error');
+          return;
+        }
         try {
           const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
           if (name) await updateProfile(user, { displayName: name });
           await setDoc(doc(db, 'users', user.uid), { name: name || null, email }, { merge: true });
         } catch (err) {
-          alert(err.message);
+          console.error('[register]', err);
+          showToast(niceAuthError(err), 'error');
         }
       });
 
       async function signInWithGoogleSmart() {
         const ok = location.protocol === 'https:';
-        if (!ok) return alert('Uruchom stronę przez https (nie file://).');
+        if (!ok) {
+          showToast('Uruchom stronę przez https (nie file://).', 'error');
+          return;
+        }
         try {
           await signInWithPopup(auth, googleProvider);
           closeModal(loginModal); closeModal(registerModal);
@@ -421,7 +464,8 @@
           if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
             await signInWithRedirect(auth, googleProvider);
           } else {
-            alert(err.message);
+            console.error('[google]', err);
+            showToast(niceAuthError(err), 'error');
           }
         }
       }
