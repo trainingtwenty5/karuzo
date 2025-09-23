@@ -576,6 +576,11 @@ window.showConfirmModal = showConfirmModal;
           .filter(Boolean)
       : [];
 
+    if (!sanitizedDocuments.length) {
+      clearOffersCache();
+      return null;
+    }
+
     const sanitizedPayload = {
       ...parsed,
       documents: sanitizedDocuments
@@ -605,6 +610,11 @@ window.showConfirmModal = showConfirmModal;
             .map(sanitizeDocumentForCache)
             .filter(Boolean)
         : [];
+
+      if (!safeDocuments.length) {
+        clearOffersCache();
+        return;
+      }
 
       const now = Date.now();
       const ttl = Number(settings?.ttlMs);
