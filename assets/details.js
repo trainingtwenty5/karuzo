@@ -25,7 +25,9 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  updateProfile,
+  sendEmailVerification
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
 const state = {
@@ -1582,9 +1584,41 @@ async function performLogout() {
 }
 
 function setupAuthUI() {
-  const { auth } = initFirebase();
+  const { auth, db } = initFirebase();
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
+
+  const niceAuthError = (error) => {
+    const code = error?.code || '';
+    switch (code) {
+      case 'auth/invalid-email':
+        return 'Nieprawidłowy adres e-mail.';
+      case 'auth/missing-password':
+        return 'Podaj hasło.';
+      case 'auth/invalid-credential':
+        return 'Nieprawidłowy e-mail lub hasło.';
+      case 'auth/user-not-found':
+        return 'Użytkownik nie istnieje.';
+      case 'auth/wrong-password':
+        return 'Błędne hasło.';
+      case 'auth/too-many-requests':
+        return 'Za dużo prób. Spróbuj ponownie później.';
+      case 'auth/unauthorized-domain':
+        return `Domena ${location.hostname} nie jest autoryzowana w Firebase (Authentication → Authorized domains).`;
+      case 'auth/network-request-failed':
+        return 'Błąd sieci. Sprawdź połączenie z internetem.';
+      case 'auth/popup-closed-by-user':
+        return 'Zamykanie okna logowania przerwało proces.';
+      case 'auth/cancelled-popup-request':
+        return 'Logowanie zostało przerwane przez inne żądanie. Spróbuj ponownie.';
+      case 'auth/popup-blocked':
+        return 'Przeglądarka zablokowała okno logowania Google. Użyj przekierowania.';
+      case 'auth/operation-not-supported-in-this-environment':
+        return 'To środowisko nie wspiera tego typu logowania (np. file://). Uruchom stronę przez https.';
+      default:
+        return `Błąd: ${code || error?.message || 'nieznany'}`;
+    }
+  };
 
   if (elements.loginBtn) {
     elements.loginBtn.addEventListener('click', () => openModal(elements.loginModal));
@@ -1615,8 +1649,12 @@ function setupAuthUI() {
 
   elements.loginForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const email = event.target.loginEmail?.value?.trim();
-    const password = event.target.loginPassword?.value;
+    const form = event.target;
+    const email = form.loginEmail?.value?.trim();
+    const password = form.loginPassword?.value;
+    if (form.loginEmail && typeof email === 'string') {
+      form.loginEmail.value = email;
+    }
     if (!email || !password) {
       showToast('Podaj adres email i hasło.', 'warning');
       return;
@@ -1625,27 +1663,81 @@ function setupAuthUI() {
       await signInWithEmailAndPassword(auth, email, password);
       showToast('Zalogowano pomyślnie.', 'success');
       closeModal(elements.loginModal);
-      event.target.reset();
+      form.reset();
     } catch (error) {
-      showToast('Nie udało się zalogować: ' + (error.message || ''), 'error');
+      console.error('[login]', error);
+      showToast(niceAuthError(error), 'error');
     }
   });
 
   elements.registerForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const email = event.target.registerEmail?.value?.trim();
-    const password = event.target.registerPassword?.value;
+    const form = event.target;
+    const nameRaw = form.registerName?.value ?? '';
+    const name = typeof nameRaw === 'string' ? nameRaw.trim() : '';
+    const email = form.registerEmail?.value?.trim();
+    const password = form.registerPassword?.value;
+    const confirmPassword = form.registerConfirmPassword?.value;
+
+    if (form.registerName && typeof name === 'string') {
+      form.registerName.value = name;
+    }
+    if (form.registerEmail && typeof email === 'string') {
+      form.registerEmail.value = email;
+    }
+
+    if (!name) {
+      showToast('Podaj imię i nazwisko.', 'warning');
+      form.registerName?.focus();
+      return;
+    }
     if (!email || !password) {
       showToast('Podaj adres email i hasło.', 'warning');
       return;
     }
+    if (password !== confirmPassword) {
+      showToast('Hasła nie są identyczne!', 'error');
+      return;
+    }
+
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      showToast('Konto zostało utworzone.', 'success');
+      const { user } = await createUserWithEmailAndPassword(auth, email, password);
+      try {
+        if (name) {
+          await updateProfile(user, { displayName: name });
+        }
+      } catch (profileError) {
+        console.warn('[register][profile]', profileError);
+      }
+
+      try {
+        await setDoc(doc(db, 'users', user.uid), {
+          name: name || null,
+          email,
+          createdAt: new Date(),
+          provider: 'password'
+        }, { merge: true });
+      } catch (firestoreError) {
+        console.error('[register][setDoc]', firestoreError);
+      }
+
+      let message = 'Konto zostało utworzone.';
+      let type = 'success';
+      try {
+        await sendEmailVerification(user);
+        message = 'Konto zostało utworzone. Sprawdź skrzynkę pocztową, aby potwierdzić adres e-mail.';
+      } catch (verificationError) {
+        console.error('[register][verification]', verificationError);
+        message = 'Konto zostało utworzone, ale nie udało się wysłać wiadomości weryfikacyjnej.';
+        type = 'warning';
+      }
+
+      showToast(message, type);
       closeModal(elements.registerModal);
-      event.target.reset();
+      form.reset();
     } catch (error) {
-      showToast('Nie udało się utworzyć konta: ' + (error.message || ''), 'error');
+      console.error('[register]', error);
+      showToast(niceAuthError(error), 'error');
     }
   });
 
@@ -1656,7 +1748,8 @@ function setupAuthUI() {
       closeModal(elements.loginModal);
       closeModal(elements.registerModal);
     } catch (error) {
-      showToast('Nie udało się zalogować przez Google.', 'error');
+      console.error('[google]', error);
+      showToast(niceAuthError(error), 'error');
     }
   };
 

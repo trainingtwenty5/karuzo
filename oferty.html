@@ -1558,7 +1558,7 @@ window.showConfirmModal = showConfirmModal;
       await signInWithEmailAndPassword(auth, email, pass);
     } catch (err) {
       console.error('[login]', err);
-      alert(niceAuthError(err));
+      showToast(niceAuthError(err), 'error');
     }
   });
 
@@ -1568,7 +1568,10 @@ window.showConfirmModal = showConfirmModal;
     const email = document.getElementById('registerEmail').value.trim();
     const pass1 = document.getElementById('registerPassword').value;
     const pass2 = document.getElementById('registerConfirmPassword').value;
-    if (pass1 !== pass2) return alert('Hasła nie są identyczne!');
+    if (pass1 !== pass2) {
+      showToast('Hasła nie są identyczne!', 'error');
+      return;
+    }
     try {
       const { user } = await createUserWithEmailAndPassword(auth, email, pass1);
       if (name) await updateProfile(user, { displayName: name });
@@ -1592,14 +1595,17 @@ window.showConfirmModal = showConfirmModal;
       }
     } catch (err) {
       console.error('[register]', err);
-      alert(niceAuthError(err));
+      showToast(niceAuthError(err), 'error');
     }
   });
 
   // --- Google ---
   async function signInWithGoogleSmart() {
     const isHttps = location.protocol === 'https:';
-    if (!isHttps) return alert('Uruchom stronę przez https (nie file://).');
+    if (!isHttps) {
+      showToast('Uruchom stronę przez https (nie file://).', 'error');
+      return;
+    }
     try {
       await signInWithPopup(auth, googleProvider);
       closeModal(loginModal); closeModal(registerModal);
@@ -1610,7 +1616,7 @@ window.showConfirmModal = showConfirmModal;
       if (err?.code === 'auth/popup-blocked' || err?.code === 'auth/operation-not-supported-in-this-environment') {
         await signInWithRedirect(auth, googleProvider);
       } else {
-        alert(niceAuthError(err));
+        showToast(niceAuthError(err), 'error');
       }
     }
   }
