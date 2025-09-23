@@ -512,10 +512,32 @@ window.showConfirmModal = showConfirmModal;
 
     try {
       const safeDocuments = Array.isArray(documents)
-        ? documents.map(doc => ({
-            id: doc?.id || null,
-            data: JSON.parse(JSON.stringify(doc?.data ?? {}))
-          }))
+        ? documents
+            .map(doc => {
+              const clonedData = JSON.parse(JSON.stringify(doc?.data ?? {}));
+              if (clonedData && typeof clonedData === 'object') {
+                const plots = Array.isArray(clonedData.plots)
+                  ? clonedData.plots.filter(plot => plot?.mock !== false)
+                  : null;
+
+                if (plots) {
+                  if (plots.length) {
+                    clonedData.plots = plots;
+                  } else {
+                    delete clonedData.plots;
+                  }
+                }
+              }
+
+              return {
+                id: doc?.id || null,
+                data: clonedData
+              };
+            })
+            .filter(entry => {
+              const plots = entry?.data?.plots;
+              return !Array.isArray(plots) || plots.length > 0;
+            })
         : [];
 
       const now = Date.now();
