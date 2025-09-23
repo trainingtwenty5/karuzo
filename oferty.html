@@ -432,7 +432,6 @@ window.showConfirmModal = showConfirmModal;
   const OFFERS_CACHE_KEY = typeof window !== 'undefined' && window.__OFFERS_CACHE_KEY__
     ? window.__OFFERS_CACHE_KEY__
     : 'grunteo::offers-cache::v1';
-  const DEFAULT_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
   function resolveOffersCacheSettings() {
     const revision = typeof window.__OFFERS_REVISION_HINT__ === 'string'
@@ -441,7 +440,7 @@ window.showConfirmModal = showConfirmModal;
     const ttlCandidate = Number(window.__OFFERS_CACHE_TTL_MS__);
     const ttlMs = Number.isFinite(ttlCandidate) && ttlCandidate > 0
       ? ttlCandidate
-      : DEFAULT_CACHE_TTL_MS;
+      : null; // brak ustawienia TTL wyłącza cache, jeśli config nie został załadowany
     return {
       revisionHint: revision || null,
       ttlMs
