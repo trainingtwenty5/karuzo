@@ -433,6 +433,74 @@ window.showConfirmModal = showConfirmModal;
     ? window.__OFFERS_CACHE_KEY__
     : 'grunteo::offers-cache::v1';
 
+  function isMockEnabled(rawValue) {
+    if (rawValue === true) return true;
+    if (rawValue === false) return false;
+
+    if (typeof rawValue === 'string') {
+      const normalized = rawValue.trim().toLowerCase();
+      if (!normalized) {
+        return false;
+      }
+      if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'tak') {
+        return true;
+      }
+      if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'nie') {
+        return false;
+      }
+    }
+
+    if (typeof rawValue === 'number') {
+      if (rawValue === 1) return true;
+      if (rawValue === 0) return false;
+    }
+
+    return false;
+  }
+
+  if (typeof window !== 'undefined') {
+    window.isMockEnabled = isMockEnabled;
+  }
+
+  function sanitizeDocumentForCache(doc) {
+    if (!doc || typeof doc !== 'object') {
+      return null;
+    }
+
+    let clonedData;
+    try {
+      clonedData = JSON.parse(JSON.stringify(doc?.data ?? {}));
+    } catch (error) {
+      console.warn('Nie udało się sklonować danych oferty do cache.', error);
+      return null;
+    }
+
+    if (!clonedData || typeof clonedData !== 'object') {
+      return null;
+    }
+
+    delete clonedData.userEmail;
+    delete clonedData.userUid;
+
+    if (Array.isArray(clonedData.plots)) {
+      const filteredPlots = clonedData.plots.filter(plot => isMockEnabled(plot?.mock));
+      if (filteredPlots.length) {
+        clonedData.plots = filteredPlots;
+      } else {
+        delete clonedData.plots;
+      }
+    }
+
+    if (!Array.isArray(clonedData.plots) || !clonedData.plots.length) {
+      return null;
+    }
+
+    return {
+      id: doc?.id || null,
+      data: clonedData
+    };
+  }
+
   function resolveOffersCacheSettings() {
     const revision = typeof window.__OFFERS_REVISION_HINT__ === 'string'
       ? window.__OFFERS_REVISION_HINT__.trim()
@@ -502,7 +570,28 @@ window.showConfirmModal = showConfirmModal;
       return null;
     }
 
-    return parsed;
+    const sanitizedDocuments = Array.isArray(parsed.documents)
+      ? parsed.documents
+          .map(sanitizeDocumentForCache)
+          .filter(Boolean)
+      : [];
+
+    const sanitizedPayload = {
+      ...parsed,
+      documents: sanitizedDocuments
+    };
+
+    try {
+      const originalSerialized = JSON.stringify(parsed.documents ?? []);
+      const sanitizedSerialized = JSON.stringify(sanitizedDocuments);
+      if (originalSerialized !== sanitizedSerialized) {
+        window.localStorage.setItem(OFFERS_CACHE_KEY, JSON.stringify(sanitizedPayload));
+      }
+    } catch (error) {
+      console.warn('Nie udało się zaktualizować cache ofert podczas sanitizacji:', error);
+    }
+
+    return sanitizedPayload;
   }
 
   function writeOffersCache(documents, settings) {
@@ -512,10 +601,9 @@ window.showConfirmModal = showConfirmModal;
 
     try {
       const safeDocuments = Array.isArray(documents)
-        ? documents.map(doc => ({
-            id: doc?.id || null,
-            data: JSON.parse(JSON.stringify(doc?.data ?? {}))
-          }))
+        ? documents
+            .map(sanitizeDocumentForCache)
+            .filter(Boolean)
         : [];
 
       const now = Date.now();
@@ -563,7 +651,7 @@ window.showConfirmModal = showConfirmModal;
       if (!data || !Array.isArray(data.plots) || !data.plots.length) return;
 
       data.plots.forEach((plot, index) => {
-        if (!plot || plot.mock === false) {
+        if (!plot || !isMockEnabled(plot.mock)) {
           return;
         }
 
@@ -1714,7 +1802,12 @@ async function loadUserOffers(email, uid) {
 
       const activePlots = offer.plots
         .map((plot, originalIndex) => ({ plot, originalIndex }))
-        .filter(({ plot }) => plot?.mock !== false);
+        .filter(({ plot }) => {
+          if (typeof window !== 'undefined' && typeof window.isMockEnabled === 'function') {
+            return window.isMockEnabled(plot?.mock);
+          }
+          return plot && plot.mock === true;
+        });
 
       activePlots.forEach(({ plot, originalIndex }, i) => {
         const price = Number(plot.price || 0);
