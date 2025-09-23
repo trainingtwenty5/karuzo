@@ -433,6 +433,8 @@ window.showConfirmModal = showConfirmModal;
     ? window.__OFFERS_CACHE_KEY__
     : 'grunteo::offers-cache::v1';
 
+  const OFFERS_CACHE_SENSITIVE_FIELDS = ['userEmail', 'userUid'];
+
   function resolveOffersCacheSettings() {
     const revision = typeof window.__OFFERS_REVISION_HINT__ === 'string'
       ? window.__OFFERS_REVISION_HINT__.trim()
@@ -453,6 +455,91 @@ window.showConfirmModal = showConfirmModal;
     } catch (_) {
       /* ignore */
     }
+  }
+
+  function cloneForCache(value) {
+    try {
+      return JSON.parse(JSON.stringify(value ?? null));
+    } catch (error) {
+      console.warn('Nie udało się sklonować danych oferty do cache:', error);
+      return null;
+    }
+  }
+
+  function getActivePlotEntries(rawPlots) {
+    if (!Array.isArray(rawPlots)) return [];
+    const result = [];
+    rawPlots.forEach((plot, index) => {
+      if (!plot || typeof plot !== 'object') return;
+      if (plot.mock === false) return;
+
+      const normalizedPlot = { ...plot };
+      if (typeof normalizedPlot.mock === 'undefined') {
+        normalizedPlot.mock = true;
+      }
+
+      const storedIndex = Number.isInteger(plot.__originalIndex)
+        ? plot.__originalIndex
+        : Number.isInteger(normalizedPlot.__originalIndex)
+          ? normalizedPlot.__originalIndex
+          : index;
+
+      delete normalizedPlot.__originalIndex;
+
+      result.push({
+        plot: normalizedPlot,
+        originalIndex: storedIndex
+      });
+    });
+    return result;
+  }
+
+  function preparePlotsForCache(rawPlots) {
+    return getActivePlotEntries(rawPlots)
+      .map(({ plot, originalIndex }) => {
+        const safePlot = cloneForCache(plot) || { ...plot };
+        if (!safePlot || typeof safePlot !== 'object') {
+          return null;
+        }
+        if (typeof safePlot.mock === 'undefined') {
+          safePlot.mock = true;
+        }
+        safePlot.__originalIndex = originalIndex;
+        return safePlot;
+      })
+      .filter(Boolean);
+  }
+
+  function sanitizeOfferDocumentForCache(doc) {
+    if (!doc || typeof doc !== 'object') return null;
+
+    const id = doc?.id || null;
+    const rawData = doc?.data || {};
+    const clonedData = cloneForCache(rawData) || { ...rawData };
+    if (!clonedData || typeof clonedData !== 'object') {
+      return null;
+    }
+    if (clonedData.mock === false) {
+      return null;
+    }
+
+    OFFERS_CACHE_SENSITIVE_FIELDS.forEach((field) => {
+      if (field in clonedData) {
+        delete clonedData[field];
+      }
+    });
+
+    const normalizedPlots = preparePlotsForCache(clonedData.plots);
+    if (!normalizedPlots.length) {
+      return null;
+    }
+
+    clonedData.plots = normalizedPlots;
+
+    return {
+      id,
+      data: clonedData
+    };
   }
 
   function readOffersCache(settings, { allowExpired = false } = {}) {
@@ -502,7 +589,24 @@ window.showConfirmModal = showConfirmModal;
       return null;
     }
 
-    return parsed;
+    const sanitizedDocuments = Array.isArray(parsed.documents)
+      ? parsed.documents
+          .map(sanitizeOfferDocumentForCache)
+          .filter(Boolean)
+      : [];
+
+    const sanitizedPayload = {
+      ...parsed,
+      documents: sanitizedDocuments
+    };
+
+    try {
+      window.localStorage.setItem(OFFERS_CACHE_KEY, JSON.stringify(sanitizedPayload));
+    } catch (_) {
+      /* ignore */
+    }
+
+    return sanitizedPayload;
   }
 
   function writeOffersCache(documents, settings) {
@@ -513,31 +617,8 @@ window.showConfirmModal = showConfirmModal;
     try {
       const safeDocuments = Array.isArray(documents)
         ? documents
-            .map(doc => {
-              const clonedData = JSON.parse(JSON.stringify(doc?.data ?? {}));
-              if (clonedData && typeof clonedData === 'object') {
-                const plots = Array.isArray(clonedData.plots)
-                  ? clonedData.plots.filter(plot => plot?.mock !== false)
-                  : null;
-
-                if (plots) {
-                  if (plots.length) {
-                    clonedData.plots = plots;
-                  } else {
-                    delete clonedData.plots;
-                  }
-                }
-              }
-
-              return {
-                id: doc?.id || null,
-                data: clonedData
-              };
-            })
-            .filter(entry => {
-              const plots = entry?.data?.plots;
-              return !Array.isArray(plots) || plots.length > 0;
-            })
+            .map(sanitizeOfferDocumentForCache)
+            .filter(Boolean)
         : [];
 
       const now = Date.now();
@@ -582,12 +663,10 @@ window.showConfirmModal = showConfirmModal;
     documents.forEach(entry => {
       const offerId = entry?.id || null;
       const data = entry?.data || {};
-      if (!data || !Array.isArray(data.plots) || !data.plots.length) return;
+      const activePlots = getActivePlotEntries(data.plots);
+      if (!activePlots.length) return;
 
-      data.plots.forEach((plot, index) => {
-        if (!plot || plot.mock === false) {
-          return;
-        }
+      activePlots.forEach(({ plot, originalIndex }) => {
 
         const lat = plot.lat;
         const lng = plot.lng;
@@ -607,7 +686,7 @@ window.showConfirmModal = showConfirmModal;
           if (map && typeof marker.getPosition === 'function') {
             panMapTo(marker.getPosition(), 17);
           }
-          openInfo(marker, infoHTML(plot, data, offerId, index));
+          openInfo(marker, infoHTML(plot, data, offerId, originalIndex));
         });
 
         let polygon = null;
@@ -629,17 +708,17 @@ window.showConfirmModal = showConfirmModal;
               if (map && position) {
                 panMapTo(position, 17);
               }
-              openInfo(position, infoHTML(plot, data, offerId, index));
+              openInfo(position, infoHTML(plot, data, offerId, originalIndex));
             });
           }
         }
 
         const hydratedEntry = {
           id: offerId,
-          key: `${offerId || 'unknown'}__${index}`,
+          key: `${offerId || 'unknown'}__${originalIndex}`,
           data,
           plot,
-          index,
+          index: originalIndex,
           marker,
           polygon,
           tags: uniquePlotTags
@@ -1732,11 +1811,8 @@ async function loadUserOffers(email, uid) {
     Array.from(results.values()).forEach((docu) => {
       const offer  = docu.data();
       const offerId = docu.id;
-      if (!Array.isArray(offer.plots) || offer.plots.length === 0) return;
-
-      const activePlots = offer.plots
-        .map((plot, originalIndex) => ({ plot, originalIndex }))
-        .filter(({ plot }) => plot?.mock !== false);
+      const activePlots = getActivePlotEntries(offer.plots);
+      if (!activePlots.length) return;
 
       activePlots.forEach(({ plot, originalIndex }, i) => {
         const price = Number(plot.price || 0);
