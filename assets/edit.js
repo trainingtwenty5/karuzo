@@ -61,6 +61,15 @@ const state = {
   lightboxBaseHeight: 0
 };
 
+const lightboxDragState = {
+  active: false,
+  pointerId: null,
+  startX: 0,
+  startY: 0,
+  scrollLeft: 0,
+  scrollTop: 0
+};
+
 const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
 
 const elements = {
@@ -105,10 +114,12 @@ const elements = {
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
   mapImageLightbox: document.getElementById('mapImageLightbox'),
+  mapImageLightboxViewport: document.getElementById('mapImageLightboxViewport'),
   mapImageLightboxPicture: document.getElementById('mapImageLightboxPicture'),
   mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
   mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
   mapImageLightboxZoomOut: document.getElementById('mapImageLightboxZoomOut'),
+  mapImageLightboxOpenOriginal: document.getElementById('mapImageLightboxOpenOriginal'),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
   loginBtn: document.getElementById('loginBtn'),
@@ -134,7 +145,15 @@ elements.mapImageLightboxClose?.addEventListener('click', closeMapImageLightbox)
 elements.mapImageLightbox?.addEventListener('click', handleLightboxBackdropClick);
 elements.mapImageLightboxZoomIn?.addEventListener('click', handleLightboxZoomIn);
 elements.mapImageLightboxZoomOut?.addEventListener('click', handleLightboxZoomOut);
+elements.mapImageLightboxOpenOriginal?.addEventListener('click', handleLightboxOpenOriginal);
+elements.mapImageLightboxViewport?.addEventListener('pointerdown', handleLightboxViewportPointerDown);
+elements.mapImageLightboxViewport?.addEventListener('pointermove', handleLightboxViewportPointerMove);
+elements.mapImageLightboxViewport?.addEventListener('pointerup', handleLightboxViewportPointerUp);
+elements.mapImageLightboxViewport?.addEventListener('pointerleave', handleLightboxViewportPointerUp);
+elements.mapImageLightboxViewport?.addEventListener('pointercancel', handleLightboxViewportPointerCancel);
+elements.mapImageLightboxViewport?.addEventListener('lostpointercapture', handleLightboxViewportPointerCancel);
 document.addEventListener('keydown', handleLightboxKeydown);
+window.addEventListener('resize', handleLightboxWindowResize);
 
 updateZoomButtonsState();
 
@@ -1257,10 +1276,51 @@ function computeLightboxBaseSize() {
   };
 }
 
+function getLightboxViewport() {
+  return elements.mapImageLightboxViewport || null;
+}
+
+function resetLightboxDragState(pointerId) {
+  const viewport = getLightboxViewport();
+  const activePointerId = typeof pointerId === 'number' ? pointerId : lightboxDragState.pointerId;
+  if (viewport && typeof activePointerId === 'number' && viewport.hasPointerCapture?.(activePointerId)) {
+    viewport.releasePointerCapture(activePointerId);
+  }
+  lightboxDragState.active = false;
+  lightboxDragState.pointerId = null;
+  lightboxDragState.startX = 0;
+  lightboxDragState.startY = 0;
+  lightboxDragState.scrollLeft = 0;
+  lightboxDragState.scrollTop = 0;
+  viewport?.classList.remove('is-dragging');
+}
+
+function clearLightboxViewportState() {
+  const viewport = getLightboxViewport();
+  if (!viewport) return;
+  resetLightboxDragState();
+  viewport.classList.remove('image-lightbox__viewport--scrollable');
+  viewport.scrollLeft = 0;
+  viewport.scrollTop = 0;
+}
+
+function updateLightboxViewportScrollState() {
+  const viewport = getLightboxViewport();
+  if (!viewport) return;
+  const overflowX = viewport.scrollWidth - viewport.clientWidth;
+  const overflowY = viewport.scrollHeight - viewport.clientHeight;
+  const scrollable = (overflowX > 1) || (overflowY > 1);
+  viewport.classList.toggle('image-lightbox__viewport--scrollable', scrollable);
+  if (!scrollable) {
+    resetLightboxDragState();
+  }
+}
+
 function applyLightboxZoom() {
   if (!elements.mapImageLightboxPicture) return;
   const baseWidth = state.lightboxBaseWidth || elements.mapImageLightboxPicture.naturalWidth || elements.mapImageLightboxPicture.clientWidth;
   if (!baseWidth) {
+    updateLightboxViewportScrollState();
     updateZoomButtonsState();
     return;
   }
@@ -1269,12 +1329,14 @@ function applyLightboxZoom() {
   elements.mapImageLightboxPicture.style.height = 'auto';
   elements.mapImageLightboxPicture.style.maxWidth = 'none';
   elements.mapImageLightboxPicture.style.maxHeight = 'none';
+  updateLightboxViewportScrollState();
   updateZoomButtonsState();
 }
 
 function initializeLightboxZoom() {
   state.lightboxBaseWidth = 0;
   state.lightboxBaseHeight = 0;
+  clearLightboxViewportState();
   if (!elements.mapImageLightboxPicture) {
     updateZoomButtonsState();
     return;
@@ -1301,6 +1363,7 @@ function prepareLightboxZoom() {
     return;
   }
 
+  clearLightboxViewportState();
   const apply = () => {
     initializeLightboxZoom();
   };
@@ -1310,6 +1373,50 @@ function prepareLightboxZoom() {
   } else {
     elements.mapImageLightboxPicture.addEventListener('load', apply, { once: true });
   }
+}
+
+function handleLightboxViewportPointerDown(event) {
+  if (!event || !state.isLightboxOpen) return;
+  if (typeof event.button === 'number' && event.button !== 0) return;
+  const viewport = getLightboxViewport();
+  if (!viewport || !viewport.classList.contains('image-lightbox__viewport--scrollable')) return;
+
+  lightboxDragState.active = true;
+  lightboxDragState.pointerId = event.pointerId;
+  lightboxDragState.startX = event.clientX;
+  lightboxDragState.startY = event.clientY;
+  lightboxDragState.scrollLeft = viewport.scrollLeft;
+  lightboxDragState.scrollTop = viewport.scrollTop;
+
+  viewport.setPointerCapture?.(event.pointerId);
+  viewport.classList.add('is-dragging');
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleLightboxViewportPointerMove(event) {
+  if (!event || !lightboxDragState.active || lightboxDragState.pointerId !== event.pointerId) return;
+  const viewport = getLightboxViewport();
+  if (!viewport) return;
+
+  const deltaX = event.clientX - lightboxDragState.startX;
+  const deltaY = event.clientY - lightboxDragState.startY;
+  viewport.scrollLeft = lightboxDragState.scrollLeft - deltaX;
+  viewport.scrollTop = lightboxDragState.scrollTop - deltaY;
+}
+
+function handleLightboxViewportPointerUp(event) {
+  if (!event) return;
+  if (!lightboxDragState.active || lightboxDragState.pointerId !== event.pointerId) {
+    resetLightboxDragState(event.pointerId);
+    return;
+  }
+  resetLightboxDragState(event.pointerId);
+}
+
+function handleLightboxViewportPointerCancel(event) {
+  if (!event) return;
+  resetLightboxDragState(event.pointerId);
 }
 
 function adjustLightboxZoom(delta) {
@@ -1352,17 +1459,20 @@ function resetLightboxZoomState() {
     elements.mapImageLightboxPicture.style.maxWidth = '';
     elements.mapImageLightboxPicture.style.maxHeight = '';
   }
+  clearLightboxViewportState();
   updateZoomButtonsState();
 }
 
 function updateZoomButtonsState() {
   const zoomIn = elements.mapImageLightboxZoomIn;
   const zoomOut = elements.mapImageLightboxZoomOut;
+  const openOriginal = elements.mapImageLightboxOpenOriginal;
   if (!zoomIn || !zoomOut) return;
 
   const isOpen = state.isLightboxOpen;
   const canZoomIn = isOpen && state.lightboxZoom < (LIGHTBOX_ZOOM_MAX - 0.001);
   const canZoomOut = isOpen && state.lightboxZoom > (LIGHTBOX_ZOOM_MIN + 0.001);
+  const hasImage = isOpen && Boolean(elements.mapImageLightboxPicture?.src);
 
   zoomIn.disabled = !canZoomIn;
   zoomOut.disabled = !canZoomOut;
@@ -1370,6 +1480,27 @@ function updateZoomButtonsState() {
   zoomOut.setAttribute('aria-disabled', (!canZoomOut).toString());
   zoomIn.classList.toggle('is-disabled', !canZoomIn);
   zoomOut.classList.toggle('is-disabled', !canZoomOut);
+  if (openOriginal) {
+    openOriginal.disabled = !hasImage;
+    openOriginal.setAttribute('aria-disabled', (!hasImage).toString());
+    openOriginal.classList.toggle('is-disabled', !hasImage);
+  }
+}
+
+function handleLightboxOpenOriginal(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if (!state.isLightboxOpen) return;
+  const src = elements.mapImageLightboxPicture?.src;
+  if (!src) return;
+  window.open(src, '_blank', 'noopener');
+}
+
+function handleLightboxWindowResize() {
+  if (!state.isLightboxOpen) return;
+  updateLightboxViewportScrollState();
 }
 
 function openMapImageLightbox() {

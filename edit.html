@@ -418,6 +418,15 @@
       </button>
       <button
         type="button"
+        class="image-lightbox__control"
+        id="mapImageLightboxOpenOriginal"
+        aria-label="Otwórz obraz w nowej karcie"
+        title="Otwórz oryginalny plik"
+      >
+        <i class="fas fa-up-right-from-square" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
         class="image-lightbox__control image-lightbox__close"
         id="mapImageLightboxClose"
         aria-label="Zamknij podgląd"
@@ -426,9 +435,10 @@
         <i class="fas fa-xmark" aria-hidden="true"></i>
       </button>
     </div>
-    <div class="image-lightbox__viewport">
+    <div class="image-lightbox__viewport" id="mapImageLightboxViewport">
       <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
     </div>
+    <p class="image-lightbox__hint">Przeciągnij obraz, aby przesunąć widok lub użyj rolki myszy do przewijania.</p>
   </div>
 
   <footer id="contact">
