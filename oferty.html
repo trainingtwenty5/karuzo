@@ -429,6 +429,224 @@ window.showConfirmModal = showConfirmModal;
   let randomPreviewSignature = '';
   let currentVisibleOffers = [];
 
+  const OFFERS_CACHE_KEY = typeof window !== 'undefined' && window.__OFFERS_CACHE_KEY__
+    ? window.__OFFERS_CACHE_KEY__
+    : 'grunteo::offers-cache::v1';
+
+  function resolveOffersCacheSettings() {
+    const revision = typeof window.__OFFERS_REVISION_HINT__ === 'string'
+      ? window.__OFFERS_REVISION_HINT__.trim()
+      : '';
+    const ttlCandidate = Number(window.__OFFERS_CACHE_TTL_MS__);
+    const ttlMs = Number.isFinite(ttlCandidate) && ttlCandidate > 0
+      ? ttlCandidate
+      : null; // brak ustawienia TTL wyłącza cache, jeśli config nie został załadowany
+    return {
+      revisionHint: revision || null,
+      ttlMs
+    };
+  }
+
+  function clearOffersCache() {
+    try {
+      window.localStorage?.removeItem(OFFERS_CACHE_KEY);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function readOffersCache(settings, { allowExpired = false } = {}) {
+    if (!window.localStorage) {
+      return null;
+    }
+
+    let raw = null;
+    try {
+      raw = window.localStorage.getItem(OFFERS_CACHE_KEY);
+    } catch (error) {
+      console.warn('Nie udało się odczytać cache ofert:', error);
+      return null;
+    }
+
+    if (!raw) {
+      return null;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      console.warn('Niepoprawny cache ofert – czyszczę.', error);
+      clearOffersCache();
+      return null;
+    }
+
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.documents)) {
+      return null;
+    }
+
+    const revisionHint = settings?.revisionHint || null;
+    if (revisionHint) {
+      if (!parsed.revisionHint || parsed.revisionHint !== revisionHint) {
+        clearOffersCache();
+        return null;
+      }
+    }
+
+    const now = Date.now();
+    const expiresAt = typeof parsed.expiresAt === 'string'
+      ? Number(parsed.expiresAt)
+      : parsed.expiresAt;
+    if (!allowExpired && Number.isFinite(expiresAt) && expiresAt <= now) {
+      clearOffersCache();
+      return null;
+    }
+
+    return parsed;
+  }
+
+  function writeOffersCache(documents, settings) {
+    if (!window.localStorage) {
+      return;
+    }
+
+    try {
+      const safeDocuments = Array.isArray(documents)
+        ? documents.map(doc => ({
+            id: doc?.id || null,
+            data: JSON.parse(JSON.stringify(doc?.data ?? {}))
+          }))
+        : [];
+
+      const now = Date.now();
+      const ttl = Number(settings?.ttlMs);
+      const payload = {
+        revisionHint: settings?.revisionHint || null,
+        storedAt: now,
+        ttlMs: Number.isFinite(ttl) && ttl > 0 ? ttl : null,
+        expiresAt: Number.isFinite(ttl) && ttl > 0 ? now + ttl : null,
+        documents: safeDocuments
+      };
+
+      window.localStorage.setItem(OFFERS_CACHE_KEY, JSON.stringify(payload));
+    } catch (error) {
+      console.warn('Nie udało się zapisać cache ofert:', error);
+    }
+  }
+
+  function hydrateOffersFromDocuments(documents) {
+    const listContainer = document.getElementById("offersList");
+    if (listContainer) listContainer.innerHTML = "";
+
+    allOffers.forEach(offer => {
+      if (offer.marker) offer.marker.setMap(null);
+      if (offer.polygon) offer.polygon.setMap(null);
+    });
+
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    allOffers = [];
+    availableTags = [];
+    tagMetrics = new Map();
+    currentVisibleOffers = [];
+
+    if (!Array.isArray(documents)) {
+      renderTagFilters();
+      updateSortButtonsUI();
+      applyFilters();
+      return;
+    }
+
+    documents.forEach(entry => {
+      const offerId = entry?.id || null;
+      const data = entry?.data || {};
+      if (!data || !Array.isArray(data.plots) || !data.plots.length) return;
+
+      data.plots.forEach((plot, index) => {
+        if (!plot || plot.mock === false) {
+          return;
+        }
+
+        const lat = plot.lat;
+        const lng = plot.lng;
+        const geometry = plot.geometry_uldk;
+        const tags = normalizeTags(plot.tags);
+        const uniquePlotTags = Array.from(new Set(tags));
+
+        const marker = new google.maps.Marker({
+          position: { lat, lng },
+          map,
+          title: data.firstName || "Oferta",
+          icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
+        });
+        markers.push(marker);
+
+        marker.addListener('click', () => {
+          if (map && typeof marker.getPosition === 'function') {
+            panMapTo(marker.getPosition(), 17);
+          }
+          openInfo(marker, infoHTML(plot, data, offerId, index));
+        });
+
+        let polygon = null;
+        if (geometry) {
+          const coords = parseGeometry(geometry);
+          if (coords.length) {
+            polygon = new google.maps.Polygon({
+              paths: coords,
+              strokeColor: "#FF0000",
+              strokeOpacity: 0.9,
+              strokeWeight: 3,
+              fillColor: "#FF0000",
+              fillOpacity: 0.15,
+              map: null,
+              visible: false
+            });
+            polygon.addListener('click', (evt) => {
+              const position = evt?.latLng || null;
+              if (map && position) {
+                panMapTo(position, 17);
+              }
+              openInfo(position, infoHTML(plot, data, offerId, index));
+            });
+          }
+        }
+
+        const hydratedEntry = {
+          id: offerId,
+          key: `${offerId || 'unknown'}__${index}`,
+          data,
+          plot,
+          index,
+          marker,
+          polygon,
+          tags: uniquePlotTags
+        };
+
+        allOffers.push(hydratedEntry);
+      });
+    });
+
+    availableTags = [];
+    randomPreviewSignature = '';
+    randomPreviewTags = [];
+    tagsExpanded = false;
+    renderTagFilters();
+    updateSortButtonsUI();
+    applyFilters();
+  }
+
+  async function refreshOffersFromSource(settings) {
+    const documents = [];
+    const snapshot = await window.getDocs(window.collection(window.db, "propertyListings"));
+    snapshot.forEach(docSnap => {
+      documents.push({ id: docSnap.id, data: docSnap.data() });
+    });
+
+    hydrateOffersFromDocuments(documents);
+    writeOffersCache(documents, settings);
+  }
+
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
   const sortButtons = document.querySelectorAll('[data-sort-key]');
@@ -958,103 +1176,29 @@ window.showConfirmModal = showConfirmModal;
     }, { passive: false });
   }
 
-  async function loadOffers() {
-    try {
-      const snapshot = await window.getDocs(window.collection(window.db, "propertyListings"));
-      const listContainer = document.getElementById("offersList");
-      if (listContainer) listContainer.innerHTML = "";
+  async function loadOffers(options = {}) {
+    const { forceRefresh = false } = options || {};
+    const settings = resolveOffersCacheSettings();
 
-      allOffers.forEach(offer => {
-        if (offer.marker) offer.marker.setMap(null);
-        if (offer.polygon) offer.polygon.setMap(null);
-      });
-
-      markers.forEach(marker => marker.setMap(null));
-      markers = [];
-      allOffers = [];
-      availableTags = [];
-      tagMetrics = new Map();
-      currentVisibleOffers = [];
-
-      snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if (!data.plots || !data.plots.length) return;
-
-        data.plots.forEach((plot, index) => {
-          if (plot && plot.mock === false) {
-            return;
-          }
-
-          const lat = plot.lat;
-          const lng = plot.lng;
-          const geometry = plot.geometry_uldk;
-          const offerId = docSnap.id;
-          const tags = normalizeTags(plot.tags);
-          const uniquePlotTags = Array.from(new Set(tags));
-
-          const marker = new google.maps.Marker({
-            position: { lat, lng },
-            map,
-            title: data.firstName || "Oferta",
-            icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
-          });
-          markers.push(marker);
-
-          marker.addListener('click', () => {
-            if (map && typeof marker.getPosition === 'function') {
-              panMapTo(marker.getPosition(), 17);
-            }
-            openInfo(marker, infoHTML(plot, data, offerId, index));
-          });
-
-          let polygon = null;
-          if (geometry) {
-            const coords = parseGeometry(geometry);
-            if (coords.length) {
-              polygon = new google.maps.Polygon({
-                paths: coords,
-                strokeColor: "#FF0000",
-                strokeOpacity: 0.9,
-                strokeWeight: 3,
-                fillColor: "#FF0000",
-                fillOpacity: 0.15,
-                map: null,
-                visible: false
-              });
-              polygon.addListener('click', (evt) => {
-                const position = evt?.latLng || null;
-                if (map && position) {
-                  panMapTo(position, 17);
-                }
-                openInfo(position, infoHTML(plot, data, offerId, index));
-              });
-            }
-          }
-
-          const entry = {
-            id: offerId,
-            key: `${offerId}__${index}`,
-            data,
-            plot,
-            index,
-            marker,
-            polygon,
-            tags: uniquePlotTags
-          };
-
-          allOffers.push(entry);
+    if (!forceRefresh) {
+      const cached = readOffersCache(settings);
+      if (cached && Array.isArray(cached.documents)) {
+        hydrateOffersFromDocuments(cached.documents);
+        refreshOffersFromSource(settings).catch(error => {
+          console.warn('Nie udało się odświeżyć ofert z sieci po użyciu cache:', error);
         });
-      });
+        return;
+      }
+    }
 
-      availableTags = [];
-      randomPreviewSignature = '';
-      randomPreviewTags = [];
-      tagsExpanded = false;
-      renderTagFilters();
-      updateSortButtonsUI();
-      applyFilters();
+    try {
+      await refreshOffersFromSource(settings);
     } catch (err) {
       console.error("Błąd pobierania ofert:", err);
+      const fallback = readOffersCache(settings, { allowExpired: true });
+      if (fallback && Array.isArray(fallback.documents) && !allOffers.length) {
+        hydrateOffersFromDocuments(fallback.documents);
+      }
     }
   }
 
@@ -1646,7 +1790,7 @@ async function deletePlot(offerId, plotIndex, title) {
       loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
     }
     if (typeof window.loadOffers === 'function') {
-      await window.loadOffers();
+      await window.loadOffers({ forceRefresh: true });
     }
   } catch (err) {
     console.error('deletePlot', err);
