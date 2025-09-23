@@ -376,12 +376,20 @@
       </div>
       <form id="registerForm">
         <div class="form-group">
+          <label for="registerName">Imię i nazwisko</label>
+          <input type="text" id="registerName" required>
+        </div>
+        <div class="form-group">
           <label for="registerEmail">Email</label>
           <input type="email" id="registerEmail" required>
         </div>
         <div class="form-group">
           <label for="registerPassword">Hasło</label>
           <input type="password" id="registerPassword" required>
+        </div>
+        <div class="form-group">
+          <label for="registerConfirmPassword">Potwierdź hasło</label>
+          <input type="password" id="registerConfirmPassword" required>
         </div>
         <button type="submit" class="btn btn-primary w-100">Zarejestruj się</button>
       </form>
