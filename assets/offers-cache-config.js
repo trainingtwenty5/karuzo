@@ -5,8 +5,8 @@
   // Możesz wpisać tutaj np. znacznik czasu ostatniej modyfikacji (ISO 8601).
   const OFFERS_CACHE_SETTINGS = {
     revisionHint: '2024-06-10T00:00:00Z',
-    // ttlMs: 5 * 60 * 1000, // odkomentuj i ustaw liczbę milisekund, aby nadpisać domyślny TTL (15 minut)
-    ttlMs: null
+    // Domyślnie cache jest odświeżany co 15 minut – ustawiamy 12 godzin, aby ograniczyć liczbę odczytów.
+    ttlMs: 12 * 60 * 60 * 1000
   };
 
   if (typeof OFFERS_CACHE_SETTINGS.revisionHint === 'string' && OFFERS_CACHE_SETTINGS.revisionHint.trim()) {
