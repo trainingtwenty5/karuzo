@@ -1,5 +1,6 @@
 (function configureOffersCache(global) {
   const OFFERS_CACHE_KEY = 'grunteo::offers-cache::v1';
+  global.__OFFERS_CACHE_KEY__ = OFFERS_CACHE_KEY;
 
   // Aktualizuj wartość w polu `revisionHint` za każdym razem, gdy publikujesz nowe oferty.
   // Możesz wpisać tutaj np. znacznik czasu ostatniej modyfikacji (ISO 8601).
