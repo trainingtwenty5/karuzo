@@ -926,6 +926,35 @@ window.showConfirmModal = showConfirmModal;
     logoutBtn && logoutBtn.addEventListener('click', async () => {
       try { await signOut(auth); } catch(e){ console.error(e); }
     });
+
+    function getActivePlotEntries(rawPlots) {
+      if (!Array.isArray(rawPlots)) return [];
+      const result = [];
+      rawPlots.forEach((plot, index) => {
+        if (!plot || typeof plot !== 'object') return;
+        if (plot.mock === false) return;
+
+        const normalizedPlot = { ...plot };
+        if (typeof normalizedPlot.mock === 'undefined') {
+          normalizedPlot.mock = true;
+        }
+
+        const originalIndex = Number.isInteger(plot.__originalIndex)
+          ? plot.__originalIndex
+          : Number.isInteger(normalizedPlot.__originalIndex)
+            ? normalizedPlot.__originalIndex
+            : index;
+
+        delete normalizedPlot.__originalIndex;
+
+        result.push({
+          plot: normalizedPlot,
+          originalIndex
+        });
+      });
+      return result;
+    }
+
     // Oferty użytkownika
     async function loadUserOffers(email, uid) {
       if (!ownedOffers) return;
@@ -970,17 +999,15 @@ window.showConfirmModal = showConfirmModal;
         docsById.forEach(docSnap => {
           const offer = docSnap.data();
           const offerId = docSnap.id;
-          if (!Array.isArray(offer.plots) || offer.plots.length === 0) return;
+          const activePlots = getActivePlotEntries(offer.plots);
+          if (!activePlots.length) return;
 
-          offer.plots
-            .map((plot, originalIndex) => ({ plot, originalIndex }))
-            .filter(({ plot }) => plot?.mock !== false)
-            .forEach(({ plot, originalIndex }, visibleIdx) => {
-              const el = document.createElement('div');
-              el.className = 'offer-card';
+          activePlots.forEach(({ plot, originalIndex }, visibleIdx) => {
+            const el = document.createElement('div');
+            el.className = 'offer-card';
 
-              const price = Number(plot.price || 0);
-              const area = Number(plot.pow_dzialki_m2_uldk || 0);
+            const price = Number(plot.price || 0);
+            const area = Number(plot.pow_dzialki_m2_uldk || 0);
               const ppm2 = price && area ? Math.round(price / area) : 0;
               const city = offer.city || 'Nie podano';
               const phone = offer.phone || 'Nie podano';
