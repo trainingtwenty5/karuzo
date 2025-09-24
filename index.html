@@ -1026,7 +1026,7 @@ window.showConfirmModal = showConfirmModal;
                   </p>` : ''}
                 </div>
                 <div class="offer-actions">
-                  <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
+                  <a class="btn btn-accent btn-sm" href="${detailsUrl}">
                     <i class="fas fa-info-circle"></i> Szczegóły
                   </a>
                   <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
@@ -1138,7 +1138,7 @@ window.showConfirmModal = showConfirmModal;
           ${savedAtText ? `<p class="favorite-meta"><strong>Zapisano:</strong> ${savedAtText}</p>` : ''}
         </div>
         <div class="offer-actions">
-          <a class="btn btn-accent btn-sm" ${offerId ? `target="_blank" href="${detailsUrl}"` : 'href="#" aria-disabled="true" style="pointer-events:none;opacity:.6;"'}>
+          <a class="btn btn-accent btn-sm" ${offerId ? `href="${detailsUrl}"` : 'href="#" aria-disabled="true" style="pointer-events:none;opacity:.6;"'}>
             <i class="fas fa-info-circle"></i> Szczegóły
           </a>
           <button class="btn btn-secondary btn-sm favorite-remove" type="button">
@@ -1150,7 +1150,7 @@ window.showConfirmModal = showConfirmModal;
       card.addEventListener('click', (event) => {
         if (event.target.closest('.offer-actions')) return;
         if (offerId) {
-          window.open(detailsUrl, '_blank');
+          window.location.href = detailsUrl;
         }
       });
 
