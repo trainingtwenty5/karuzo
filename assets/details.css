@@ -47,6 +47,17 @@ main.property-wrapper {
   flex-wrap: wrap;
 }
 
+.back-to-offers {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: .75rem;
+}
+
+.back-to-offers i {
+  font-size: .85em;
+}
+
 .property-heading h1 {
   font-size: 2rem;
   margin-bottom: .6rem;

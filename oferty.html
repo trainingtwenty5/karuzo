@@ -429,6 +429,140 @@ window.showConfirmModal = showConfirmModal;
   let randomPreviewSignature = '';
   let currentVisibleOffers = [];
 
+  const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
+  const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
+  let pendingMapState = readStoredMapState();
+  let mapStateViewApplied = false;
+
+  function readStoredMapState() {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    try {
+      const raw = window.localStorage.getItem(MAP_STATE_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object') return null;
+      const timestamp = Number(parsed.timestamp);
+      if (Number.isFinite(timestamp) && MAP_STATE_TTL_MS > 0) {
+        const age = Date.now() - timestamp;
+        if (age > MAP_STATE_TTL_MS) {
+          window.localStorage.removeItem(MAP_STATE_STORAGE_KEY);
+          return null;
+        }
+      }
+      return parsed;
+    } catch (error) {
+      console.warn('Nie udało się odczytać zapisanego stanu mapy ofert.', error);
+      return null;
+    }
+  }
+
+  function clearStoredMapState() {
+    pendingMapState = null;
+    try {
+      window.localStorage?.removeItem(MAP_STATE_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Nie udało się wyczyścić zapisanego stanu mapy ofert.', error);
+    }
+  }
+
+  function saveMapState(extra = {}) {
+    if (!map || typeof window === 'undefined' || !window.localStorage) return;
+    const center = typeof map.getCenter === 'function' ? map.getCenter() : null;
+    const lat = center && typeof center.lat === 'function' ? center.lat() : null;
+    const lng = center && typeof center.lng === 'function' ? center.lng() : null;
+    const zoom = typeof map.getZoom === 'function' ? map.getZoom() : null;
+
+    const focusOfferId = typeof extra.focusOfferId === 'string' && extra.focusOfferId.trim()
+      ? extra.focusOfferId.trim()
+      : (typeof pendingMapState?.focusOfferId === 'string' ? pendingMapState.focusOfferId : null);
+    const focusPlotIndex = Number.isInteger(extra.focusPlotIndex)
+      ? extra.focusPlotIndex
+      : (Number.isInteger(pendingMapState?.focusPlotIndex) ? pendingMapState.focusPlotIndex : null);
+
+    const payload = {
+      timestamp: Date.now(),
+      center: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+      zoom: Number.isFinite(zoom) ? zoom : null,
+      focusOfferId,
+      focusPlotIndex
+    };
+
+    try {
+      window.localStorage.setItem(MAP_STATE_STORAGE_KEY, JSON.stringify(payload));
+      pendingMapState = payload;
+    } catch (error) {
+      console.warn('Nie udało się zapisać stanu mapy ofert.', error);
+    }
+  }
+
+  function applySavedMapView() {
+    if (!map || !pendingMapState || mapStateViewApplied) return;
+    const { center, zoom, focusOfferId } = pendingMapState;
+    const zoomValue = Number(zoom);
+    if (Number.isFinite(zoomValue)) {
+      map.setZoom(zoomValue);
+    }
+    if (center && Number.isFinite(center.lat) && Number.isFinite(center.lng)) {
+      map.setCenter({ lat: center.lat, lng: center.lng });
+    }
+    mapStateViewApplied = true;
+    if (!focusOfferId) {
+      clearStoredMapState();
+    }
+  }
+
+  function focusOfferFromMapState() {
+    if (!map || !pendingMapState || !pendingMapState.focusOfferId) return;
+    const { focusOfferId } = pendingMapState;
+    const focusPlotIndex = Number.isInteger(pendingMapState.focusPlotIndex)
+      ? pendingMapState.focusPlotIndex
+      : null;
+
+    const match = allOffers.find(entry => {
+      if (!entry || entry.id !== focusOfferId) return false;
+      if (focusPlotIndex === null) return true;
+      return entry.index === focusPlotIndex;
+    }) || allOffers.find(entry => entry && entry.id === focusOfferId);
+
+    if (match) {
+      let focusPosition = null;
+      if (match.marker && typeof match.marker.getPosition === 'function') {
+        focusPosition = match.marker.getPosition();
+      } else if (match.plot && Number.isFinite(match.plot.lat) && Number.isFinite(match.plot.lng)) {
+        focusPosition = { lat: match.plot.lat, lng: match.plot.lng };
+      }
+
+      try {
+        if (focusPosition && typeof map.panTo === 'function') {
+          map.panTo(focusPosition);
+        }
+      } catch (error) {
+        console.warn('Nie udało się przesunąć mapy do zapamiętanej oferty.', error);
+      }
+
+      const anchor = match.marker && typeof match.marker.getPosition === 'function'
+        ? match.marker
+        : focusPosition;
+      openInfo(anchor, infoHTML(match.plot, match.data, match.id, match.index));
+      document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    clearStoredMapState();
+  }
+
+  document.addEventListener('click', (event) => {
+    const link = event.target?.closest?.('a[data-preserve-map-state]');
+    if (!link) return;
+    const offerId = typeof link.dataset.offerId === 'string' ? link.dataset.offerId : null;
+    const plotIndexRaw = link.dataset.plotIndex;
+    const hasPlotIndex = plotIndexRaw !== undefined && plotIndexRaw !== '';
+    const plotIndex = hasPlotIndex ? Number(plotIndexRaw) : null;
+    saveMapState({
+      focusOfferId: offerId || null,
+      focusPlotIndex: Number.isInteger(plotIndex) ? plotIndex : null
+    });
+  }, true);
+
   const OFFERS_CACHE_KEY = typeof window !== 'undefined' && window.__OFFERS_CACHE_KEY__
     ? window.__OFFERS_CACHE_KEY__
     : 'grunteo::offers-cache::v1';
@@ -735,6 +869,10 @@ window.showConfirmModal = showConfirmModal;
     renderTagFilters();
     updateSortButtonsUI();
     applyFilters();
+
+    if (pendingMapState && pendingMapState.focusOfferId) {
+      focusOfferFromMapState();
+    }
   }
 
   async function refreshOffersFromSource(settings) {
@@ -835,7 +973,14 @@ window.showConfirmModal = showConfirmModal;
         ${shortName ? `<p><b>Imię:</b> ${shortName}</p>` : ''}
         <p><b>Telefon:</b> ${phone || 'brak'}</p>
         <div class="mini-actions center">
-          <a class="btn-mini" target="_blank" href="${detailsUrl}">Szczegóły</a>
+          <a
+            class="btn-mini"
+            target="_blank"
+            href="${detailsUrl}"
+            data-preserve-map-state="true"
+            ${offerId ? `data-offer-id="${offerId}"` : ''}
+            ${Number.isInteger(plotIndex) ? `data-plot-index="${plotIndex}"` : ''}
+          >Szczegóły</a>
         </div>
       </div>
     `;
@@ -1261,9 +1406,12 @@ window.showConfirmModal = showConfirmModal;
       mapTypeId: google.maps.MapTypeId.HYBRID
     });
 
+    applySavedMapView();
+
     google.maps.event.addListener(map, "idle", () => filterOffersByBounds());
     google.maps.event.addListener(map, "zoom_changed", () => updatePolygonVisibility());
     await loadOffers();
+    focusOfferFromMapState();
 
     // delikatny zoom kółkiem (opcjonalne)
     const mapContainer = document.getElementById('map');
@@ -1347,7 +1495,14 @@ window.showConfirmModal = showConfirmModal;
         ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ""}
         ${tagsMarkup}
         <div class="offer-actions center">
-          <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
+          <a
+            class="btn btn-accent btn-sm"
+            target="_blank"
+            href="${detailsUrl}"
+            data-preserve-map-state="true"
+            ${o.id ? `data-offer-id="${o.id}"` : ''}
+            ${Number.isInteger(o.index) ? `data-plot-index="${o.index}"` : ''}
+          >
             <i class="fas fa-info-circle"></i> Szczegóły
           </a>
         </div>
@@ -1839,7 +1994,14 @@ async function loadUserOffers(email, uid) {
             </p>` : ''}
           </div>
           <div class="offer-actions">
-            <a class="btn btn-accent btn-sm" target="_blank" href="${detailsUrl}">
+            <a
+              class="btn btn-accent btn-sm"
+              target="_blank"
+              href="${detailsUrl}"
+              data-preserve-map-state="true"
+              ${offerId ? `data-offer-id="${offerId}"` : ''}
+              ${Number.isInteger(originalIndex) ? `data-plot-index="${originalIndex}"` : ''}
+            >
               <i class="fas fa-info-circle"></i> Szczegóły
             </a>
             <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
