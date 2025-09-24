@@ -30,6 +30,9 @@ import {
   sendEmailVerification
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
+const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
+const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
+
 const state = {
   user: null,
   offerId: '',
@@ -103,6 +106,7 @@ const elements = {
   mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
   mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
   mapImageLightboxZoomOut: document.getElementById('mapImageLightboxZoomOut'),
+  backToOffersBtn: document.getElementById('backToOffersBtn'),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
   loginBtn: document.getElementById('loginBtn'),
@@ -120,6 +124,74 @@ const elements = {
   googleRegisterBtn: document.getElementById('googleLoginBtn'),
   googleLoginBtn: document.getElementById('googleLoginBtnLogin')
 };
+
+function readOffersMapState() {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    const raw = window.localStorage.getItem(MAP_STATE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const timestamp = Number(parsed.timestamp);
+    if (Number.isFinite(timestamp) && MAP_STATE_TTL_MS > 0) {
+      const age = Date.now() - timestamp;
+      if (age > MAP_STATE_TTL_MS) {
+        return null;
+      }
+    }
+    return parsed;
+  } catch (error) {
+    console.warn('Nie udało się odczytać zapisanego stanu mapy ofert.', error);
+    return null;
+  }
+}
+
+function configureBackToOffersButton() {
+  if (!elements.backToOffersBtn) return;
+  const storedState = readOffersMapState();
+  const defaultHref = 'oferty.html#map';
+  elements.backToOffersBtn.setAttribute('href', defaultHref);
+  if (storedState) {
+    elements.backToOffersBtn.title = 'Powrót do listy ofert (przywróci zapisany widok mapy).';
+    elements.backToOffersBtn.dataset.mapState = 'available';
+  } else {
+    elements.backToOffersBtn.title = 'Powrót do listy ofert.';
+    elements.backToOffersBtn.dataset.mapState = 'missing';
+  }
+}
+
+function ensureMapStateFocusHint(offerId, plotIndex) {
+  if (!offerId || typeof window === 'undefined' || !window.localStorage) return;
+  const storedState = readOffersMapState();
+  if (!storedState) return;
+  const hasView = (storedState.center && Number.isFinite(storedState.center.lat) && Number.isFinite(storedState.center.lng))
+    || Number.isFinite(storedState.zoom);
+  if (!hasView) return;
+
+  const normalizedPlotIndex = Number.isInteger(plotIndex) ? plotIndex : null;
+  const sameOffer = storedState.focusOfferId === offerId;
+  const samePlot = normalizedPlotIndex === null
+    ? !Number.isInteger(storedState.focusPlotIndex)
+    : storedState.focusPlotIndex === normalizedPlotIndex;
+  if (sameOffer && samePlot) {
+    return;
+  }
+
+  const updatedState = { ...storedState, focusOfferId: offerId, timestamp: Date.now() };
+  if (normalizedPlotIndex === null) {
+    delete updatedState.focusPlotIndex;
+  } else {
+    updatedState.focusPlotIndex = normalizedPlotIndex;
+  }
+
+  try {
+    window.localStorage.setItem(MAP_STATE_STORAGE_KEY, JSON.stringify(updatedState));
+  } catch (error) {
+    console.warn('Nie udało się zaktualizować informacji o działce w stanie mapy ofert.', error);
+  }
+}
+
+configureBackToOffersButton();
 
 elements.mapImageElement?.addEventListener('error', handleMapImageError);
 elements.mapImageElement?.addEventListener('click', handleMapImageClick);
@@ -1802,6 +1874,7 @@ async function init() {
   const { offerId, plotIndex } = parseQueryParams();
   state.offerId = offerId;
   state.plotIndex = plotIndex;
+  ensureMapStateFocusHint(state.offerId, state.plotIndex);
   initFirebase();
   setupAuthUI();
   setupMapModeButtons();
