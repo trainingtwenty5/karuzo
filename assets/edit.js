@@ -35,6 +35,10 @@ import {
   signInWithPopup
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
+if (window.hljs && typeof window.hljs.configure === 'function') {
+  window.hljs.configure({ ignoreUnescapedHTML: true });
+}
+
 const state = {
   user: null,
   offerId: '',
@@ -69,6 +73,7 @@ const RICH_TEXT_FIELD_IDS = ['locationAccess', 'planNotes', 'descriptionText'];
 const RICH_TEXT_ALIGN_CLASSES = ['rt-align-left', 'rt-align-center', 'rt-align-right', 'rt-align-justify'];
 const RICH_TEXT_SIZE_CLASSES = ['rt-size-small', 'rt-size-normal', 'rt-size-large'];
 const RICH_TEXT_SELECTIONS = new WeakMap();
+let htmlInsertDialog = null;
 
 const elements = {
   loadingState: document.getElementById('loadingState'),
@@ -133,6 +138,8 @@ const elements = {
   googleRegisterBtn: document.getElementById('googleLoginBtn'),
   googleLoginBtn: document.getElementById('googleLoginBtnLogin')
 };
+
+htmlInsertDialog = createHtmlInsertDialog();
 
 elements.mapImageElement?.addEventListener('error', handleMapImageError);
 elements.mapImageElement?.addEventListener('click', handleMapImageClick);
@@ -927,6 +934,145 @@ function getRangeHtml(range) {
   return container.innerHTML;
 }
 
+function createHtmlInsertDialog() {
+  const modal = document.getElementById('htmlInsertModal');
+  if (!modal) return null;
+
+  const textarea = modal.querySelector('#htmlInsertTextarea');
+  const preview = modal.querySelector('#htmlInsertPreview');
+  const previewWrapper = modal.querySelector('.html-insert-modal__preview');
+  const render = modal.querySelector('#htmlInsertRender');
+  const confirmBtn = modal.querySelector('[data-html-action="confirm"]');
+  const cancelButtons = Array.from(modal.querySelectorAll('[data-html-action="cancel"]'));
+
+  let resolver = null;
+  let lastActiveElement = null;
+
+  const resetPreviewClasses = () => {
+    if (!preview) return;
+    preview.className = 'html-insert-modal__code language-html';
+  };
+
+  const updatePreview = () => {
+    if (!textarea) return;
+    const rawValue = textarea.value || '';
+    const sanitized = sanitizeRichText(rawValue);
+    const hasContent = sanitized.trim().length > 0;
+
+    if (previewWrapper) {
+      previewWrapper.dataset.empty = hasContent ? 'false' : 'true';
+    }
+
+    if (preview) {
+      resetPreviewClasses();
+      preview.textContent = sanitized;
+      if (window.hljs && typeof window.hljs.highlightElement === 'function') {
+        window.hljs.highlightElement(preview);
+      }
+    }
+
+    if (render) {
+      render.innerHTML = sanitized;
+      render.dataset.empty = hasContent ? 'false' : 'true';
+    }
+  };
+
+  const handleModalKeydown = (event) => {
+    if (!resolver) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeDialog(null);
+    }
+  };
+
+  const closeDialog = (result) => {
+    if (!resolver) return;
+    modal.classList.remove('is-visible');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.setAttribute('hidden', '');
+    document.body.classList.remove('html-insert-modal-open');
+    modal.removeEventListener('keydown', handleModalKeydown);
+
+    const resolve = resolver;
+    resolver = null;
+
+    const returnFocus = lastActiveElement;
+    lastActiveElement = null;
+
+    if (textarea) {
+      textarea.value = '';
+    }
+    updatePreview();
+
+    if (returnFocus && typeof returnFocus.focus === 'function') {
+      setTimeout(() => {
+        returnFocus.focus();
+      }, 0);
+    }
+
+    resolve(result);
+  };
+
+  const openDialog = (initialValue = '') => {
+    if (!textarea) {
+      return Promise.resolve(null);
+    }
+
+    return new Promise((resolve) => {
+      resolver = resolve;
+      lastActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+      modal.removeAttribute('hidden');
+      modal.classList.add('is-visible');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('html-insert-modal-open');
+
+      textarea.value = initialValue || '';
+      updatePreview();
+
+      modal.addEventListener('keydown', handleModalKeydown);
+
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const length = textarea.value.length;
+        textarea.setSelectionRange(length, length);
+      });
+    });
+  };
+
+  textarea?.addEventListener('input', updatePreview);
+  textarea?.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'enter') {
+      event.preventDefault();
+      closeDialog(textarea.value);
+    }
+  });
+
+  confirmBtn?.addEventListener('click', () => closeDialog(textarea ? textarea.value : ''));
+  cancelButtons.forEach((button) => {
+    button.addEventListener('click', () => closeDialog(null));
+  });
+
+  modal.addEventListener('mousedown', (event) => {
+    if (!resolver) return;
+    if (event.target === modal) {
+      closeDialog(null);
+    }
+  });
+
+  return {
+    open: openDialog
+  };
+}
+
+function requestHtmlInsert(initialValue = '') {
+  if (htmlInsertDialog && typeof htmlInsertDialog.open === 'function') {
+    return htmlInsertDialog.open(initialValue);
+  }
+  const fallback = window.prompt('Wklej kod HTML do wstawienia', initialValue || '');
+  return Promise.resolve(fallback === null ? null : fallback);
+}
+
 function placeCaretAtEnd(element) {
   if (!element) return;
   const selection = window.getSelection();
@@ -1041,27 +1187,30 @@ function handleRichTextAction(area, action, value = '') {
   }
 
   if (action === 'insertHtml') {
-    const defaultValue = range ? sanitizeRichText(getRangeHtml(range)) : '';
-    const html = window.prompt('Wklej kod HTML do wstawienia', defaultValue);
-    area.focus();
-    if (html !== null) {
-      const sanitized = sanitizeRichText(html);
-      if (range) {
-        restoreSelectionRange(range);
+    const storedRange = range ? range.cloneRange() : null;
+    const defaultValue = storedRange ? sanitizeRichText(getRangeHtml(storedRange)) : '';
+    requestHtmlInsert(defaultValue).then((html) => {
+      area.focus();
+      const activeRange = storedRange ? storedRange.cloneRange() : null;
+      if (html !== null) {
+        const sanitized = sanitizeRichText(html);
+        if (activeRange) {
+          restoreSelectionRange(activeRange);
+        } else {
+          placeCaretAtEnd(area);
+        }
+        document.execCommand('insertHTML', false, sanitized);
+        const selectionAfterInsert = cloneSelectionRange(area) || activeRange;
+        commitRichTextValue(area, { restoreRange: selectionAfterInsert });
       } else {
-        placeCaretAtEnd(area);
+        if (activeRange) {
+          restoreSelectionRange(activeRange);
+        } else {
+          placeCaretAtEnd(area);
+        }
+        commitRichTextValue(area, { restoreRange: activeRange || null });
       }
-      document.execCommand('insertHTML', false, sanitized);
-      const selectionAfterInsert = cloneSelectionRange(area) || range;
-      commitRichTextValue(area, { restoreRange: selectionAfterInsert });
-    } else {
-      if (range) {
-        restoreSelectionRange(range);
-      } else {
-        placeCaretAtEnd(area);
-      }
-      commitRichTextValue(area, { restoreRange: range || null });
-    }
+    });
     return;
   }
 
