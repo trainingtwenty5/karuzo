@@ -30,6 +30,7 @@
   <link rel="stylesheet" href="assets/header.css" />
   <link rel="stylesheet" href="assets/details.css" />
   <link rel="stylesheet" href="assets/edit.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.8.0/proj4.js"></script>
   <!-- Google tag (gtag.js) -->
   <script type="text/plain" data-cookie-consent="analytics" data-cookie-src="https://www.googletagmanager.com/gtag/js?id=G-VH07LRZ8GK" data-cookie-async="true"></script>
@@ -410,6 +411,53 @@
 
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
+  <div
+    class="html-insert-modal"
+    id="htmlInsertModal"
+    role="dialog"
+    aria-modal="true"
+    aria-hidden="true"
+    aria-labelledby="htmlInsertModalTitle"
+    hidden
+  >
+    <div class="html-insert-modal__window">
+      <div class="html-insert-modal__header">
+        <h3 id="htmlInsertModalTitle">Wstaw kod HTML</h3>
+        <button type="button" class="html-insert-modal__close" data-html-action="cancel" aria-label="Zamknij okno">
+          <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="html-insert-modal__body">
+        <p class="html-insert-modal__description">
+          Wklej lub edytuj kod HTML, a następnie skorzystaj z podglądu, aby sprawdzić efekt formatowania.
+        </p>
+        <div class="html-insert-modal__grid">
+          <label class="html-insert-modal__field" for="htmlInsertTextarea">
+            <span class="html-insert-modal__label">Edytor HTML</span>
+            <textarea id="htmlInsertTextarea" spellcheck="false" aria-describedby="htmlInsertAssistive"></textarea>
+          </label>
+          <div class="html-insert-modal__field">
+            <div class="html-insert-modal__label">Podgląd kodu</div>
+            <pre class="html-insert-modal__preview" aria-live="polite" aria-label="Podgląd kodu" data-empty="true"><code id="htmlInsertPreview" class="html-insert-modal__code language-html"></code></pre>
+          </div>
+          <div class="html-insert-modal__field html-insert-modal__field--full">
+            <div class="html-insert-modal__label">Podgląd formatowania</div>
+            <div id="htmlInsertRender" class="html-insert-modal__render" data-empty="true"></div>
+          </div>
+        </div>
+        <p id="htmlInsertAssistive" class="html-insert-modal__assistive">
+          Użyj skrótu <kbd>Ctrl</kbd> + <kbd>Enter</kbd>, aby szybko wstawić kod. Zmiany zostaną automatycznie oczyszczone z niedozwolonych znaczników.
+        </p>
+      </div>
+      <div class="html-insert-modal__footer">
+        <button type="button" class="btn btn-secondary" data-html-action="cancel">Anuluj</button>
+        <button type="button" class="btn btn-primary" data-html-action="confirm">
+          <i class="fas fa-code"></i> Wstaw HTML
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="loginModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -545,6 +593,8 @@
     </div>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/xml.min.js"></script>
   <script type="module" src="assets/edit.js"></script>
   <div class="cookie-banner" data-cookie-banner role="dialog" aria-modal="false" aria-live="polite" tabindex="-1">
     <div class="cookie-banner__icon" aria-hidden="true">

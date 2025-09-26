@@ -416,8 +416,9 @@ body.lightbox-open {
   margin: 0;
   color: var(--darker);
   font-size: .95rem;
-  white-space: pre-wrap;
-  text-align: justify;
+  line-height: 1.6;
+  white-space: normal;
+  text-align: left;
 }
 
 .plan-panel {
@@ -483,8 +484,9 @@ body.lightbox-open {
   padding: 1rem 1.1rem;
   font-size: .95rem;
   color: var(--darker);
-  white-space: pre-wrap;
-  text-align: justify;
+  white-space: normal;
+  line-height: 1.6;
+  text-align: left;
 }
 
 .utilities-section,
@@ -538,17 +540,20 @@ body.lightbox-open {
 }
 
 .description-text {
-  white-space: pre-wrap;
+  white-space: normal;
   font-size: .95rem;
   color: var(--darker);
   line-height: 1.6;
-  text-align: justify;
+  text-align: left;
 }
 
 .plan-notes,
 .description-text,
 .location-text {
   display: block;
+  white-space: normal;
+  line-height: 1.6;
+  color: var(--darker);
 }
 
 .plan-notes ul,
