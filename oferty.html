@@ -1145,6 +1145,16 @@ window.showConfirmModal = showConfirmModal;
     return tag.startsWith('#') ? tag : `#${tag}`;
   }
 
+  function countUniqueTagsFromOffers(offers) {
+    if (!Array.isArray(offers) || offers.length === 0) return 0;
+    const unique = new Set();
+    offers.forEach(offer => {
+      const offerTags = Array.isArray(offer.tags) ? offer.tags : [];
+      offerTags.forEach(tag => unique.add(tag));
+    });
+    return unique.size;
+  }
+
   function updateTagCollectionsForVisibleOffers(visibleOffers) {
     currentVisibleOffers = Array.isArray(visibleOffers) ? visibleOffers.slice() : [];
 
@@ -1327,17 +1337,13 @@ window.showConfirmModal = showConfirmModal;
 
     if (toggleTagsBtn) {
       if (shouldShowToggle) {
-        const visibleTagsCount = availableTags.reduce((count, tag) => {
-          const occurrences = Number(tagMetrics.get(tag));
-          return Number.isFinite(occurrences) && occurrences > 0 ? count + 1 : count;
-        }, 0);
-
-        const labelCount = visibleTagsCount > 0 ? visibleTagsCount : availableTags.length;
+        const labelCount = countUniqueTagsFromOffers(currentVisibleOffers);
 
         toggleTagsBtn.hidden = false;
         toggleTagsBtn.textContent = tagsExpanded
           ? 'Ukryj tagi'
           : `Pokaż wszystkie tagi (${labelCount})`;
+        toggleTagsBtn.setAttribute('data-count', String(labelCount));
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
