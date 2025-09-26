@@ -272,21 +272,69 @@ export function sanitizeMultilineText(value) {
 }
 
 const ALLOWED_RICH_TEXT_TAGS = new Set([
+  'a',
   'b',
-  'strong',
-  'i',
+  'blockquote',
+  'code',
+  'div',
   'em',
-  'u',
-  'p',
-  'br',
-  'ul',
-  'ol',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'i',
   'li',
+  'ol',
+  'p',
+  'pre',
   'span',
-  'div'
+  'strong',
+  'u',
+  'ul',
+  'br'
 ]);
 
 const ALLOWED_RICH_TEXT_CLASS_PREFIXES = ['rt-align-', 'rt-size-'];
+
+const ALLOWED_RICH_TEXT_ATTRIBUTES = {
+  a: {
+    href: sanitizeRichTextHref,
+    target: sanitizeRichTextTarget
+  }
+};
+
+function sanitizeRichTextHref(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.startsWith('#')) {
+    return trimmed;
+  }
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\//.test(trimmed) || /^\.\.\//.test(trimmed) || /^\.\//.test(trimmed)) {
+    return trimmed;
+  }
+  if (!trimmed.includes(':') && !/^\/\//.test(trimmed) && !/\s/.test(trimmed)) {
+    return trimmed;
+  }
+  return null;
+}
+
+function sanitizeRichTextTarget(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim().toLowerCase();
+  return trimmed === '_blank' ? '_blank' : null;
+}
 
 function sanitizeRichTextElement(root) {
   const nodes = Array.from(root.childNodes);
@@ -326,8 +374,37 @@ function sanitizeRichTextElement(root) {
         }
         return;
       }
+
+      const allowedForTag = ALLOWED_RICH_TEXT_ATTRIBUTES[tag];
+      if (allowedForTag && Object.prototype.hasOwnProperty.call(allowedForTag, attr.name)) {
+        const sanitizer = allowedForTag[attr.name];
+        const sanitizedValue = sanitizer(attr.value);
+        if (sanitizedValue) {
+          node.setAttribute(attr.name, sanitizedValue);
+        } else {
+          node.removeAttribute(attr.name);
+        }
+        return;
+      }
+
       node.removeAttribute(attr.name);
     });
+
+    if (tag === 'a') {
+      if (!node.hasAttribute('href')) {
+        sanitizeRichTextElement(node);
+        while (node.firstChild) {
+          root.insertBefore(node.firstChild, node);
+        }
+        node.remove();
+        return;
+      }
+      if (node.getAttribute('target') === '_blank') {
+        node.setAttribute('rel', 'noopener noreferrer');
+      } else {
+        node.removeAttribute('rel');
+      }
+    }
 
     sanitizeRichTextElement(node);
   });

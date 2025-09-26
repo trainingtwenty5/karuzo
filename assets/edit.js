@@ -811,6 +811,45 @@ function selectAllText(element) {
   selection.addRange(range);
 }
 
+function cloneSelectionRange(root) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+  const range = selection.getRangeAt(0);
+  if (!root || !root.contains(range.commonAncestorContainer)) {
+    return null;
+  }
+  return range.cloneRange();
+}
+
+function restoreSelectionRange(range) {
+  if (!range) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function getRangeHtml(range) {
+  if (!range) return '';
+  const fragment = range.cloneContents();
+  const container = document.createElement('div');
+  container.appendChild(fragment);
+  return container.innerHTML;
+}
+
+function placeCaretAtEnd(element) {
+  if (!element) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function isRichTextBlock(node) {
   if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
   const tag = node.tagName.toLowerCase();
@@ -902,6 +941,26 @@ function clearRichTextFormatting(area) {
 function handleRichTextAction(area, action, value = '') {
   if (!area) return;
   clearRichTextPlaceholder(area);
+  if (action === 'insertHtml') {
+    const range = cloneSelectionRange(area);
+    const defaultValue = range ? sanitizeRichText(getRangeHtml(range)) : '';
+    const html = window.prompt('Wklej kod HTML do wstawienia', defaultValue);
+    area.focus();
+    if (html !== null) {
+      const sanitized = sanitizeRichText(html);
+      if (range) {
+        restoreSelectionRange(range);
+      } else {
+        placeCaretAtEnd(area);
+      }
+      document.execCommand('insertHTML', false, sanitized);
+    } else if (range) {
+      restoreSelectionRange(range);
+    }
+    commitRichTextValue(area);
+    return;
+  }
+
   area.focus();
 
   if (action === 'bold' || action === 'italic' || action === 'underline') {
