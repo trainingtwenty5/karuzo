@@ -256,6 +256,7 @@ function applyRichTextPlaceholder(element, value) {
   const plain = richTextToPlainText(sanitized).trim();
   if (plain) {
     element.innerHTML = sanitized;
+    normalizeRichTextStructure(element);
     element.dataset.placeholderActive = 'false';
   } else {
     element.textContent = EMPTY_FIELD_PLACEHOLDER;
@@ -271,8 +272,58 @@ function clearRichTextPlaceholder(element) {
   }
 }
 
+function normalizeRichTextStructure(element) {
+  if (!element || element.dataset.placeholderActive === 'true') {
+    return;
+  }
+
+  const nodes = Array.from(element.childNodes);
+  nodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (!node.textContent.trim()) {
+        node.remove();
+        return;
+      }
+      if (node.parentNode === element) {
+        const block = document.createElement('p');
+        element.insertBefore(block, node);
+        block.appendChild(node);
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      node.remove();
+      return;
+    }
+
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') {
+      const wrapper = document.createElement('p');
+      element.insertBefore(wrapper, node);
+      wrapper.appendChild(node);
+      return;
+    }
+
+    if (isRichTextBlock(node)) {
+      return;
+    }
+
+    const wrapper = document.createElement('p');
+    element.insertBefore(wrapper, node);
+    wrapper.appendChild(node);
+  });
+
+  if (!element.childNodes.length) {
+    const block = document.createElement('p');
+    block.appendChild(document.createElement('br'));
+    element.appendChild(block);
+  }
+}
+
 function commitRichTextValue(element) {
   if (!element) return;
+  normalizeRichTextStructure(element);
   const currentHtml = element.innerHTML || '';
   const sanitized = sanitizeRichText(currentHtml);
   const plain = richTextToPlainText(sanitized).trim();
@@ -297,6 +348,7 @@ function getRichTextContent(element) {
   if (!element || element.dataset.placeholderActive === 'true') {
     return '';
   }
+  normalizeRichTextStructure(element);
   const sanitized = sanitizeRichText(element.innerHTML || '');
   const plain = richTextToPlainText(sanitized).trim();
   if (!plain) {
@@ -870,7 +922,13 @@ function placeCaretAtEnd(element) {
 function isRichTextBlock(node) {
   if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
   const tag = node.tagName.toLowerCase();
-  return tag === 'p' || tag === 'div' || tag === 'li';
+  return tag === 'p'
+    || tag === 'div'
+    || tag === 'li'
+    || tag === 'blockquote'
+    || tag === 'pre'
+    || tag === 'ul'
+    || tag === 'ol';
 }
 
 function findClosestBlock(node, root) {
@@ -986,6 +1044,14 @@ function handleRichTextAction(area, action, value = '') {
     restoreSelectionRange(range);
   } else {
     placeCaretAtEnd(area);
+  }
+
+  if (action === 'align' || action === 'fontSize' || action === 'clear') {
+    normalizeRichTextStructure(area);
+    range = cloneSelectionRange(area) || range;
+    if (range) {
+      restoreSelectionRange(range);
+    }
   }
 
   if (action === 'bold' || action === 'italic' || action === 'underline') {
@@ -1130,6 +1196,7 @@ function attachEditorListeners() {
   richTextElements.forEach(element => {
     element.addEventListener('focus', () => {
       clearRichTextPlaceholder(element);
+      normalizeRichTextStructure(element);
       rememberRichTextSelection(element);
     });
     element.addEventListener('blur', () => {
@@ -1138,6 +1205,7 @@ function attachEditorListeners() {
     });
     element.addEventListener('input', () => {
       element.dataset.placeholderActive = 'false';
+      normalizeRichTextStructure(element);
       rememberRichTextSelection(element);
     });
     ['mouseup', 'keyup', 'touchend'].forEach(eventName => {

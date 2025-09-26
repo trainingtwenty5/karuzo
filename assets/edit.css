@@ -318,15 +318,15 @@
 }
 
 .rt-size-small {
-  font-size: .9rem;
+  font-size: .85rem;
 }
 
 .rt-size-normal {
-  font-size: .95rem;
+  font-size: 1rem;
 }
 
 .rt-size-large {
-  font-size: 1.05rem;
+  font-size: 1.2rem;
 }
 
 .rich-text-area ul,
