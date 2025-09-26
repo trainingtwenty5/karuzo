@@ -411,7 +411,8 @@ body.lightbox-open {
   font-size: 1rem;
 }
 
-.location-card p {
+.location-card p,
+.location-card .location-text {
   margin: 0;
   color: var(--darker);
   font-size: .95rem;
@@ -542,6 +543,56 @@ body.lightbox-open {
   color: var(--darker);
   line-height: 1.6;
   text-align: justify;
+}
+
+.plan-notes,
+.description-text,
+.location-text {
+  display: block;
+}
+
+.plan-notes ul,
+.plan-notes ol,
+.description-text ul,
+.description-text ol,
+.location-text ul,
+.location-text ol {
+  padding-left: 1.4rem;
+  margin: .4rem 0;
+}
+
+.plan-notes li,
+.description-text li,
+.location-text li {
+  margin-bottom: .25rem;
+}
+
+.rt-align-left {
+  text-align: left;
+}
+
+.rt-align-center {
+  text-align: center;
+}
+
+.rt-align-right {
+  text-align: right;
+}
+
+.rt-align-justify {
+  text-align: justify;
+}
+
+.rt-size-small {
+  font-size: .9rem;
+}
+
+.rt-size-normal {
+  font-size: .95rem;
+}
+
+.rt-size-large {
+  font-size: 1.05rem;
 }
 
 .tags-card {

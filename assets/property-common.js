@@ -271,6 +271,78 @@ export function sanitizeMultilineText(value) {
   return String(value).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
+const ALLOWED_RICH_TEXT_TAGS = new Set([
+  'b',
+  'strong',
+  'i',
+  'em',
+  'u',
+  'p',
+  'br',
+  'ul',
+  'ol',
+  'li',
+  'span',
+  'div'
+]);
+
+const ALLOWED_RICH_TEXT_CLASS_PREFIXES = ['rt-align-', 'rt-size-'];
+
+function sanitizeRichTextElement(root) {
+  const nodes = Array.from(root.childNodes);
+  nodes.forEach((node) => {
+    if (node.nodeType === Node.COMMENT_NODE) {
+      node.remove();
+      return;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      node.remove();
+      return;
+    }
+
+    const tag = node.tagName.toLowerCase();
+    if (!ALLOWED_RICH_TEXT_TAGS.has(tag)) {
+      sanitizeRichTextElement(node);
+      while (node.firstChild) {
+        root.insertBefore(node.firstChild, node);
+      }
+      node.remove();
+      return;
+    }
+
+    Array.from(node.attributes).forEach(attr => {
+      if (attr.name === 'class') {
+        const classes = attr.value
+          .split(/\s+/)
+          .filter(Boolean)
+          .filter(cls => ALLOWED_RICH_TEXT_CLASS_PREFIXES.some(prefix => cls.startsWith(prefix)));
+        if (classes.length > 0) {
+          node.setAttribute('class', Array.from(new Set(classes)).join(' '));
+        } else {
+          node.removeAttribute('class');
+        }
+        return;
+      }
+      node.removeAttribute(attr.name);
+    });
+
+    sanitizeRichTextElement(node);
+  });
+}
+
+export function sanitizeRichText(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const container = document.createElement('div');
+  container.innerHTML = String(value);
+  sanitizeRichTextElement(container);
+  return container.innerHTML;
+}
+
 export function cloneDeep(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -288,6 +360,13 @@ export function stripHtml(value) {
   const tmp = document.createElement("div");
   tmp.innerHTML = value;
   return tmp.textContent || tmp.innerText || "";
+}
+
+export function richTextToPlainText(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return stripHtml(sanitizeRichText(value));
 }
 
 export function syncMobileMenu() {

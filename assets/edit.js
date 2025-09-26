@@ -19,10 +19,12 @@ import {
   showToast,
   textContentOrFallback,
   sanitizeMultilineText,
+  sanitizeRichText,
   ensureArray,
   parseNumberFromText,
   cloneDeep,
   stripHtml,
+  richTextToPlainText,
   syncMobileMenu
 } from './property-common.js';
 import {
@@ -62,6 +64,10 @@ const state = {
 };
 
 const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
+
+const RICH_TEXT_FIELD_IDS = ['locationAccess', 'planNotes', 'descriptionText'];
+const RICH_TEXT_ALIGN_CLASSES = ['rt-align-left', 'rt-align-center', 'rt-align-right', 'rt-align-justify'];
+const RICH_TEXT_SIZE_CLASSES = ['rt-size-small', 'rt-size-normal', 'rt-size-large'];
 
 const elements = {
   loadingState: document.getElementById('loadingState'),
@@ -241,6 +247,61 @@ function normalizeMultilineValue(value) {
   const trimmed = sanitized.trim();
   if (!trimmed) return '';
   return trimmed.toLowerCase() === EMPTY_FIELD_PLACEHOLDER.toLowerCase() ? '' : sanitized;
+}
+
+function applyRichTextPlaceholder(element, value) {
+  if (!element) return;
+  const sanitized = sanitizeRichText(value || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  if (plain) {
+    element.innerHTML = sanitized;
+    element.dataset.placeholderActive = 'false';
+  } else {
+    element.textContent = EMPTY_FIELD_PLACEHOLDER;
+    element.dataset.placeholderActive = 'true';
+  }
+}
+
+function clearRichTextPlaceholder(element) {
+  if (!element) return;
+  if (element.dataset.placeholderActive === 'true') {
+    element.innerHTML = '';
+    element.dataset.placeholderActive = 'false';
+  }
+}
+
+function commitRichTextValue(element) {
+  if (!element) return;
+  const sanitized = sanitizeRichText(element.innerHTML || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  if (plain) {
+    element.innerHTML = sanitized;
+    element.dataset.placeholderActive = 'false';
+  } else {
+    element.textContent = EMPTY_FIELD_PLACEHOLDER;
+    element.dataset.placeholderActive = 'true';
+  }
+}
+
+function normalizeRichTextValue(value) {
+  const sanitized = sanitizeRichText(value || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  return plain ? sanitized : '';
+}
+
+function getRichTextContent(element) {
+  if (!element || element.dataset.placeholderActive === 'true') {
+    return '';
+  }
+  const sanitized = sanitizeRichText(element.innerHTML || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  if (!plain) {
+    element.textContent = EMPTY_FIELD_PLACEHOLDER;
+    element.dataset.placeholderActive = 'true';
+    return '';
+  }
+  element.innerHTML = sanitized;
+  return sanitized;
 }
 
 function extractPlotNumberSegment(value) {
@@ -750,6 +811,141 @@ function selectAllText(element) {
   selection.addRange(range);
 }
 
+function isRichTextBlock(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+  const tag = node.tagName.toLowerCase();
+  return tag === 'p' || tag === 'div' || tag === 'li';
+}
+
+function findClosestBlock(node, root) {
+  let current = node;
+  while (current && current !== root) {
+    if (isRichTextBlock(current)) {
+      return current;
+    }
+    current = current.parentNode;
+  }
+  if (root && root.nodeType === Node.ELEMENT_NODE && isRichTextBlock(root)) {
+    return root;
+  }
+  return null;
+}
+
+function getSelectionBlocks(root) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return root ? [root] : [];
+  }
+  const range = selection.getRangeAt(0);
+  if (!root || !root.contains(range.commonAncestorContainer)) {
+    return [];
+  }
+
+  const blocks = new Set();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      if (!isRichTextBlock(node)) {
+        return NodeFilter.FILTER_SKIP;
+      }
+      return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+
+  while (walker.nextNode()) {
+    blocks.add(walker.currentNode);
+  }
+
+  if (!blocks.size) {
+    const block = findClosestBlock(range.startContainer, root);
+    if (block) {
+      blocks.add(block);
+    }
+  }
+
+  if (!blocks.size && root) {
+    blocks.add(root);
+  }
+
+  return Array.from(blocks);
+}
+
+function applyRichTextAlignment(area, value) {
+  const blocks = getSelectionBlocks(area);
+  const targetClass = value ? `rt-align-${value}` : '';
+  blocks.forEach(block => {
+    RICH_TEXT_ALIGN_CLASSES.forEach(cls => block.classList.remove(cls));
+    if (targetClass) {
+      block.classList.add(targetClass);
+    }
+  });
+}
+
+function applyRichTextFontSize(area, value) {
+  const blocks = getSelectionBlocks(area);
+  const targetClass = value && value !== 'normal' ? `rt-size-${value}` : '';
+  blocks.forEach(block => {
+    RICH_TEXT_SIZE_CLASSES.forEach(cls => block.classList.remove(cls));
+    if (targetClass) {
+      block.classList.add(targetClass);
+    }
+  });
+}
+
+function clearRichTextFormatting(area) {
+  const blocks = getSelectionBlocks(area);
+  blocks.forEach(block => {
+    RICH_TEXT_ALIGN_CLASSES.forEach(cls => block.classList.remove(cls));
+    RICH_TEXT_SIZE_CLASSES.forEach(cls => block.classList.remove(cls));
+  });
+}
+
+function handleRichTextAction(area, action, value = '') {
+  if (!area) return;
+  clearRichTextPlaceholder(area);
+  area.focus();
+
+  if (action === 'bold' || action === 'italic' || action === 'underline') {
+    document.execCommand(action);
+  } else if (action === 'orderedList') {
+    document.execCommand('insertOrderedList');
+  } else if (action === 'unorderedList') {
+    document.execCommand('insertUnorderedList');
+  } else if (action === 'align') {
+    applyRichTextAlignment(area, value || 'left');
+  } else if (action === 'fontSize') {
+    applyRichTextFontSize(area, value || 'normal');
+  } else if (action === 'clear') {
+    document.execCommand('removeFormat');
+    clearRichTextFormatting(area);
+  }
+
+  commitRichTextValue(area);
+}
+
+function setupRichTextEditors() {
+  const editors = Array.from(document.querySelectorAll('.rich-text-editor'));
+  editors.forEach(editor => {
+    const targetId = editor.dataset.editorTarget;
+    if (!targetId) return;
+    const area = document.getElementById(targetId);
+    if (!area) return;
+
+    editor.querySelectorAll('.rich-text-btn[data-action]').forEach(button => {
+      const action = button.dataset.action;
+      button.addEventListener('click', () => {
+        handleRichTextAction(area, action, button.dataset.value || '');
+      });
+    });
+
+    const sizeSelect = editor.querySelector('.rich-text-select[data-action="fontSize"]');
+    if (sizeSelect) {
+      sizeSelect.addEventListener('change', (event) => {
+        handleRichTextAction(area, 'fontSize', event.target.value || 'normal');
+      });
+    }
+  });
+}
+
 function attachEditorListeners() {
   if (elements.priceValueText) {
     elements.priceValueText.addEventListener('focus', () => {
@@ -834,6 +1030,24 @@ function attachEditorListeners() {
       }
     });
   });
+
+  const richTextElements = RICH_TEXT_FIELD_IDS
+    .map(id => elements[id])
+    .filter(element => element && element.isContentEditable);
+
+  richTextElements.forEach(element => {
+    element.addEventListener('focus', () => {
+      clearRichTextPlaceholder(element);
+    });
+    element.addEventListener('blur', () => {
+      commitRichTextValue(element);
+    });
+    element.addEventListener('input', () => {
+      element.dataset.placeholderActive = 'false';
+    });
+  });
+
+  setupRichTextEditors();
 
   elements.plotOwnershipSelect?.addEventListener('change', () => {
     const value = elements.plotOwnershipSelect.value;
@@ -1059,7 +1273,7 @@ function renderEditor(data, plot) {
   }
 
   applyMultilinePlaceholder(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address));
-  applyMultilinePlaceholder(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access));
+  applyRichTextPlaceholder(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access));
 
   updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
 
@@ -1069,12 +1283,12 @@ function renderEditor(data, plot) {
   applyPlaceholder(elements.planHeight, pickValue(plot.planHeight, data.planHeight));
   applyPlaceholder(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity));
   applyPlaceholder(elements.planGreen, pickValue(plot.planGreen, data.planGreen));
-  applyMultilinePlaceholder(elements.planNotes, pickValue(plot.planNotes, data.planNotes));
+  applyRichTextPlaceholder(elements.planNotes, pickValue(plot.planNotes, data.planNotes));
 
   state.utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilitiesEdit();
 
-  applyMultilinePlaceholder(elements.descriptionText, pickValue(plot.description, data.description));
+  applyRichTextPlaceholder(elements.descriptionText, pickValue(plot.description, data.description));
 
   const normalizedTags = ensureArray(pickValue(plot.tags, data.tags))
     .map(normalizeTag)
@@ -1799,13 +2013,13 @@ function buildUpdatedPlot() {
   base.landRegister = normalizePlaceholderValue(stripHtml(elements.landRegister.innerHTML));
   base.status = (elements.plotOwnershipSelect?.value || '').trim();
   base.locationAddress = normalizeMultilineValue(elements.locationAddress.textContent || '');
-  base.locationAccess = normalizeMultilineValue(elements.locationAccess.textContent || '');
+  base.locationAccess = normalizeRichTextValue(getRichTextContent(elements.locationAccess));
   base.planDesignation = normalizePlaceholderValue(stripHtml(elements.planDesignation.innerHTML));
   base.planHeight = normalizePlaceholderValue(stripHtml(elements.planHeight.innerHTML));
   base.planIntensity = normalizePlaceholderValue(stripHtml(elements.planIntensity.innerHTML));
   base.planGreen = normalizePlaceholderValue(stripHtml(elements.planGreen.innerHTML));
-  base.planNotes = normalizeMultilineValue(elements.planNotes.textContent || '');
-  base.description = normalizeMultilineValue(elements.descriptionText.textContent || '');
+  base.planNotes = normalizeRichTextValue(getRichTextContent(elements.planNotes));
+  base.description = normalizeRichTextValue(getRichTextContent(elements.descriptionText));
   base.utilities = { ...state.utilities };
   base.tags = [...state.tags];
   base.planBadges = state.planBadges || base.planBadges || [];
