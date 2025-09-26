@@ -1323,9 +1323,20 @@ window.showConfirmModal = showConfirmModal;
     }
 
     if (toggleTagsBtn) {
+      const relevantOffers = currentVisibleOffers.length
+        ? currentVisibleOffers
+        : getOffersMatchingFilters();
+      const uniqueTagSet = new Set();
+      relevantOffers.forEach(offer => {
+        const offerTags = Array.isArray(offer?.tags) ? offer.tags : [];
+        offerTags.forEach(tag => uniqueTagSet.add(tag));
+      });
+      filterState.selectedTags.forEach(tag => uniqueTagSet.add(tag));
+      const totalUniqueTags = uniqueTagSet.size || availableTags.length;
+
       if (shouldShowToggle) {
         toggleTagsBtn.hidden = false;
-        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${availableTags.length})`;
+        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${totalUniqueTags})`;
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
