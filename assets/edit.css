@@ -483,29 +483,6 @@ body.html-insert-modal-open {
   background: #fff;
 }
 
-.html-insert-modal__preview {
-  margin: 0;
-  border-radius: 12px;
-  border: 1px solid rgba(30, 111, 186, .18);
-  background: #fff;
-  padding: 1rem 1.1rem;
-  max-height: 280px;
-  overflow: auto;
-  font-size: .88rem;
-}
-
-.html-insert-modal__preview[data-empty="true"]::before {
-  content: 'Brak kodu do podświetlenia.';
-  color: var(--gray);
-  font-style: italic;
-}
-
-.html-insert-modal__code {
-  display: block;
-  min-height: 160px;
-  white-space: pre;
-}
-
 .html-insert-modal__render {
   border-radius: 12px;
   border: 1px solid rgba(30, 111, 186, .18);

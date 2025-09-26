@@ -939,8 +939,6 @@ function createHtmlInsertDialog() {
   if (!modal) return null;
 
   const textarea = modal.querySelector('#htmlInsertTextarea');
-  const preview = modal.querySelector('#htmlInsertPreview');
-  const previewWrapper = modal.querySelector('.html-insert-modal__preview');
   const render = modal.querySelector('#htmlInsertRender');
   const confirmBtn = modal.querySelector('[data-html-action="confirm"]');
   const cancelButtons = Array.from(modal.querySelectorAll('[data-html-action="cancel"]'));
@@ -948,28 +946,11 @@ function createHtmlInsertDialog() {
   let resolver = null;
   let lastActiveElement = null;
 
-  const resetPreviewClasses = () => {
-    if (!preview) return;
-    preview.className = 'html-insert-modal__code language-html';
-  };
-
   const updatePreview = () => {
     if (!textarea) return;
     const rawValue = textarea.value || '';
     const sanitized = sanitizeRichText(rawValue);
     const hasContent = sanitized.trim().length > 0;
-
-    if (previewWrapper) {
-      previewWrapper.dataset.empty = hasContent ? 'false' : 'true';
-    }
-
-    if (preview) {
-      resetPreviewClasses();
-      preview.textContent = sanitized;
-      if (window.hljs && typeof window.hljs.highlightElement === 'function') {
-        window.hljs.highlightElement(preview);
-      }
-    }
 
     if (render) {
       render.innerHTML = sanitized;
