@@ -1323,16 +1323,15 @@ window.showConfirmModal = showConfirmModal;
     }
 
     if (toggleTagsBtn) {
-      const relevantOffers = currentVisibleOffers.length
+      const relevantOffers = Array.isArray(currentVisibleOffers)
         ? currentVisibleOffers
-        : getOffersMatchingFilters();
+        : [];
       const uniqueTagSet = new Set();
       relevantOffers.forEach(offer => {
         const offerTags = Array.isArray(offer?.tags) ? offer.tags : [];
         offerTags.forEach(tag => uniqueTagSet.add(tag));
       });
-      filterState.selectedTags.forEach(tag => uniqueTagSet.add(tag));
-      const totalUniqueTags = uniqueTagSet.size || availableTags.length;
+      const totalUniqueTags = uniqueTagSet.size;
 
       if (shouldShowToggle) {
         toggleTagsBtn.hidden = false;
