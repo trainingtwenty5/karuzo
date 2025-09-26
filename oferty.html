@@ -1324,8 +1324,17 @@ window.showConfirmModal = showConfirmModal;
 
     if (toggleTagsBtn) {
       if (shouldShowToggle) {
+        const visibleTagsCount = availableTags.reduce((count, tag) => {
+          const occurrences = Number(tagMetrics.get(tag));
+          return Number.isFinite(occurrences) && occurrences > 0 ? count + 1 : count;
+        }, 0);
+
+        const labelCount = visibleTagsCount > 0 ? visibleTagsCount : availableTags.length;
+
         toggleTagsBtn.hidden = false;
-        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${availableTags.length})`;
+        toggleTagsBtn.textContent = tagsExpanded
+          ? 'Ukryj tagi'
+          : `Pokaż wszystkie tagi (${labelCount})`;
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
