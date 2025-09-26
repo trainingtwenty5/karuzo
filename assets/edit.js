@@ -321,8 +321,12 @@ function normalizeRichTextStructure(element) {
   }
 }
 
-function commitRichTextValue(element) {
+function commitRichTextValue(element, options = {}) {
   if (!element) return;
+
+  const { restoreRange = null } = options;
+  const rangeToRestore = restoreRange ? restoreRange.cloneRange() : null;
+
   normalizeRichTextStructure(element);
   const currentHtml = element.innerHTML || '';
   const sanitized = sanitizeRichText(currentHtml);
@@ -335,6 +339,21 @@ function commitRichTextValue(element) {
   } else {
     element.textContent = EMPTY_FIELD_PLACEHOLDER;
     element.dataset.placeholderActive = 'true';
+  }
+
+  if (rangeToRestore) {
+    const schedule = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (cb) => setTimeout(cb, 0);
+    schedule(() => {
+      const ancestor = rangeToRestore.commonAncestorContainer;
+      if (ancestor && element.contains(ancestor)) {
+        restoreSelectionRange(rangeToRestore);
+      } else {
+        selectAllText(element);
+      }
+      rememberRichTextSelection(element);
+    });
   }
 }
 
@@ -1020,6 +1039,7 @@ function handleRichTextAction(area, action, value = '') {
   if (!range) {
     range = getStoredRichTextSelection(area);
   }
+
   if (action === 'insertHtml') {
     const defaultValue = range ? sanitizeRichText(getRangeHtml(range)) : '';
     const html = window.prompt('Wklej kod HTML do wstawienia', defaultValue);
@@ -1032,10 +1052,16 @@ function handleRichTextAction(area, action, value = '') {
         placeCaretAtEnd(area);
       }
       document.execCommand('insertHTML', false, sanitized);
-    } else if (range) {
-      restoreSelectionRange(range);
+      const selectionAfterInsert = cloneSelectionRange(area) || range;
+      commitRichTextValue(area, { restoreRange: selectionAfterInsert });
+    } else {
+      if (range) {
+        restoreSelectionRange(range);
+      } else {
+        placeCaretAtEnd(area);
+      }
+      commitRichTextValue(area, { restoreRange: range || null });
     }
-    commitRichTextValue(area);
     return;
   }
 
@@ -1048,8 +1074,9 @@ function handleRichTextAction(area, action, value = '') {
 
   if (action === 'align' || action === 'fontSize' || action === 'clear') {
     normalizeRichTextStructure(area);
-    range = cloneSelectionRange(area) || range;
-    if (range) {
+    const normalizedRange = cloneSelectionRange(area);
+    if (normalizedRange) {
+      range = normalizedRange;
       restoreSelectionRange(range);
     }
   }
@@ -1069,7 +1096,8 @@ function handleRichTextAction(area, action, value = '') {
     clearRichTextFormatting(area);
   }
 
-  commitRichTextValue(area);
+  const selectionAfterAction = cloneSelectionRange(area) || range;
+  commitRichTextValue(area, { restoreRange: selectionAfterAction });
 }
 
 function setupRichTextEditors() {
