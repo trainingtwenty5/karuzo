@@ -60,7 +60,8 @@ const state = {
   lightboxReturnFocus: null,
   lightboxZoom: 1,
   lightboxBaseWidth: 0,
-  lightboxBaseHeight: 0
+  lightboxBaseHeight: 0,
+  htmlInsertContext: null
 };
 
 const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
@@ -123,6 +124,10 @@ const elements = {
   accountBtn: document.getElementById('accountBtn'),
   logoutBtn: document.getElementById('logoutBtn'),
   mobileAuth: document.getElementById('mobileAuth'),
+  htmlInsertModal: document.getElementById('htmlInsertModal'),
+  htmlInsertForm: document.getElementById('htmlInsertForm'),
+  htmlInsertTextarea: document.getElementById('htmlInsertTextarea'),
+  htmlInsertCancel: document.getElementById('htmlInsertCancel'),
   loginModal: document.getElementById('loginModal'),
   registerModal: document.getElementById('registerModal'),
   loginForm: document.getElementById('loginForm'),
@@ -938,6 +943,90 @@ function placeCaretAtEnd(element) {
   selection.addRange(range);
 }
 
+function openHtmlInsertModal(area, range, defaultValue = '') {
+  if (!elements.htmlInsertModal || !elements.htmlInsertTextarea) {
+    return;
+  }
+  const clonedRange = range ? range.cloneRange() : null;
+  state.htmlInsertContext = {
+    area,
+    range: clonedRange
+  };
+  elements.htmlInsertTextarea.value = defaultValue;
+  openModal(elements.htmlInsertModal);
+  setTimeout(() => {
+    if (elements.htmlInsertTextarea) {
+      const length = elements.htmlInsertTextarea.value.length;
+      elements.htmlInsertTextarea.focus();
+      elements.htmlInsertTextarea.setSelectionRange(length, length);
+    }
+  }, 0);
+}
+
+function resetHtmlInsertModal() {
+  if (elements.htmlInsertTextarea) {
+    elements.htmlInsertTextarea.value = '';
+  }
+}
+
+function closeHtmlInsertModal(options = {}) {
+  const { restoreSelection = true } = options;
+  if (elements.htmlInsertModal) {
+    closeModal(elements.htmlInsertModal);
+  }
+  const context = state.htmlInsertContext;
+  if (!context) {
+    resetHtmlInsertModal();
+    return;
+  }
+  const { area, range } = context;
+  if (restoreSelection && area) {
+    area.focus();
+    if (range) {
+      restoreSelectionRange(range);
+    } else {
+      placeCaretAtEnd(area);
+    }
+    commitRichTextValue(area, { restoreRange: range || null });
+  }
+  state.htmlInsertContext = null;
+  resetHtmlInsertModal();
+}
+
+function handleHtmlInsertSubmit(event) {
+  event.preventDefault();
+  const context = state.htmlInsertContext;
+  if (!context) {
+    closeHtmlInsertModal({ restoreSelection: false });
+    return;
+  }
+  const { area, range } = context;
+  const rawHtml = elements.htmlInsertTextarea ? elements.htmlInsertTextarea.value : '';
+  state.htmlInsertContext = null;
+  if (elements.htmlInsertModal) {
+    closeModal(elements.htmlInsertModal);
+  }
+  resetHtmlInsertModal();
+  if (!area) {
+    return;
+  }
+  area.focus();
+  if (range) {
+    restoreSelectionRange(range);
+  } else {
+    placeCaretAtEnd(area);
+  }
+  const sanitized = sanitizeRichText(rawHtml);
+  document.execCommand('insertHTML', false, sanitized);
+  const selectionAfterInsert = cloneSelectionRange(area) || range;
+  commitRichTextValue(area, { restoreRange: selectionAfterInsert });
+}
+
+function handleHtmlInsertCancel(event) {
+  event.preventDefault();
+  closeHtmlInsertModal();
+}
+
 function isRichTextBlock(node) {
   if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
   const tag = node.tagName.toLowerCase();
@@ -1042,26 +1131,7 @@ function handleRichTextAction(area, action, value = '') {
 
   if (action === 'insertHtml') {
     const defaultValue = range ? sanitizeRichText(getRangeHtml(range)) : '';
-    const html = window.prompt('Wklej kod HTML do wstawienia', defaultValue);
-    area.focus();
-    if (html !== null) {
-      const sanitized = sanitizeRichText(html);
-      if (range) {
-        restoreSelectionRange(range);
-      } else {
-        placeCaretAtEnd(area);
-      }
-      document.execCommand('insertHTML', false, sanitized);
-      const selectionAfterInsert = cloneSelectionRange(area) || range;
-      commitRichTextValue(area, { restoreRange: selectionAfterInsert });
-    } else {
-      if (range) {
-        restoreSelectionRange(range);
-      } else {
-        placeCaretAtEnd(area);
-      }
-      commitRichTextValue(area, { restoreRange: range || null });
-    }
+    openHtmlInsertModal(area, range, defaultValue);
     return;
   }
 
@@ -1244,6 +1314,9 @@ function attachEditorListeners() {
   });
 
   setupRichTextEditors();
+
+  elements.htmlInsertForm?.addEventListener('submit', handleHtmlInsertSubmit);
+  elements.htmlInsertCancel?.addEventListener('click', handleHtmlInsertCancel);
 
   elements.plotOwnershipSelect?.addEventListener('change', () => {
     const value = elements.plotOwnershipSelect.value;
@@ -2037,12 +2110,23 @@ function closeModal(modal) {
 
 function setupModalHandlers() {
   elements.modalCloseButtons.forEach(button => {
-    button.addEventListener('click', () => closeModal(button.closest('.modal')));
+    const modal = button.closest('.modal');
+    if (!modal) return;
+    if (modal === elements.htmlInsertModal) {
+      button.addEventListener('click', () => closeHtmlInsertModal());
+    } else {
+      button.addEventListener('click', () => closeModal(modal));
+    }
   });
   [elements.loginModal, elements.registerModal].forEach(modal => {
     modal?.addEventListener('click', (event) => {
       if (event.target === modal) closeModal(modal);
     });
+  });
+  elements.htmlInsertModal?.addEventListener('click', (event) => {
+    if (event.target === elements.htmlInsertModal) {
+      closeHtmlInsertModal();
+    }
   });
 }
 

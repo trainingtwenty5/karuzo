@@ -410,6 +410,24 @@
 
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
+  <div class="modal" id="htmlInsertModal" role="dialog" aria-modal="true" aria-labelledby="htmlInsertTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="htmlInsertTitle">Wstaw kod HTML</h3>
+        <button type="button" class="modal-close" aria-label="Zamknij okno">&times;</button>
+      </div>
+      <p class="modal-description" id="htmlInsertDescription">Wklej kod HTML, aby zobaczyć go w podglądzie edycji. Niedozwolone elementy zostaną automatycznie usunięte.</p>
+      <form id="htmlInsertForm">
+        <label class="sr-only" for="htmlInsertTextarea">Kod HTML</label>
+        <textarea id="htmlInsertTextarea" placeholder="&lt;p&gt;Twój opis...&lt;/p&gt;" aria-describedby="htmlInsertDescription" spellcheck="false"></textarea>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" id="htmlInsertCancel">Anuluj</button>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-code"></i> Wstaw HTML</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal" id="loginModal">
     <div class="modal-content">
       <div class="modal-header">
