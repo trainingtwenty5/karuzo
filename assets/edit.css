@@ -13,6 +13,7 @@
   transition: outline-color .15s ease, background-color .15s ease;
   border-radius: 6px;
   cursor: text;
+  white-space: pre-wrap;
 }
 
 [contenteditable="true"]:hover {

@@ -750,15 +750,6 @@ function selectAllText(element) {
   selection.addRange(range);
 }
 
-function preventNewline(element) {
-  if (!element?.isContentEditable) return;
-  element.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-    }
-  });
-}
-
 function attachEditorListeners() {
   if (elements.priceValueText) {
     elements.priceValueText.addEventListener('focus', () => {
@@ -832,7 +823,6 @@ function attachEditorListeners() {
     elements.contactEmailLink
   ].forEach(element => {
     if (!element || !element.isContentEditable) return;
-    preventNewline(element);
     element.addEventListener('blur', () => {
       const text = stripHtml(element.innerHTML).trim();
       element.textContent = text;

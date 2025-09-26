@@ -82,6 +82,10 @@ main.property-wrapper {
   font-size: .85rem;
 }
 
+.meta-chip span {
+  white-space: pre-wrap;
+}
+
 .meta-chip i {
   color: var(--primary);
 }
@@ -148,6 +152,7 @@ main.property-wrapper {
   font-size: 1rem;
   font-weight: 600;
   color: var(--darker);
+  white-space: pre-wrap;
 }
 
 .property-layout {
@@ -410,6 +415,7 @@ body.lightbox-open {
   margin: 0;
   color: var(--darker);
   font-size: .95rem;
+  white-space: pre-wrap;
   text-align: justify;
 }
 
@@ -467,6 +473,7 @@ body.lightbox-open {
   font-size: .95rem;
   font-weight: 600;
   color: var(--darker);
+  white-space: pre-wrap;
 }
 
 .plan-notes {
