@@ -418,6 +418,10 @@ window.showConfirmModal = showConfirmModal;
   let allOffers = [];
   let availableTags = [];
   let tagMetrics = new Map();
+  let globalTagMetrics = new Map();
+  let globalTags = [];
+  let viewportTagMetrics = new Map();
+  let viewportTags = [];
   const filterState = {
     sortKey: null,
     sortDir: 'asc',
@@ -790,6 +794,10 @@ window.showConfirmModal = showConfirmModal;
     allOffers = [];
     availableTags = [];
     tagMetrics = new Map();
+    globalTagMetrics = new Map();
+    globalTags = [];
+    viewportTagMetrics = new Map();
+    viewportTags = [];
     currentVisibleOffers = [];
 
     if (!Array.isArray(documents)) {
@@ -798,6 +806,8 @@ window.showConfirmModal = showConfirmModal;
       applyFilters();
       return;
     }
+
+    const aggregatedTagMetrics = new Map();
 
     documents.forEach(entry => {
       const offerId = entry?.id || null;
@@ -812,6 +822,10 @@ window.showConfirmModal = showConfirmModal;
         const geometry = plot.geometry_uldk;
         const tags = normalizeTags(plot.tags);
         const uniquePlotTags = Array.from(new Set(tags));
+
+        uniquePlotTags.forEach(tag => {
+          aggregatedTagMetrics.set(tag, (aggregatedTagMetrics.get(tag) || 0) + 1);
+        });
 
         const marker = new google.maps.Marker({
           position: { lat, lng },
@@ -871,6 +885,15 @@ window.showConfirmModal = showConfirmModal;
     randomPreviewSignature = '';
     randomPreviewTags = [];
     tagsExpanded = false;
+    globalTagMetrics = aggregatedTagMetrics;
+    globalTags = Array.from(aggregatedTagMetrics.entries())
+      .sort((a, b) => {
+        if (b[1] !== a[1]) {
+          return b[1] - a[1];
+        }
+        return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
+      })
+      .map(([tag]) => tag);
     renderTagFilters();
     updateSortButtonsUI();
     applyFilters();
@@ -913,7 +936,12 @@ window.showConfirmModal = showConfirmModal;
   };
 
   toggleTagsBtn?.addEventListener('click', () => {
+    const wasExpanded = tagsExpanded;
     tagsExpanded = !tagsExpanded;
+    if (wasExpanded && !tagsExpanded) {
+      randomPreviewSignature = '';
+      randomPreviewTags = [];
+    }
     renderTagFilters();
   });
 
@@ -1163,7 +1191,7 @@ window.showConfirmModal = showConfirmModal;
       }
     });
 
-    tagMetrics = metrics;
+    viewportTagMetrics = metrics;
 
     const sortedTags = Array.from(metrics.entries())
       .sort((a, b) => {
@@ -1174,10 +1202,10 @@ window.showConfirmModal = showConfirmModal;
       })
       .map(([tag]) => tag);
 
-    const previousSignature = availableTags.join('|');
-    availableTags = sortedTags;
+    const previousSignature = viewportTags.join('|');
+    viewportTags = sortedTags;
 
-    if (availableTags.join('|') !== previousSignature) {
+    if (viewportTags.join('|') !== previousSignature && !tagsExpanded) {
       randomPreviewSignature = '';
       randomPreviewTags = [];
     }
@@ -1265,59 +1293,73 @@ window.showConfirmModal = showConfirmModal;
     tagFiltersList.innerHTML = '';
     tagFiltersList.classList.remove('is-empty');
 
+    const usingGlobalTags = tagsExpanded && globalTags.length;
+    const baseTags = usingGlobalTags ? globalTags : viewportTags;
+    const baseMetrics = usingGlobalTags ? globalTagMetrics : viewportTagMetrics;
+
+    const previousSignature = availableTags.join('|');
+    availableTags = Array.isArray(baseTags) ? baseTags.slice() : [];
+    tagMetrics = baseMetrics instanceof Map ? baseMetrics : new Map();
+
+    if (!tagsExpanded && availableTags.join('|') !== previousSignature) {
+      randomPreviewSignature = '';
+      randomPreviewTags = [];
+    }
+
     if (!availableTags.length) {
       const placeholder = document.createElement('span');
       placeholder.className = 'tag-placeholder';
-      placeholder.textContent = 'Brak tagów w ofertach';
+      placeholder.textContent = globalTags.length && !tagsExpanded
+        ? 'Brak tagów w tym widoku mapy'
+        : 'Brak tagów w ofertach';
       tagFiltersList.appendChild(placeholder);
       tagFiltersList.dataset.expanded = 'false';
       tagFiltersList.dataset.state = 'empty';
       tagFiltersList.classList.add('is-empty');
-      if (toggleTagsBtn) {
-        toggleTagsBtn.hidden = true;
-        toggleTagsBtn.setAttribute('aria-expanded', 'false');
-        toggleTagsBtn.dataset.state = 'empty';
-      }
-      return;
     }
 
     const selectedTags = Array.from(filterState.selectedTags);
-    const filteredForCounts = currentVisibleOffers.length ? currentVisibleOffers : getOffersMatchingFilters();
+    const filteredForCounts = tagsExpanded
+      ? getOffersMatchingFilters()
+      : (currentVisibleOffers.length ? currentVisibleOffers : getOffersMatchingFilters());
     const displayCounts = computeTagDisplayCounts(filteredForCounts);
 
-    const visibleTags = tagsExpanded ? availableTags.slice() : ensureRandomPreviewTags().slice();
-    const visibleSet = new Set(visibleTags);
+    if (availableTags.length) {
+      const visibleTags = tagsExpanded ? availableTags.slice() : ensureRandomPreviewTags().slice();
+      const visibleSet = new Set(visibleTags);
 
-    selectedTags.forEach(tag => {
-      if (!visibleSet.has(tag)) {
-        visibleSet.add(tag);
-        visibleTags.push(tag);
+      selectedTags.forEach(tag => {
+        if (!visibleSet.has(tag)) {
+          visibleSet.add(tag);
+          visibleTags.push(tag);
+        }
+      });
+
+      const listWrap = document.createElement('div');
+      listWrap.className = 'tags-preview';
+      if (tagsExpanded) {
+        listWrap.dataset.mode = 'expanded';
       }
-    });
+      tagFiltersList.appendChild(listWrap);
 
-    const listWrap = document.createElement('div');
-    listWrap.className = 'tags-preview';
-    if (tagsExpanded) {
-      listWrap.dataset.mode = 'expanded';
-    }
-    tagFiltersList.appendChild(listWrap);
+      visibleTags.forEach(tag => {
+        const chip = createTagChip(tag);
+        configureTagChip(chip, tag, displayCounts);
+        listWrap.appendChild(chip);
+      });
 
-    visibleTags.forEach(tag => {
-      const chip = createTagChip(tag);
-      configureTagChip(chip, tag, displayCounts);
-      listWrap.appendChild(chip);
-    });
+      const hiddenCount = Math.max(availableTags.length - visibleSet.size, 0);
 
-    const hiddenCount = Math.max(availableTags.length - visibleSet.size, 0);
-
-    if (!tagsExpanded && hiddenCount > 0) {
-      const summary = document.createElement('span');
-      summary.className = 'tags-summary';
-      summary.textContent = `+${hiddenCount} więcej`;
-      listWrap.appendChild(summary);
+      if (!tagsExpanded && hiddenCount > 0) {
+        const summary = document.createElement('span');
+        summary.className = 'tags-summary';
+        summary.textContent = `+${hiddenCount} więcej`;
+        listWrap.appendChild(summary);
+      }
     }
 
-    const shouldShowToggle = availableTags.length > TAG_PREVIEW_COUNT;
+    const totalTagCount = globalTags.length;
+    const shouldShowToggle = totalTagCount > 0 && (tagsExpanded || totalTagCount > TAG_PREVIEW_COUNT || totalTagCount > availableTags.length);
     if (!shouldShowToggle) {
       tagsExpanded = false;
     }
@@ -1325,18 +1367,23 @@ window.showConfirmModal = showConfirmModal;
     if (toggleTagsBtn) {
       if (shouldShowToggle) {
         toggleTagsBtn.hidden = false;
-        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${availableTags.length})`;
+        const countLabel = totalTagCount || availableTags.length;
+        toggleTagsBtn.textContent = tagsExpanded ? 'Ukryj tagi' : `Pokaż wszystkie tagi (${countLabel})`;
         toggleTagsBtn.setAttribute('aria-expanded', tagsExpanded ? 'true' : 'false');
         toggleTagsBtn.dataset.state = tagsExpanded ? 'expanded' : 'collapsed';
       } else {
         toggleTagsBtn.hidden = true;
         toggleTagsBtn.setAttribute('aria-expanded', 'false');
-        toggleTagsBtn.dataset.state = 'all-visible';
+        toggleTagsBtn.dataset.state = availableTags.length ? 'all-visible' : 'empty';
       }
     }
 
     tagFiltersList.dataset.expanded = tagsExpanded ? 'true' : 'false';
-    tagFiltersList.dataset.state = shouldShowToggle ? (tagsExpanded ? 'expanded' : 'collapsed') : 'all-visible';
+    if (!availableTags.length) {
+      tagFiltersList.dataset.state = 'empty';
+    } else {
+      tagFiltersList.dataset.state = shouldShowToggle ? (tagsExpanded ? 'expanded' : 'collapsed') : 'all-visible';
+    }
   }
 
   function toggleTagFilter(tag) {
