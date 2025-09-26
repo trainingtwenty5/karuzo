@@ -1407,13 +1407,34 @@ window.showConfirmModal = showConfirmModal;
       center: { lat: 52.0, lng: 19.0 },
       zoom: 6,
       gestureHandling: "greedy",
-      mapTypeId: google.maps.MapTypeId.HYBRID
+      mapTypeId: google.maps.MapTypeId.HYBRID,
+      tilt: 0,
+      heading: 0,
+      tiltControl: false
     });
+
+    const keepMapFlat = () => {
+      if (!map) return;
+      if (map.getTilt && map.getTilt() !== 0) {
+        map.setTilt(0);
+      }
+      if (map.getHeading && map.getHeading() !== 0) {
+        map.setHeading(0);
+      }
+    };
+
+    keepMapFlat();
 
     applySavedMapView();
 
-    google.maps.event.addListener(map, "idle", () => filterOffersByBounds());
-    google.maps.event.addListener(map, "zoom_changed", () => updatePolygonVisibility());
+    google.maps.event.addListener(map, "idle", () => {
+      keepMapFlat();
+      filterOffersByBounds();
+    });
+    google.maps.event.addListener(map, "zoom_changed", () => {
+      keepMapFlat();
+      updatePolygonVisibility();
+    });
     await loadOffers();
     focusOfferFromMapState();
 
