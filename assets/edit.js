@@ -68,6 +68,7 @@ const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
 const RICH_TEXT_FIELD_IDS = ['locationAccess', 'planNotes', 'descriptionText'];
 const RICH_TEXT_ALIGN_CLASSES = ['rt-align-left', 'rt-align-center', 'rt-align-right', 'rt-align-justify'];
 const RICH_TEXT_SIZE_CLASSES = ['rt-size-small', 'rt-size-normal', 'rt-size-large'];
+const RICH_TEXT_SELECTIONS = new WeakMap();
 
 const elements = {
   loadingState: document.getElementById('loadingState'),
@@ -272,10 +273,13 @@ function clearRichTextPlaceholder(element) {
 
 function commitRichTextValue(element) {
   if (!element) return;
-  const sanitized = sanitizeRichText(element.innerHTML || '');
+  const currentHtml = element.innerHTML || '';
+  const sanitized = sanitizeRichText(currentHtml);
   const plain = richTextToPlainText(sanitized).trim();
   if (plain) {
-    element.innerHTML = sanitized;
+    if (currentHtml !== sanitized) {
+      element.innerHTML = sanitized;
+    }
     element.dataset.placeholderActive = 'false';
   } else {
     element.textContent = EMPTY_FIELD_PLACEHOLDER;
@@ -831,6 +835,19 @@ function restoreSelectionRange(range) {
   selection.addRange(range);
 }
 
+function rememberRichTextSelection(area) {
+  if (!area) return;
+  const range = cloneSelectionRange(area);
+  if (range) {
+    RICH_TEXT_SELECTIONS.set(area, range);
+  }
+}
+
+function getStoredRichTextSelection(area) {
+  const range = area ? RICH_TEXT_SELECTIONS.get(area) : null;
+  return range ? range.cloneRange() : null;
+}
+
 function getRangeHtml(range) {
   if (!range) return '';
   const fragment = range.cloneContents();
@@ -941,8 +958,11 @@ function clearRichTextFormatting(area) {
 function handleRichTextAction(area, action, value = '') {
   if (!area) return;
   clearRichTextPlaceholder(area);
+  let range = cloneSelectionRange(area);
+  if (!range) {
+    range = getStoredRichTextSelection(area);
+  }
   if (action === 'insertHtml') {
-    const range = cloneSelectionRange(area);
     const defaultValue = range ? sanitizeRichText(getRangeHtml(range)) : '';
     const html = window.prompt('Wklej kod HTML do wstawienia', defaultValue);
     area.focus();
@@ -962,6 +982,11 @@ function handleRichTextAction(area, action, value = '') {
   }
 
   area.focus();
+  if (range) {
+    restoreSelectionRange(range);
+  } else {
+    placeCaretAtEnd(area);
+  }
 
   if (action === 'bold' || action === 'italic' || action === 'underline') {
     document.execCommand(action);
@@ -991,6 +1016,11 @@ function setupRichTextEditors() {
 
     editor.querySelectorAll('.rich-text-btn[data-action]').forEach(button => {
       const action = button.dataset.action;
+      button.addEventListener('mousedown', event => {
+        event.preventDefault();
+        area.focus();
+        rememberRichTextSelection(area);
+      });
       button.addEventListener('click', () => {
         handleRichTextAction(area, action, button.dataset.value || '');
       });
@@ -998,6 +1028,9 @@ function setupRichTextEditors() {
 
     const sizeSelect = editor.querySelector('.rich-text-select[data-action="fontSize"]');
     if (sizeSelect) {
+      sizeSelect.addEventListener('mousedown', () => {
+        rememberRichTextSelection(area);
+      });
       sizeSelect.addEventListener('change', (event) => {
         handleRichTextAction(area, 'fontSize', event.target.value || 'normal');
       });
@@ -1097,12 +1130,20 @@ function attachEditorListeners() {
   richTextElements.forEach(element => {
     element.addEventListener('focus', () => {
       clearRichTextPlaceholder(element);
+      rememberRichTextSelection(element);
     });
     element.addEventListener('blur', () => {
       commitRichTextValue(element);
+      rememberRichTextSelection(element);
     });
     element.addEventListener('input', () => {
       element.dataset.placeholderActive = 'false';
+      rememberRichTextSelection(element);
+    });
+    ['mouseup', 'keyup', 'touchend'].forEach(eventName => {
+      element.addEventListener(eventName, () => {
+        rememberRichTextSelection(element);
+      });
     });
   });
 
