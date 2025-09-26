@@ -1232,6 +1232,13 @@ window.showConfirmModal = showConfirmModal;
     const countValue = displayCounts?.get(tag);
     const numericCount = Number.isFinite(countValue) ? countValue : (Number(tagMetrics.get(tag)) || 0);
 
+    if (Number.isFinite(numericCount)) {
+      const countSpan = document.createElement('span');
+      countSpan.className = 'tag-chip__count';
+      countSpan.textContent = `(${numericCount})`;
+      chip.appendChild(countSpan);
+    }
+
     const compatibleCount = Number.isFinite(countValue) ? countValue : 0;
     const isCompatible = filterState.selectedTags.size > 0 && !isActive && compatibleCount > 0;
     chip.classList.toggle('is-compatible', isCompatible);
