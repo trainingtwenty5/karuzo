@@ -1149,15 +1149,18 @@ window.showConfirmModal = showConfirmModal;
     currentVisibleOffers = Array.isArray(visibleOffers) ? visibleOffers.slice() : [];
 
     const metrics = new Map();
+    const uniqueTags = new Set();
 
     currentVisibleOffers.forEach(offer => {
       const offerTags = Array.isArray(offer.tags) ? offer.tags : [];
       offerTags.forEach(tag => {
+        uniqueTags.add(tag);
         metrics.set(tag, (metrics.get(tag) || 0) + 1);
       });
     });
 
     filterState.selectedTags.forEach(tag => {
+      uniqueTags.add(tag);
       if (!metrics.has(tag)) {
         metrics.set(tag, 0);
       }
@@ -1165,17 +1168,17 @@ window.showConfirmModal = showConfirmModal;
 
     tagMetrics = metrics;
 
-    const sortedTags = Array.from(metrics.entries())
-      .sort((a, b) => {
-        if (b[1] !== a[1]) {
-          return b[1] - a[1];
-        }
-        return a[0].localeCompare(b[0], 'pl', { sensitivity: 'base' });
-      })
-      .map(([tag]) => tag);
-
     const previousSignature = availableTags.join('|');
-    availableTags = sortedTags;
+    availableTags = Array.from(uniqueTags).sort((a, b) => {
+      const aCount = Number(metrics.get(a)) || 0;
+      const bCount = Number(metrics.get(b)) || 0;
+
+      if (bCount !== aCount) {
+        return bCount - aCount;
+      }
+
+      return a.localeCompare(b, 'pl', { sensitivity: 'base' });
+    });
 
     if (availableTags.join('|') !== previousSignature) {
       randomPreviewSignature = '';
@@ -1268,7 +1271,7 @@ window.showConfirmModal = showConfirmModal;
     if (!availableTags.length) {
       const placeholder = document.createElement('span');
       placeholder.className = 'tag-placeholder';
-      placeholder.textContent = 'Brak tagów w ofertach';
+      placeholder.textContent = 'Brak tagów w widocznym obszarze';
       tagFiltersList.appendChild(placeholder);
       tagFiltersList.dataset.expanded = 'false';
       tagFiltersList.dataset.state = 'empty';
