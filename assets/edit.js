@@ -53,6 +53,8 @@ const state = {
   price: null,
   area: null,
   saving: false,
+  charLimitViolation: false,
+  tagLimitViolation: false,
   planBadges: null,
   map: null,
   marker: null,
@@ -73,6 +75,22 @@ const RICH_TEXT_FIELD_IDS = ['locationAccess', 'planNotes', 'descriptionText'];
 const RICH_TEXT_ALIGN_CLASSES = ['rt-align-left', 'rt-align-center', 'rt-align-right', 'rt-align-justify'];
 const RICH_TEXT_SIZE_CLASSES = ['rt-size-small', 'rt-size-normal', 'rt-size-large'];
 const RICH_TEXT_SELECTIONS = new WeakMap();
+const TAG_LIMIT = 10;
+const CHAR_LIMIT_CONFIG = {
+  propertyLocation: { limit: 70, label: 'Lokalizacja', inline: true },
+  landRegister: { limit: 20, label: 'Numer księgi wieczystej', alignEnd: true },
+  planDesignation: { limit: 30, label: 'Przeznaczenie', alignEnd: true },
+  planHeight: { limit: 20, label: 'Maks. wysokość', alignEnd: true },
+  planIntensity: { limit: 30, label: 'Intensywność zabudowy', alignEnd: true },
+  planGreen: { limit: 30, label: 'Pow. biologicznie czynna', alignEnd: true },
+  planNotes: { limit: 1000, label: 'Plan zagospodarowania', richText: true, alignEnd: true },
+  locationAddress: { limit: 100, label: 'Adres', alignEnd: true },
+  locationAccess: { limit: 1000, label: 'Dojazd i otoczenie', richText: true, alignEnd: true },
+  descriptionText: { limit: 9000, label: 'Opis szczegółowy', richText: true, alignEnd: true }
+};
+const charCounters = new Map();
+let charCountersInitialized = false;
+const EMPTY_PLACEHOLDER_NORMALIZED = EMPTY_FIELD_PLACEHOLDER.toLowerCase();
 let htmlInsertDialog = null;
 
 const elements = {
@@ -108,6 +126,7 @@ const elements = {
   addTagBtn: document.getElementById('addTagBtn'),
   tagSuggestionsWrapper: document.getElementById('tagSuggestionsWrapper'),
   tagSuggestionsList: document.getElementById('tagSuggestionsList'),
+  tagCounter: document.getElementById('tagCounter'),
   contactName: document.getElementById('contactName'),
   contactPhoneLink: document.getElementById('contactPhoneLink'),
   contactEmailLink: document.getElementById('contactEmailLink'),
@@ -138,6 +157,8 @@ const elements = {
   googleRegisterBtn: document.getElementById('googleLoginBtn'),
   googleLoginBtn: document.getElementById('googleLoginBtnLogin')
 };
+
+const TAG_INPUT_PLACEHOLDER = elements.tagInput ? elements.tagInput.getAttribute('placeholder') || '' : '';
 
 htmlInsertDialog = createHtmlInsertDialog();
 
@@ -234,6 +255,7 @@ function applyPlaceholder(element, value) {
   if (!element) return;
   const text = textContentOrFallback(value, '');
   element.textContent = text || EMPTY_FIELD_PLACEHOLDER;
+  updateCharCounterByElement(element);
 }
 
 function applyMultilinePlaceholder(element, value) {
@@ -241,6 +263,7 @@ function applyMultilinePlaceholder(element, value) {
   const sanitized = sanitizeMultilineText(value || '');
   const trimmed = sanitized.trim();
   element.textContent = trimmed ? sanitized : EMPTY_FIELD_PLACEHOLDER;
+  updateCharCounterByElement(element);
 }
 
 function normalizePlaceholderValue(value) {
@@ -257,6 +280,141 @@ function normalizeMultilineValue(value) {
   return trimmed.toLowerCase() === EMPTY_FIELD_PLACEHOLDER.toLowerCase() ? '' : sanitized;
 }
 
+function ensureCharCountersInitialized() {
+  if (!charCountersInitialized) {
+    initializeCharCounters();
+  }
+}
+
+function initializeCharCounters() {
+  Object.entries(CHAR_LIMIT_CONFIG).forEach(([id, config]) => {
+    const element = elements[id];
+    if (!element) return;
+
+    let entry = charCounters.get(id);
+    if (!entry) {
+      const counter = document.createElement(config.inline ? 'span' : 'div');
+      const classes = ['char-counter'];
+      if (config.inline) classes.push('char-counter--inline');
+      if (config.alignEnd) classes.push('char-counter--end');
+      counter.className = classes.join(' ');
+      counter.dataset.counterFor = id;
+      counter.setAttribute('aria-live', 'polite');
+      counter.setAttribute('role', 'status');
+      element.insertAdjacentElement('afterend', counter);
+      entry = { element, counter, config, count: 0 };
+      charCounters.set(id, entry);
+    } else {
+      entry.element = element;
+      entry.config = config;
+      if (entry.counter && !entry.counter.isConnected) {
+        element.insertAdjacentElement('afterend', entry.counter);
+      }
+    }
+
+    if (!element.dataset.charCounterInitialized) {
+      const handler = () => updateCharCounter(id);
+      element.addEventListener('input', handler);
+      element.addEventListener('blur', handler);
+      element.dataset.charCounterInitialized = 'true';
+    }
+  });
+  charCountersInitialized = true;
+  updateAllCharCounters();
+}
+
+function getPlainTextForCount(element, config) {
+  if (!element) return '';
+  if (config && config.richText) {
+    if (element.dataset.placeholderActive === 'true') return '';
+    const sanitized = sanitizeRichText(element.innerHTML || '');
+    return richTextToPlainText(sanitized || '');
+  }
+  const raw = stripHtml(element.innerHTML || '');
+  if (!raw) return '';
+  const trimmedLower = raw.trim().toLowerCase();
+  if (trimmedLower === EMPTY_PLACEHOLDER_NORMALIZED) {
+    return '';
+  }
+  return raw;
+}
+
+function updateCharCounter(fieldId) {
+  const entry = charCounters.get(fieldId);
+  if (!entry) return;
+  const { element, counter, config } = entry;
+  if (!element || !counter) return;
+  const text = getPlainTextForCount(element, config);
+  const count = text.length;
+  entry.count = count;
+  const limit = Number.isFinite(config.limit) ? config.limit : 0;
+  counter.textContent = `${count}/${limit}`;
+  const label = config.label || element.getAttribute('aria-label') || fieldId;
+  counter.setAttribute('aria-label', `${label}: ${count} z ${limit} znaków`);
+  const isOverLimit = limit > 0 && count > limit;
+  counter.classList.toggle('is-over-limit', isOverLimit);
+  if (element.classList) {
+    element.classList.toggle('field-over-limit', isOverLimit);
+  }
+  updateSaveButtonState();
+}
+
+function updateAllCharCounters() {
+  charCounters.forEach((_, id) => updateCharCounter(id));
+}
+
+function updateCharCounterByElement(element) {
+  if (!element || !element.id) return;
+  if (!charCountersInitialized && CHAR_LIMIT_CONFIG[element.id]) {
+    initializeCharCounters();
+  }
+  if (charCounters.has(element.id)) {
+    updateCharCounter(element.id);
+  }
+}
+
+function findFirstCharLimitViolation() {
+  for (const entry of charCounters.values()) {
+    const limit = Number.isFinite(entry.config.limit) ? entry.config.limit : 0;
+    if (limit > 0 && entry.count > limit) {
+      return entry;
+    }
+  }
+  return null;
+}
+
+function updateSaveButtonState() {
+  let charViolation = false;
+  if (charCountersInitialized) {
+    for (const entry of charCounters.values()) {
+      const limit = Number.isFinite(entry.config.limit) ? entry.config.limit : 0;
+      if (limit > 0 && entry.count > limit) {
+        charViolation = true;
+        break;
+      }
+    }
+  }
+  const tagViolation = state.tags.length > TAG_LIMIT;
+  const previousCharViolation = state.charLimitViolation;
+  const previousTagViolation = state.tagLimitViolation;
+  state.charLimitViolation = charViolation;
+  state.tagLimitViolation = tagViolation;
+  const shouldDisable = !!state.saving || charViolation || tagViolation;
+  if (elements.saveChangesBtn) {
+    elements.saveChangesBtn.disabled = shouldDisable;
+  }
+  if (charViolation && !previousCharViolation) {
+    const violation = findFirstCharLimitViolation();
+    const label = violation
+      ? (violation.config.label || violation.element.getAttribute('aria-label') || violation.element.id || 'Pole')
+      : 'Pole';
+    showToast(`Pole "${label}" przekracza dozwoloną liczbę znaków.`, 'warning');
+  }
+  if (tagViolation && !previousTagViolation) {
+    showToast(`Możesz dodać maksymalnie ${TAG_LIMIT} znaczników. Usuń nadmiarowe, aby kontynuować.`, 'warning');
+  }
+}
+
 function applyRichTextPlaceholder(element, value) {
   if (!element) return;
   const sanitized = sanitizeRichText(value || '');
@@ -269,6 +427,7 @@ function applyRichTextPlaceholder(element, value) {
     element.textContent = EMPTY_FIELD_PLACEHOLDER;
     element.dataset.placeholderActive = 'true';
   }
+  updateCharCounterByElement(element);
 }
 
 function clearRichTextPlaceholder(element) {
@@ -276,6 +435,7 @@ function clearRichTextPlaceholder(element) {
   if (element.dataset.placeholderActive === 'true') {
     element.innerHTML = '';
     element.dataset.placeholderActive = 'false';
+    updateCharCounterByElement(element);
   }
 }
 
@@ -347,6 +507,8 @@ function commitRichTextValue(element, options = {}) {
     element.textContent = EMPTY_FIELD_PLACEHOLDER;
     element.dataset.placeholderActive = 'true';
   }
+
+  updateCharCounterByElement(element);
 
   if (rangeToRestore) {
     const schedule = typeof requestAnimationFrame === 'function'
@@ -811,6 +973,30 @@ function renderUtilitiesEdit() {
   });
 }
 
+function updateTagCounter() {
+  const count = state.tags.length;
+  const overLimit = count > TAG_LIMIT;
+  const atLimit = count >= TAG_LIMIT;
+  if (elements.tagCounter) {
+    elements.tagCounter.textContent = `${count}/${TAG_LIMIT}`;
+    elements.tagCounter.setAttribute('aria-label', `Znaczniki: ${count} z ${TAG_LIMIT}`);
+    elements.tagCounter.classList.toggle('is-over-limit', overLimit);
+  }
+  if (elements.tagInput) {
+    elements.tagInput.disabled = atLimit;
+    elements.tagInput.setAttribute('aria-disabled', String(atLimit));
+    if (atLimit) {
+      elements.tagInput.placeholder = 'Usuń znacznik, aby dodać nowy';
+    } else {
+      elements.tagInput.placeholder = TAG_INPUT_PLACEHOLDER;
+    }
+  }
+  if (elements.addTagBtn) {
+    elements.addTagBtn.disabled = atLimit;
+  }
+  updateSaveButtonState();
+}
+
 function renderTagSuggestions() {
   if (!elements.tagSuggestionsList) return;
 
@@ -821,6 +1007,13 @@ function renderTagSuggestions() {
   const available = Array.isArray(state.tagSuggestions)
     ? state.tagSuggestions.filter(tag => !selected.has(tag.toLowerCase()))
     : [];
+
+  if (state.tags.length >= TAG_LIMIT) {
+    if (elements.tagSuggestionsWrapper) {
+      elements.tagSuggestionsWrapper.hidden = true;
+    }
+    return;
+  }
 
   if (!available.length) {
     if (elements.tagSuggestionsWrapper) {
@@ -850,16 +1043,16 @@ function renderTagsEdit() {
   elements.tagsList.innerHTML = '';
   if (!state.tags.length) {
     elements.tagsEmpty.hidden = false;
-    renderTagSuggestions();
-    return;
+  } else {
+    elements.tagsEmpty.hidden = true;
+    state.tags.forEach((tag, index) => {
+      const chip = document.createElement('span');
+      chip.className = 'tag-chip removable';
+      chip.innerHTML = `<span>${tag}</span><button type="button" class="tag-remove" data-index="${index}" aria-label="Usuń znacznik">&times;</button>`;
+      elements.tagsList.appendChild(chip);
+    });
   }
-  elements.tagsEmpty.hidden = true;
-  state.tags.forEach((tag, index) => {
-    const chip = document.createElement('span');
-    chip.className = 'tag-chip removable';
-    chip.innerHTML = `<span>${tag}</span><button type="button" class="tag-remove" data-index="${index}" aria-label="Usuń znacznik">&times;</button>`;
-    elements.tagsList.appendChild(chip);
-  });
+  updateTagCounter();
   renderTagSuggestions();
 }
 
@@ -1326,6 +1519,7 @@ function attachEditorListeners() {
     elements.propertyLocation,
     elements.plotNumber,
     elements.landRegister,
+    elements.locationAddress,
     elements.planDesignation,
     elements.planHeight,
     elements.planIntensity,
@@ -1335,6 +1529,9 @@ function attachEditorListeners() {
     elements.contactEmailLink
   ].forEach(element => {
     if (!element || !element.isContentEditable) return;
+    element.addEventListener('input', () => {
+      updateCharCounterByElement(element);
+    });
     element.addEventListener('blur', () => {
       const text = stripHtml(element.innerHTML).trim();
       element.textContent = text;
@@ -1344,6 +1541,7 @@ function attachEditorListeners() {
       if (element === elements.contactEmailLink) {
         updateContactEmailHref();
       }
+      updateCharCounterByElement(element);
     });
   });
 
@@ -1365,6 +1563,7 @@ function attachEditorListeners() {
       element.dataset.placeholderActive = 'false';
       normalizeRichTextStructure(element);
       rememberRichTextSelection(element);
+      updateCharCounterByElement(element);
     });
     ['mouseup', 'keyup', 'touchend'].forEach(eventName => {
       element.addEventListener(eventName, () => {
@@ -1410,6 +1609,7 @@ function attachEditorListeners() {
         elements.contactPhoneLink.textContent = formatted;
         selectAllText(elements.contactPhoneLink);
       }
+      updateCharCounterByElement(elements.contactPhoneLink);
     });
   }
 
@@ -1496,6 +1696,11 @@ function addTag(rawValue) {
     showToast('Podaj treść znacznika.', 'warning');
     return;
   }
+  if (state.tags.length >= TAG_LIMIT) {
+    showToast(`Możesz dodać maksymalnie ${TAG_LIMIT} znaczników.`, 'warning');
+    if (elements.tagInput) elements.tagInput.value = '';
+    return;
+  }
   if (state.tags.some(existing => existing.toLowerCase() === normalized.toLowerCase())) {
     showToast('Taki znacznik już istnieje.', 'info');
     if (elements.tagInput) elements.tagInput.value = '';
@@ -1560,6 +1765,7 @@ function renderEditor(data, plot) {
   const rebind = !!state.plotData;
   state.offerData = data;
   state.plotData = cloneDeep(plot);
+  ensureCharCountersInitialized();
 
   const title = pickValue(plot.title, plot.name, plot.Id, `Działka ${state.plotIndex + 1}`);
   elements.propertyTitle.textContent = textContentOrFallback(title, 'Działka');
@@ -1646,6 +1852,8 @@ function renderEditor(data, plot) {
   if (!rebind) {
     attachEditorListeners();
   }
+  updateAllCharCounters();
+  updateSaveButtonState();
 }
 
 function setupMapModeButtons() {
@@ -2323,6 +2531,29 @@ function validatePlot(plot) {
   return true;
 }
 
+function validateBeforeSave() {
+  ensureCharCountersInitialized();
+  updateAllCharCounters();
+  const violation = findFirstCharLimitViolation();
+  if (violation) {
+    const { element, config } = violation;
+    const label = config.label || element.getAttribute('aria-label') || element.id || 'Pole';
+    showToast(`Pole "${label}" przekracza dozwoloną liczbę znaków (${config.limit}).`, 'error');
+    if (element && typeof element.focus === 'function') {
+      element.focus();
+      if (typeof element.scrollIntoView === 'function') {
+        element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+    return false;
+  }
+  if (state.tags.length > TAG_LIMIT) {
+    showToast(`Możesz dodać maksymalnie ${TAG_LIMIT} znaczników. Usuń nadmiarowe przed zapisaniem.`, 'error');
+    return false;
+  }
+  return true;
+}
+
 function buildUpdatedPlot() {
   const base = cloneDeep(state.plotData || {});
   base.title = stripHtml(elements.propertyTitle.innerHTML).trim() || 'Działka';
@@ -2354,12 +2585,13 @@ function buildUpdatedPlot() {
 
 async function handleSave() {
   if (state.saving) return;
+  if (!validateBeforeSave()) return;
   const updatedPlot = buildUpdatedPlot();
   if (!validatePlot(updatedPlot)) return;
 
   try {
     state.saving = true;
-    if (elements.saveChangesBtn) elements.saveChangesBtn.disabled = true;
+    updateSaveButtonState();
     const { db } = initFirebase();
     const offerRef = doc(db, 'propertyListings', state.offerId);
     const plots = Array.isArray(state.offerData?.plots) ? cloneDeep(state.offerData.plots) : [];
@@ -2395,7 +2627,7 @@ async function handleSave() {
     showToast('Nie udało się zapisać zmian. Spróbuj ponownie.', 'error');
   } finally {
     state.saving = false;
-    if (elements.saveChangesBtn) elements.saveChangesBtn.disabled = false;
+    updateSaveButtonState();
   }
 }
 
@@ -2436,6 +2668,9 @@ async function loadProperty() {
 
 async function init() {
   syncMobileMenu();
+  ensureCharCountersInitialized();
+  updateTagCounter();
+  updateSaveButtonState();
   const { offerId, plotIndex } = parseQueryParams();
   state.offerId = offerId;
   state.plotIndex = plotIndex;

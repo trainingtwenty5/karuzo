@@ -256,10 +256,30 @@
           </div>
           <div class="plan-badges" id="planBadges"></div>
           <div class="plan-info-grid">
-            <dl><dt>Przeznaczenie</dt><dd id="planDesignation" contenteditable="true">Pole do wypełnienia</dd></dl>
-            <dl><dt>Maks. wysokość</dt><dd id="planHeight" contenteditable="true">Pole do wypełnienia</dd></dl>
-            <dl><dt>Intensywność zabudowy</dt><dd id="planIntensity" contenteditable="true">Pole do wypełnienia</dd></dl>
-            <dl><dt>Pow. biologicznie czynna</dt><dd id="planGreen" contenteditable="true">Pole do wypełnienia</dd></dl>
+            <dl>
+              <dt>Przeznaczenie</dt>
+              <dd>
+                <div id="planDesignation" class="plan-info-value" contenteditable="true">Pole do wypełnienia</div>
+              </dd>
+            </dl>
+            <dl>
+              <dt>Maks. wysokość</dt>
+              <dd>
+                <div id="planHeight" class="plan-info-value" contenteditable="true">Pole do wypełnienia</div>
+              </dd>
+            </dl>
+            <dl>
+              <dt>Intensywność zabudowy</dt>
+              <dd>
+                <div id="planIntensity" class="plan-info-value" contenteditable="true">Pole do wypełnienia</div>
+              </dd>
+            </dl>
+            <dl>
+              <dt>Pow. biologicznie czynna</dt>
+              <dd>
+                <div id="planGreen" class="plan-info-value" contenteditable="true">Pole do wypełnienia</div>
+              </dd>
+            </dl>
           </div>
           <div class="rich-text-editor" data-editor-target="planNotes">
             <div class="rich-text-toolbar" role="toolbar" aria-label="Narzędzia formatowania">
@@ -381,6 +401,7 @@
           </p>
           <div class="tags-list" id="tagsList"></div>
           <p class="tags-empty" id="tagsEmpty" hidden>Brak dodatkowych parametrów.</p>
+          <p class="char-counter char-counter--end char-counter--tags" id="tagCounter" aria-live="polite">0/10</p>
           <div class="tag-form">
             <input type="text" id="tagInput" placeholder="Dodaj własny znacznik, np. #Budowlana">
             <button class="btn btn-primary" type="button" id="addTagBtn"><i class="fas fa-plus"></i> Dodaj</button>

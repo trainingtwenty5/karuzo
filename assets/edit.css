@@ -25,6 +25,11 @@
   background: rgba(30,111,186,.06);
 }
 
+[contenteditable="true"].field-over-limit {
+  outline-color: rgba(220,38,38,.55) !important;
+  background: rgba(220,38,38,.08);
+}
+
 [contenteditable="true"].single-line {
   white-space: nowrap;
 }
@@ -83,6 +88,60 @@
 
 .meta-chip--select select option {
   color: var(--darker);
+}
+
+.char-counter {
+  font-size: .75rem;
+  color: #64748b;
+  line-height: 1.2;
+  margin-top: .35rem;
+}
+
+.char-counter--inline {
+  display: inline-block;
+  margin-left: .45rem;
+  margin-top: 0;
+  font-size: .7rem;
+}
+
+.char-counter--end {
+  text-align: right;
+}
+
+.char-counter--tags {
+  margin-top: 0;
+}
+
+.char-counter.is-over-limit {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.meta-chip .char-counter--inline {
+  color: #94a3b8;
+}
+
+.field-over-limit:not([contenteditable="true"]) {
+  background: rgba(220,38,38,.08);
+  border-radius: 6px;
+}
+
+.plan-info-grid dd {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+.plan-info-value {
+  display: block;
+  font-weight: 600;
+  color: var(--darker);
+  white-space: pre-wrap;
+}
+
+.plan-info-grid dd .char-counter {
+  text-align: right;
+  margin-top: 0;
 }
 
 .utilities-grid .utility-card {
