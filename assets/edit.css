@@ -13,6 +13,7 @@
   transition: outline-color .15s ease, background-color .15s ease;
   border-radius: 6px;
   cursor: text;
+  white-space: pre-wrap;
 }
 
 [contenteditable="true"]:hover {
@@ -199,6 +200,224 @@
   align-items: center;
   gap: .45rem;
   padding-right: .5rem;
+}
+
+.location-card .location-text {
+  color: var(--darker);
+  font-size: .95rem;
+  line-height: 1.6;
+  white-space: normal;
+}
+
+.rich-text-editor {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+.rich-text-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  align-items: center;
+}
+
+.rich-text-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(30,111,186,.22);
+  background: #fff;
+  color: var(--darker);
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.rich-text-btn i {
+  font-size: .8rem;
+}
+
+.rich-text-btn:hover,
+.rich-text-btn:focus-visible {
+  background: #e6f2ff;
+  border-color: rgba(30,111,186,.45);
+  color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30,111,186,.18);
+}
+
+.rich-text-btn:focus-visible {
+  outline: none;
+}
+
+.rich-text-select,
+.rich-text-input {
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(30,111,186,.22);
+  padding: 0 .8rem;
+  font-size: .9rem;
+  color: var(--darker);
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.rich-text-select {
+  cursor: pointer;
+}
+
+.rich-text-input {
+  width: 120px;
+  cursor: text;
+}
+
+.rich-text-select:focus,
+.rich-text-input:focus {
+  outline: none;
+  border-color: rgba(30,111,186,.45);
+  box-shadow: 0 0 0 2px rgba(30,111,186,.18);
+}
+
+.rich-text-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(30,111,186,.18);
+}
+
+.rich-text-area[contenteditable="true"] {
+  min-height: 160px;
+  padding: .9rem 1rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid rgba(30,111,186,.18);
+  white-space: normal;
+  line-height: 1.6;
+  font-size: .95rem;
+  color: var(--darker);
+  box-shadow: inset 0 1px 2px rgba(15,23,42,.04);
+}
+
+.location-card .rich-text-area[contenteditable="true"] {
+  min-height: 140px;
+}
+
+.plan-panel .rich-text-area[contenteditable="true"] {
+  min-height: 140px;
+}
+
+.rich-text-area[contenteditable="true"]:focus {
+  background: rgba(30,111,186,.05);
+}
+
+.rt-align-left {
+  text-align: left;
+}
+
+.rt-align-center {
+  text-align: center;
+}
+
+.rt-align-right {
+  text-align: right;
+}
+
+.rt-align-justify {
+  text-align: justify;
+}
+
+.rt-size-small {
+  font-size: .82rem;
+}
+
+.rt-size-normal {
+  font-size: 1rem;
+}
+
+.rt-size-large {
+  font-size: 1.35rem;
+}
+
+.rich-text-area ul,
+.rich-text-area ol {
+  padding-left: 1.4rem;
+  margin: .4rem 0;
+}
+
+.rich-text-area li {
+  margin-bottom: .25rem;
+}
+
+.rich-text-area a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  word-break: break-word;
+}
+
+.rich-text-area pre {
+  margin: .75rem 0;
+  padding: .85rem 1rem;
+  border-radius: 10px;
+  background: #f1f5f9;
+  font-family: 'Fira Code', 'JetBrains Mono', 'Source Code Pro', monospace;
+  font-size: .9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.rich-text-area code {
+  padding: .1rem .35rem;
+  border-radius: 6px;
+  background: rgba(30,111,186,.12);
+  font-family: 'Fira Code', 'JetBrains Mono', 'Source Code Pro', monospace;
+  font-size: .9em;
+}
+
+.rich-text-area blockquote {
+  margin: .75rem 0;
+  padding-left: 1rem;
+  border-left: 3px solid rgba(30,111,186,.35);
+  color: #334155;
+  font-style: italic;
+}
+
+.rich-text-area h1,
+.rich-text-area h2,
+.rich-text-area h3,
+.rich-text-area h4,
+.rich-text-area h5,
+.rich-text-area h6 {
+  margin: .85rem 0 .35rem;
+  color: var(--darker);
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.rich-text-area h1 { font-size: 1.45rem; }
+.rich-text-area h2 { font-size: 1.35rem; }
+.rich-text-area h3 { font-size: 1.2rem; }
+.rich-text-area h4 { font-size: 1.1rem; }
+.rich-text-area h5 { font-size: 1rem; }
+.rich-text-area h6 { font-size: .95rem; }
+
+@media (max-width: 768px) {
+  .rich-text-toolbar {
+    gap: .3rem;
+  }
+
+  .rich-text-btn,
+  .rich-text-select,
+  .rich-text-input {
+    height: 32px;
+  }
+
+  .rich-text-btn {
+    width: 32px;
+  }
 }
 
 .tag-chip .tag-remove {
