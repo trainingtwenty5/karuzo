@@ -218,7 +218,33 @@
             </div>
             <div class="location-card">
               <h4>Dojazd i otoczenie</h4>
-              <p id="locationAccess" contenteditable="true">Pole do wypełnienia</p>
+              <div class="rich-text-editor" data-editor-target="locationAccess">
+                <div class="rich-text-toolbar" role="toolbar" aria-label="Narzędzia formatowania">
+                  <button type="button" class="rich-text-btn" data-action="bold" aria-label="Pogrubienie"><i class="fas fa-bold"></i></button>
+                  <button type="button" class="rich-text-btn" data-action="italic" aria-label="Kursywa"><i class="fas fa-italic"></i></button>
+                  <button type="button" class="rich-text-btn" data-action="underline" aria-label="Podkreślenie"><i class="fas fa-underline"></i></button>
+                  <div class="rich-text-divider" aria-hidden="true"></div>
+                  <select class="rich-text-select" data-action="fontSize" aria-label="Rozmiar tekstu">
+                    <option value="">Rozmiar</option>
+                    <option value="small">Mały</option>
+                    <option value="normal">Standardowy</option>
+                    <option value="large">Duży</option>
+                  </select>
+                  <div class="rich-text-divider" aria-hidden="true"></div>
+                  <button type="button" class="rich-text-btn" data-action="align" data-value="left" aria-label="Wyrównaj do lewej"><i class="fas fa-align-left"></i></button>
+                  <button type="button" class="rich-text-btn" data-action="align" data-value="center" aria-label="Wyśrodkuj"><i class="fas fa-align-center"></i></button>
+                  <button type="button" class="rich-text-btn" data-action="align" data-value="right" aria-label="Wyrównaj do prawej"><i class="fas fa-align-right"></i></button>
+                  <button type="button" class="rich-text-btn" data-action="align" data-value="justify" aria-label="Wyjustuj"><i class="fas fa-align-justify"></i></button>
+                  <div class="rich-text-divider" aria-hidden="true"></div>
+                  <button type="button" class="rich-text-btn" data-action="unorderedList" aria-label="Lista wypunktowana"><i class="fas fa-list-ul"></i></button>
+                  <button type="button" class="rich-text-btn" data-action="orderedList" aria-label="Lista numerowana"><i class="fas fa-list-ol"></i></button>
+                  <div class="rich-text-divider" aria-hidden="true"></div>
+                  <button type="button" class="rich-text-btn" data-action="insertHtml" aria-label="Wstaw kod HTML"><i class="fas fa-code"></i></button>
+                  <div class="rich-text-divider" aria-hidden="true"></div>
+                  <button type="button" class="rich-text-btn" data-action="clear" aria-label="Wyczyść formatowanie"><i class="fas fa-eraser"></i></button>
+                </div>
+                <div id="locationAccess" class="location-text rich-text-area" contenteditable="true">Pole do wypełnienia</div>
+              </div>
             </div>
           </div>
         </div>
@@ -234,7 +260,33 @@
             <dl><dt>Intensywność zabudowy</dt><dd id="planIntensity" contenteditable="true">Pole do wypełnienia</dd></dl>
             <dl><dt>Pow. biologicznie czynna</dt><dd id="planGreen" contenteditable="true">Pole do wypełnienia</dd></dl>
           </div>
-          <div class="plan-notes" id="planNotes" contenteditable="true">Pole do wypełnienia</div>
+          <div class="rich-text-editor" data-editor-target="planNotes">
+            <div class="rich-text-toolbar" role="toolbar" aria-label="Narzędzia formatowania">
+              <button type="button" class="rich-text-btn" data-action="bold" aria-label="Pogrubienie"><i class="fas fa-bold"></i></button>
+              <button type="button" class="rich-text-btn" data-action="italic" aria-label="Kursywa"><i class="fas fa-italic"></i></button>
+              <button type="button" class="rich-text-btn" data-action="underline" aria-label="Podkreślenie"><i class="fas fa-underline"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <select class="rich-text-select" data-action="fontSize" aria-label="Rozmiar tekstu">
+                <option value="">Rozmiar</option>
+                <option value="small">Mały</option>
+                <option value="normal">Standardowy</option>
+                <option value="large">Duży</option>
+              </select>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="left" aria-label="Wyrównaj do lewej"><i class="fas fa-align-left"></i></button>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="center" aria-label="Wyśrodkuj"><i class="fas fa-align-center"></i></button>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="right" aria-label="Wyrównaj do prawej"><i class="fas fa-align-right"></i></button>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="justify" aria-label="Wyjustuj"><i class="fas fa-align-justify"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="unorderedList" aria-label="Lista wypunktowana"><i class="fas fa-list-ul"></i></button>
+              <button type="button" class="rich-text-btn" data-action="orderedList" aria-label="Lista numerowana"><i class="fas fa-list-ol"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="insertHtml" aria-label="Wstaw kod HTML"><i class="fas fa-code"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="clear" aria-label="Wyczyść formatowanie"><i class="fas fa-eraser"></i></button>
+            </div>
+            <div class="plan-notes rich-text-area" id="planNotes" contenteditable="true">Pole do wypełnienia</div>
+          </div>
         </aside>
       </section>
 
@@ -287,7 +339,33 @@
           <h2 id="descriptionTitle">Opis szczegółowy</h2>
         </div>
         <div class="description-card">
-          <div id="descriptionText" class="description-text" contenteditable="true">Pole do wypełnienia</div>
+          <div class="rich-text-editor" data-editor-target="descriptionText">
+            <div class="rich-text-toolbar" role="toolbar" aria-label="Narzędzia formatowania">
+              <button type="button" class="rich-text-btn" data-action="bold" aria-label="Pogrubienie"><i class="fas fa-bold"></i></button>
+              <button type="button" class="rich-text-btn" data-action="italic" aria-label="Kursywa"><i class="fas fa-italic"></i></button>
+              <button type="button" class="rich-text-btn" data-action="underline" aria-label="Podkreślenie"><i class="fas fa-underline"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <select class="rich-text-select" data-action="fontSize" aria-label="Rozmiar tekstu">
+                <option value="">Rozmiar</option>
+                <option value="small">Mały</option>
+                <option value="normal">Standardowy</option>
+                <option value="large">Duży</option>
+              </select>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="left" aria-label="Wyrównaj do lewej"><i class="fas fa-align-left"></i></button>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="center" aria-label="Wyśrodkuj"><i class="fas fa-align-center"></i></button>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="right" aria-label="Wyrównaj do prawej"><i class="fas fa-align-right"></i></button>
+              <button type="button" class="rich-text-btn" data-action="align" data-value="justify" aria-label="Wyjustuj"><i class="fas fa-align-justify"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="unorderedList" aria-label="Lista wypunktowana"><i class="fas fa-list-ul"></i></button>
+              <button type="button" class="rich-text-btn" data-action="orderedList" aria-label="Lista numerowana"><i class="fas fa-list-ol"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="insertHtml" aria-label="Wstaw kod HTML"><i class="fas fa-code"></i></button>
+              <div class="rich-text-divider" aria-hidden="true"></div>
+              <button type="button" class="rich-text-btn" data-action="clear" aria-label="Wyczyść formatowanie"><i class="fas fa-eraser"></i></button>
+            </div>
+            <div id="descriptionText" class="description-text rich-text-area" contenteditable="true">Pole do wypełnienia</div>
+          </div>
         </div>
       </section>
 

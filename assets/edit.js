@@ -19,10 +19,12 @@ import {
   showToast,
   textContentOrFallback,
   sanitizeMultilineText,
+  sanitizeRichText,
   ensureArray,
   parseNumberFromText,
   cloneDeep,
   stripHtml,
+  richTextToPlainText,
   syncMobileMenu
 } from './property-common.js';
 import {
@@ -62,6 +64,11 @@ const state = {
 };
 
 const EMPTY_FIELD_PLACEHOLDER = 'Pole do wypełnienia';
+
+const RICH_TEXT_FIELD_IDS = ['locationAccess', 'planNotes', 'descriptionText'];
+const RICH_TEXT_ALIGN_CLASSES = ['rt-align-left', 'rt-align-center', 'rt-align-right', 'rt-align-justify'];
+const RICH_TEXT_SIZE_CLASSES = ['rt-size-small', 'rt-size-normal', 'rt-size-large'];
+const RICH_TEXT_SELECTIONS = new WeakMap();
 
 const elements = {
   loadingState: document.getElementById('loadingState'),
@@ -241,6 +248,135 @@ function normalizeMultilineValue(value) {
   const trimmed = sanitized.trim();
   if (!trimmed) return '';
   return trimmed.toLowerCase() === EMPTY_FIELD_PLACEHOLDER.toLowerCase() ? '' : sanitized;
+}
+
+function applyRichTextPlaceholder(element, value) {
+  if (!element) return;
+  const sanitized = sanitizeRichText(value || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  if (plain) {
+    element.innerHTML = sanitized;
+    normalizeRichTextStructure(element);
+    element.dataset.placeholderActive = 'false';
+  } else {
+    element.textContent = EMPTY_FIELD_PLACEHOLDER;
+    element.dataset.placeholderActive = 'true';
+  }
+}
+
+function clearRichTextPlaceholder(element) {
+  if (!element) return;
+  if (element.dataset.placeholderActive === 'true') {
+    element.innerHTML = '';
+    element.dataset.placeholderActive = 'false';
+  }
+}
+
+function normalizeRichTextStructure(element) {
+  if (!element || element.dataset.placeholderActive === 'true') {
+    return;
+  }
+
+  const nodes = Array.from(element.childNodes);
+  nodes.forEach(node => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (!node.textContent.trim()) {
+        node.remove();
+        return;
+      }
+      if (node.parentNode === element) {
+        const block = document.createElement('p');
+        element.insertBefore(block, node);
+        block.appendChild(node);
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      node.remove();
+      return;
+    }
+
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') {
+      const wrapper = document.createElement('p');
+      element.insertBefore(wrapper, node);
+      wrapper.appendChild(node);
+      return;
+    }
+
+    if (isRichTextBlock(node)) {
+      return;
+    }
+
+    const wrapper = document.createElement('p');
+    element.insertBefore(wrapper, node);
+    wrapper.appendChild(node);
+  });
+
+  if (!element.childNodes.length) {
+    const block = document.createElement('p');
+    block.appendChild(document.createElement('br'));
+    element.appendChild(block);
+  }
+}
+
+function commitRichTextValue(element, options = {}) {
+  if (!element) return;
+
+  const { restoreRange = null } = options;
+  const rangeToRestore = restoreRange ? restoreRange.cloneRange() : null;
+
+  normalizeRichTextStructure(element);
+  const currentHtml = element.innerHTML || '';
+  const sanitized = sanitizeRichText(currentHtml);
+  const plain = richTextToPlainText(sanitized).trim();
+  if (plain) {
+    if (currentHtml !== sanitized) {
+      element.innerHTML = sanitized;
+    }
+    element.dataset.placeholderActive = 'false';
+  } else {
+    element.textContent = EMPTY_FIELD_PLACEHOLDER;
+    element.dataset.placeholderActive = 'true';
+  }
+
+  if (rangeToRestore) {
+    const schedule = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (cb) => setTimeout(cb, 0);
+    schedule(() => {
+      const ancestor = rangeToRestore.commonAncestorContainer;
+      if (ancestor && element.contains(ancestor)) {
+        restoreSelectionRange(rangeToRestore);
+      } else {
+        selectAllText(element);
+      }
+      rememberRichTextSelection(element);
+    });
+  }
+}
+
+function normalizeRichTextValue(value) {
+  const sanitized = sanitizeRichText(value || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  return plain ? sanitized : '';
+}
+
+function getRichTextContent(element) {
+  if (!element || element.dataset.placeholderActive === 'true') {
+    return '';
+  }
+  normalizeRichTextStructure(element);
+  const sanitized = sanitizeRichText(element.innerHTML || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  if (!plain) {
+    element.textContent = EMPTY_FIELD_PLACEHOLDER;
+    element.dataset.placeholderActive = 'true';
+    return '';
+  }
+  element.innerHTML = sanitized;
+  return sanitized;
 }
 
 function extractPlotNumberSegment(value) {
@@ -750,11 +886,248 @@ function selectAllText(element) {
   selection.addRange(range);
 }
 
-function preventNewline(element) {
-  if (!element?.isContentEditable) return;
-  element.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
+function cloneSelectionRange(root) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return null;
+  }
+  const range = selection.getRangeAt(0);
+  if (!root || !root.contains(range.commonAncestorContainer)) {
+    return null;
+  }
+  return range.cloneRange();
+}
+
+function restoreSelectionRange(range) {
+  if (!range) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function rememberRichTextSelection(area) {
+  if (!area) return;
+  const range = cloneSelectionRange(area);
+  if (range) {
+    RICH_TEXT_SELECTIONS.set(area, range);
+  }
+}
+
+function getStoredRichTextSelection(area) {
+  const range = area ? RICH_TEXT_SELECTIONS.get(area) : null;
+  return range ? range.cloneRange() : null;
+}
+
+function getRangeHtml(range) {
+  if (!range) return '';
+  const fragment = range.cloneContents();
+  const container = document.createElement('div');
+  container.appendChild(fragment);
+  return container.innerHTML;
+}
+
+function placeCaretAtEnd(element) {
+  if (!element) return;
+  const selection = window.getSelection();
+  if (!selection) return;
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  range.collapse(false);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+function isRichTextBlock(node) {
+  if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+  const tag = node.tagName.toLowerCase();
+  return tag === 'p'
+    || tag === 'div'
+    || tag === 'li'
+    || tag === 'blockquote'
+    || tag === 'pre'
+    || tag === 'ul'
+    || tag === 'ol';
+}
+
+function findClosestBlock(node, root) {
+  let current = node;
+  while (current && current !== root) {
+    if (isRichTextBlock(current)) {
+      return current;
+    }
+    current = current.parentNode;
+  }
+  if (root && root.nodeType === Node.ELEMENT_NODE && isRichTextBlock(root)) {
+    return root;
+  }
+  return null;
+}
+
+function getSelectionBlocks(root) {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return root ? [root] : [];
+  }
+  const range = selection.getRangeAt(0);
+  if (!root || !root.contains(range.commonAncestorContainer)) {
+    return [];
+  }
+
+  const blocks = new Set();
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      if (!isRichTextBlock(node)) {
+        return NodeFilter.FILTER_SKIP;
+      }
+      return range.intersectsNode(node) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+    }
+  });
+
+  while (walker.nextNode()) {
+    blocks.add(walker.currentNode);
+  }
+
+  if (!blocks.size) {
+    const block = findClosestBlock(range.startContainer, root);
+    if (block) {
+      blocks.add(block);
+    }
+  }
+
+  if (!blocks.size && root) {
+    blocks.add(root);
+  }
+
+  return Array.from(blocks);
+}
+
+function applyRichTextAlignment(area, value) {
+  const blocks = getSelectionBlocks(area);
+  const targetClass = value ? `rt-align-${value}` : '';
+  blocks.forEach(block => {
+    RICH_TEXT_ALIGN_CLASSES.forEach(cls => block.classList.remove(cls));
+    if (targetClass) {
+      block.classList.add(targetClass);
+    }
+  });
+}
+
+function applyRichTextFontSize(area, value) {
+  const blocks = getSelectionBlocks(area);
+  const targetClass = value && value !== 'normal' ? `rt-size-${value}` : '';
+  blocks.forEach(block => {
+    RICH_TEXT_SIZE_CLASSES.forEach(cls => block.classList.remove(cls));
+    if (targetClass) {
+      block.classList.add(targetClass);
+    }
+  });
+}
+
+function clearRichTextFormatting(area) {
+  const blocks = getSelectionBlocks(area);
+  blocks.forEach(block => {
+    RICH_TEXT_ALIGN_CLASSES.forEach(cls => block.classList.remove(cls));
+    RICH_TEXT_SIZE_CLASSES.forEach(cls => block.classList.remove(cls));
+  });
+}
+
+function handleRichTextAction(area, action, value = '') {
+  if (!area) return;
+  clearRichTextPlaceholder(area);
+  let range = cloneSelectionRange(area);
+  if (!range) {
+    range = getStoredRichTextSelection(area);
+  }
+
+  if (action === 'insertHtml') {
+    const defaultValue = range ? sanitizeRichText(getRangeHtml(range)) : '';
+    const html = window.prompt('Wklej kod HTML do wstawienia', defaultValue);
+    area.focus();
+    if (html !== null) {
+      const sanitized = sanitizeRichText(html);
+      if (range) {
+        restoreSelectionRange(range);
+      } else {
+        placeCaretAtEnd(area);
+      }
+      document.execCommand('insertHTML', false, sanitized);
+      const selectionAfterInsert = cloneSelectionRange(area) || range;
+      commitRichTextValue(area, { restoreRange: selectionAfterInsert });
+    } else {
+      if (range) {
+        restoreSelectionRange(range);
+      } else {
+        placeCaretAtEnd(area);
+      }
+      commitRichTextValue(area, { restoreRange: range || null });
+    }
+    return;
+  }
+
+  area.focus();
+  if (range) {
+    restoreSelectionRange(range);
+  } else {
+    placeCaretAtEnd(area);
+  }
+
+  if (action === 'align' || action === 'fontSize' || action === 'clear') {
+    normalizeRichTextStructure(area);
+    const normalizedRange = cloneSelectionRange(area);
+    if (normalizedRange) {
+      range = normalizedRange;
+      restoreSelectionRange(range);
+    }
+  }
+
+  if (action === 'bold' || action === 'italic' || action === 'underline') {
+    document.execCommand(action);
+  } else if (action === 'orderedList') {
+    document.execCommand('insertOrderedList');
+  } else if (action === 'unorderedList') {
+    document.execCommand('insertUnorderedList');
+  } else if (action === 'align') {
+    applyRichTextAlignment(area, value || 'left');
+  } else if (action === 'fontSize') {
+    applyRichTextFontSize(area, value || 'normal');
+  } else if (action === 'clear') {
+    document.execCommand('removeFormat');
+    clearRichTextFormatting(area);
+  }
+
+  const selectionAfterAction = cloneSelectionRange(area) || range;
+  commitRichTextValue(area, { restoreRange: selectionAfterAction });
+}
+
+function setupRichTextEditors() {
+  const editors = Array.from(document.querySelectorAll('.rich-text-editor'));
+  editors.forEach(editor => {
+    const targetId = editor.dataset.editorTarget;
+    if (!targetId) return;
+    const area = document.getElementById(targetId);
+    if (!area) return;
+
+    editor.querySelectorAll('.rich-text-btn[data-action]').forEach(button => {
+      const action = button.dataset.action;
+      button.addEventListener('mousedown', event => {
+        event.preventDefault();
+        area.focus();
+        rememberRichTextSelection(area);
+      });
+      button.addEventListener('click', () => {
+        handleRichTextAction(area, action, button.dataset.value || '');
+      });
+    });
+
+    const sizeSelect = editor.querySelector('.rich-text-select[data-action="fontSize"]');
+    if (sizeSelect) {
+      sizeSelect.addEventListener('mousedown', () => {
+        rememberRichTextSelection(area);
+      });
+      sizeSelect.addEventListener('change', (event) => {
+        handleRichTextAction(area, 'fontSize', event.target.value || 'normal');
+      });
     }
   });
 }
@@ -832,7 +1205,6 @@ function attachEditorListeners() {
     elements.contactEmailLink
   ].forEach(element => {
     if (!element || !element.isContentEditable) return;
-    preventNewline(element);
     element.addEventListener('blur', () => {
       const text = stripHtml(element.innerHTML).trim();
       element.textContent = text;
@@ -844,6 +1216,34 @@ function attachEditorListeners() {
       }
     });
   });
+
+  const richTextElements = RICH_TEXT_FIELD_IDS
+    .map(id => elements[id])
+    .filter(element => element && element.isContentEditable);
+
+  richTextElements.forEach(element => {
+    element.addEventListener('focus', () => {
+      clearRichTextPlaceholder(element);
+      normalizeRichTextStructure(element);
+      rememberRichTextSelection(element);
+    });
+    element.addEventListener('blur', () => {
+      commitRichTextValue(element);
+      rememberRichTextSelection(element);
+    });
+    element.addEventListener('input', () => {
+      element.dataset.placeholderActive = 'false';
+      normalizeRichTextStructure(element);
+      rememberRichTextSelection(element);
+    });
+    ['mouseup', 'keyup', 'touchend'].forEach(eventName => {
+      element.addEventListener(eventName, () => {
+        rememberRichTextSelection(element);
+      });
+    });
+  });
+
+  setupRichTextEditors();
 
   elements.plotOwnershipSelect?.addEventListener('change', () => {
     const value = elements.plotOwnershipSelect.value;
@@ -1069,7 +1469,7 @@ function renderEditor(data, plot) {
   }
 
   applyMultilinePlaceholder(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address));
-  applyMultilinePlaceholder(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access));
+  applyRichTextPlaceholder(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access));
 
   updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
 
@@ -1079,12 +1479,12 @@ function renderEditor(data, plot) {
   applyPlaceholder(elements.planHeight, pickValue(plot.planHeight, data.planHeight));
   applyPlaceholder(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity));
   applyPlaceholder(elements.planGreen, pickValue(plot.planGreen, data.planGreen));
-  applyMultilinePlaceholder(elements.planNotes, pickValue(plot.planNotes, data.planNotes));
+  applyRichTextPlaceholder(elements.planNotes, pickValue(plot.planNotes, data.planNotes));
 
   state.utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilitiesEdit();
 
-  applyMultilinePlaceholder(elements.descriptionText, pickValue(plot.description, data.description));
+  applyRichTextPlaceholder(elements.descriptionText, pickValue(plot.description, data.description));
 
   const normalizedTags = ensureArray(pickValue(plot.tags, data.tags))
     .map(normalizeTag)
@@ -1809,13 +2209,13 @@ function buildUpdatedPlot() {
   base.landRegister = normalizePlaceholderValue(stripHtml(elements.landRegister.innerHTML));
   base.status = (elements.plotOwnershipSelect?.value || '').trim();
   base.locationAddress = normalizeMultilineValue(elements.locationAddress.textContent || '');
-  base.locationAccess = normalizeMultilineValue(elements.locationAccess.textContent || '');
+  base.locationAccess = normalizeRichTextValue(getRichTextContent(elements.locationAccess));
   base.planDesignation = normalizePlaceholderValue(stripHtml(elements.planDesignation.innerHTML));
   base.planHeight = normalizePlaceholderValue(stripHtml(elements.planHeight.innerHTML));
   base.planIntensity = normalizePlaceholderValue(stripHtml(elements.planIntensity.innerHTML));
   base.planGreen = normalizePlaceholderValue(stripHtml(elements.planGreen.innerHTML));
-  base.planNotes = normalizeMultilineValue(elements.planNotes.textContent || '');
-  base.description = normalizeMultilineValue(elements.descriptionText.textContent || '');
+  base.planNotes = normalizeRichTextValue(getRichTextContent(elements.planNotes));
+  base.description = normalizeRichTextValue(getRichTextContent(elements.descriptionText));
   base.utilities = { ...state.utilities };
   base.tags = [...state.tags];
   base.planBadges = state.planBadges || base.planBadges || [];

@@ -15,10 +15,12 @@ import {
   showToast,
   textContentOrFallback,
   sanitizeMultilineText,
+  sanitizeRichText,
   ensureArray,
   parseNumberFromText,
   syncMobileMenu,
-  setDoc
+  setDoc,
+  richTextToPlainText
 } from './property-common.js';
 import {
   signInWithEmailAndPassword,
@@ -301,6 +303,17 @@ function setMultilineText(element, value, fallback = '') {
     ? fallback
     : sanitizeMultilineText(value);
   element.textContent = text;
+}
+
+function setRichTextContent(element, value, fallback = '') {
+  if (!element) return;
+  const sanitized = sanitizeRichText(value || '');
+  const plain = richTextToPlainText(sanitized).trim();
+  if (plain) {
+    element.innerHTML = sanitized;
+  } else {
+    element.textContent = fallback;
+  }
 }
 
 function normalizeLayerKey(key) {
@@ -1118,21 +1131,21 @@ function renderOffer(data, plot) {
   setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status), '');
 
   setMultilineText(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address), '');
-  setMultilineText(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access), '');
+  setRichTextContent(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access), '');
 
   renderPlanBadges(pickValue(plot.planBadges, data.planBadges));
   setTextContent(elements.planDesignation, pickValue(plot.planDesignation, plot.planUsage, data.planDesignation), '');
   setTextContent(elements.planHeight, pickValue(plot.planHeight, data.planHeight), '');
   setTextContent(elements.planIntensity, pickValue(plot.planIntensity, data.planIntensity), '');
   setTextContent(elements.planGreen, pickValue(plot.planGreen, data.planGreen), '');
-  setMultilineText(elements.planNotes, pickValue(plot.planNotes, data.planNotes), '');
+  setRichTextContent(elements.planNotes, pickValue(plot.planNotes, data.planNotes), '');
 
   updateMapImages(collectMapImages(plot, data, state.plotIndex, state.offerId));
 
   const utilities = mergeUtilities(data.utilities, plot.utilities);
   renderUtilities(utilities);
 
-  setMultilineText(elements.descriptionText, pickValue(plot.description, data.description), '');
+  setRichTextContent(elements.descriptionText, pickValue(plot.description, data.description), '');
 
   renderTags(pickValue(plot.tags, data.tags));
 

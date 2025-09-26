@@ -271,6 +271,155 @@ export function sanitizeMultilineText(value) {
   return String(value).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 }
 
+const ALLOWED_RICH_TEXT_TAGS = new Set([
+  'a',
+  'b',
+  'blockquote',
+  'code',
+  'div',
+  'em',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'i',
+  'li',
+  'ol',
+  'p',
+  'pre',
+  'span',
+  'strong',
+  'u',
+  'ul',
+  'br'
+]);
+
+const ALLOWED_RICH_TEXT_CLASS_PREFIXES = ['rt-align-', 'rt-size-'];
+
+const ALLOWED_RICH_TEXT_ATTRIBUTES = {
+  a: {
+    href: sanitizeRichTextHref,
+    target: sanitizeRichTextTarget
+  }
+};
+
+function sanitizeRichTextHref(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.startsWith('#')) {
+    return trimmed;
+  }
+  if (/^(https?:|mailto:|tel:)/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\//.test(trimmed) || /^\.\.\//.test(trimmed) || /^\.\//.test(trimmed)) {
+    return trimmed;
+  }
+  if (!trimmed.includes(':') && !/^\/\//.test(trimmed) && !/\s/.test(trimmed)) {
+    return trimmed;
+  }
+  return null;
+}
+
+function sanitizeRichTextTarget(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = String(value).trim().toLowerCase();
+  return trimmed === '_blank' ? '_blank' : null;
+}
+
+function sanitizeRichTextElement(root) {
+  const nodes = Array.from(root.childNodes);
+  nodes.forEach((node) => {
+    if (node.nodeType === Node.COMMENT_NODE) {
+      node.remove();
+      return;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      node.remove();
+      return;
+    }
+
+    const tag = node.tagName.toLowerCase();
+    if (!ALLOWED_RICH_TEXT_TAGS.has(tag)) {
+      sanitizeRichTextElement(node);
+      while (node.firstChild) {
+        root.insertBefore(node.firstChild, node);
+      }
+      node.remove();
+      return;
+    }
+
+    Array.from(node.attributes).forEach(attr => {
+      if (attr.name === 'class') {
+        const classes = attr.value
+          .split(/\s+/)
+          .filter(Boolean)
+          .filter(cls => ALLOWED_RICH_TEXT_CLASS_PREFIXES.some(prefix => cls.startsWith(prefix)));
+        if (classes.length > 0) {
+          node.setAttribute('class', Array.from(new Set(classes)).join(' '));
+        } else {
+          node.removeAttribute('class');
+        }
+        return;
+      }
+
+      const allowedForTag = ALLOWED_RICH_TEXT_ATTRIBUTES[tag];
+      if (allowedForTag && Object.prototype.hasOwnProperty.call(allowedForTag, attr.name)) {
+        const sanitizer = allowedForTag[attr.name];
+        const sanitizedValue = sanitizer(attr.value);
+        if (sanitizedValue) {
+          node.setAttribute(attr.name, sanitizedValue);
+        } else {
+          node.removeAttribute(attr.name);
+        }
+        return;
+      }
+
+      node.removeAttribute(attr.name);
+    });
+
+    if (tag === 'a') {
+      if (!node.hasAttribute('href')) {
+        sanitizeRichTextElement(node);
+        while (node.firstChild) {
+          root.insertBefore(node.firstChild, node);
+        }
+        node.remove();
+        return;
+      }
+      if (node.getAttribute('target') === '_blank') {
+        node.setAttribute('rel', 'noopener noreferrer');
+      } else {
+        node.removeAttribute('rel');
+      }
+    }
+
+    sanitizeRichTextElement(node);
+  });
+}
+
+export function sanitizeRichText(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  const container = document.createElement('div');
+  container.innerHTML = String(value);
+  sanitizeRichTextElement(container);
+  return container.innerHTML;
+}
+
 export function cloneDeep(value) {
   return JSON.parse(JSON.stringify(value));
 }
@@ -288,6 +437,13 @@ export function stripHtml(value) {
   const tmp = document.createElement("div");
   tmp.innerHTML = value;
   return tmp.textContent || tmp.innerText || "";
+}
+
+export function richTextToPlainText(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return stripHtml(sanitizeRichText(value));
 }
 
 export function syncMobileMenu() {
