@@ -35,6 +35,8 @@ import {
 const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
 const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
 
+const FAVORITES_CACHE_TTL_MS = 60 * 1000;
+
 const state = {
   user: null,
   offerId: '',
@@ -50,6 +52,8 @@ const state = {
   currentMapMode: 'base',
   shareUrl: '',
   favorites: [],
+  favoritesLoadedAt: 0,
+  favoritesLoadingPromise: null,
   savingFavorite: false,
   isLightboxOpen: false,
   lightboxReturnFocus: null,
@@ -1477,22 +1481,65 @@ function updateSaveButtonState() {
   }
 }
 
+function resetFavoritesState() {
+  state.favorites = [];
+  state.favoritesLoadedAt = 0;
+  state.favoritesLoadingPromise = null;
+}
+
+async function refreshUserFavorites(userId) {
+  const { db } = initFirebase();
+  const userRef = doc(db, 'users', userId);
+  const snap = await getDoc(userRef);
+  const data = snap.exists() ? snap.data() : {};
+  const favorites = Array.isArray(data.favorites) ? data.favorites : [];
+  state.favorites = favorites;
+  state.favoritesLoadedAt = Date.now();
+  return favorites;
+}
+
+async function ensureUserFavorites({ force = false } = {}) {
+  const user = state.user;
+  if (!user) {
+    resetFavoritesState();
+    return state.favorites;
+  }
+
+  const now = Date.now();
+  if (!force && state.favoritesLoadedAt && (now - state.favoritesLoadedAt) < FAVORITES_CACHE_TTL_MS) {
+    return state.favorites;
+  }
+
+  if (state.favoritesLoadingPromise) {
+    return state.favoritesLoadingPromise;
+  }
+
+  const loadPromise = (async () => {
+    try {
+      return await refreshUserFavorites(user.uid);
+    } catch (error) {
+      console.error('ensureUserFavorites', error);
+      resetFavoritesState();
+      throw error;
+    }
+  })().finally(() => {
+    state.favoritesLoadingPromise = null;
+  });
+
+  state.favoritesLoadingPromise = loadPromise;
+  return loadPromise;
+}
+
 async function loadUserFavorites(user) {
   if (!user) {
-    state.favorites = [];
+    resetFavoritesState();
     updateSaveButtonState();
     return;
   }
-  const { db } = initFirebase();
   try {
-    const userRef = doc(db, 'users', user.uid);
-    const snap = await getDoc(userRef);
-    const data = snap.exists() ? snap.data() : {};
-    const favorites = Array.isArray(data.favorites) ? data.favorites : [];
-    state.favorites = favorites;
+    await ensureUserFavorites({ force: true });
   } catch (error) {
     console.error('loadUserFavorites', error);
-    state.favorites = [];
   }
   updateSaveButtonState();
 }
@@ -1556,10 +1603,11 @@ async function handleSaveFavorite() {
   const { db } = initFirebase();
   const userRef = doc(db, 'users', state.user.uid);
   try {
-    const snap = await getDoc(userRef);
-    const data = snap.exists() ? snap.data() : {};
-    const favorites = Array.isArray(data.favorites) ? data.favorites : [];
-    state.favorites = favorites;
+    await ensureUserFavorites().catch((error) => {
+      const wrapped = new Error('FAVORITES_FETCH_FAILED');
+      wrapped.cause = error;
+      throw wrapped;
+    });
 
     if (isCurrentPlotFavorite()) {
       showToast('Ta działka jest już na liście ulubionych.', 'info');
@@ -1567,13 +1615,18 @@ async function handleSaveFavorite() {
     }
 
     const entry = buildFavoriteEntry();
-    const updatedFavorites = [...favorites, entry];
+    const updatedFavorites = [...state.favorites, entry];
     await setDoc(userRef, { favorites: updatedFavorites }, { merge: true });
     state.favorites = updatedFavorites;
+    state.favoritesLoadedAt = Date.now();
     showToast('Dodano działkę do ulubionych.', 'success');
   } catch (error) {
     console.error('handleSaveFavorite', error);
-    showToast('Nie udało się zapisać działki. Spróbuj ponownie.', 'error');
+    if (error?.message === 'FAVORITES_FETCH_FAILED') {
+      showToast('Nie udało się odczytać listy ulubionych. Spróbuj ponownie.', 'error');
+    } else {
+      showToast('Nie udało się zapisać działki. Spróbuj ponownie.', 'error');
+    }
   } finally {
     state.savingFavorite = false;
     updateSaveButtonState();
@@ -1653,7 +1706,7 @@ function updateAuthUI(user) {
   if (user) {
     loadUserFavorites(user);
   } else {
-    state.favorites = [];
+    resetFavoritesState();
     updateSaveButtonState();
   }
 }
