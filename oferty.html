@@ -225,7 +225,7 @@ window.showConfirmModal = showConfirmModal;
       <div id="map-controls">
         <div class="voronoi-toggle-control">
           <input type="checkbox" id="toggleVoronoiLayer" />
-          <label for="toggleVoronoiLayer">Warstwa Diagramu Voronoi</label>
+          <label for="toggleVoronoiLayer">Wycena nieruchomości</label>
         </div>
       </div>
     </div>
@@ -821,11 +821,19 @@ window.showConfirmModal = showConfirmModal;
 
       activePlots.forEach(({ plot, originalIndex }) => {
 
-        const lat = plot.lat;
-        const lng = plot.lng;
+        const lat = Number(plot.lat);
+        const lng = Number(plot.lng);
         const geometry = plot.geometry_uldk;
         const tags = normalizeTags(plot.tags);
         const uniquePlotTags = Array.from(new Set(tags));
+
+        const baseVoronoiPoint = Number.isFinite(lat) && Number.isFinite(lng)
+          ? { lat, lng }
+          : null;
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return;
+        }
 
         const marker = new google.maps.Marker({
           position: { lat, lng },
@@ -843,9 +851,12 @@ window.showConfirmModal = showConfirmModal;
         });
 
         let polygon = null;
+        let polygonCoords = [];
+        let voronoiPoint = baseVoronoiPoint;
         if (geometry) {
           const coords = parseGeometry(geometry);
           if (coords.length) {
+            polygonCoords = coords;
             polygon = new google.maps.Polygon({
               paths: coords,
               strokeColor: "#FF0000",
@@ -863,6 +874,11 @@ window.showConfirmModal = showConfirmModal;
               }
               openInfo(position, infoHTML(plot, data, offerId, originalIndex));
             });
+
+            const interiorPoint = getPolygonInteriorPoint(coords, baseVoronoiPoint);
+            if (interiorPoint) {
+              voronoiPoint = interiorPoint;
+            }
           }
         }
 
@@ -874,6 +890,8 @@ window.showConfirmModal = showConfirmModal;
           index: originalIndex,
           marker,
           polygon,
+          polygonCoords,
+          voronoiPoint,
           tags: uniquePlotTags
         };
 
@@ -1154,6 +1172,113 @@ window.showConfirmModal = showConfirmModal;
     return { lat: cy, lng: cx };
   }
 
+  function isPointInsidePolygon(point, polygon) {
+    if (!point || !Array.isArray(polygon) || polygon.length < 3) return false;
+    const px = Number(point.lng);
+    const py = Number(point.lat);
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return false;
+
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+      const pi = polygon[i];
+      const pj = polygon[j];
+      const xi = Number(pi?.lng);
+      const yi = Number(pi?.lat);
+      const xj = Number(pj?.lng);
+      const yj = Number(pj?.lat);
+      if (!Number.isFinite(xi) || !Number.isFinite(yi) || !Number.isFinite(xj) || !Number.isFinite(yj)) {
+        continue;
+      }
+
+      if ((yi > py) === (yj > py)) continue;
+      const denominator = yj - yi;
+      if (Math.abs(denominator) < 1e-12) continue;
+      const xIntersect = ((xj - xi) * (py - yi)) / denominator + xi;
+      if (px < xIntersect) inside = !inside;
+    }
+
+    return inside;
+  }
+
+  function getPolygonInteriorPoint(polygon, fallback) {
+    if (!Array.isArray(polygon) || polygon.length < 3) {
+      return fallback || null;
+    }
+
+    const cleanPolygon = polygon.filter(point => (
+      point && Number.isFinite(point.lat) && Number.isFinite(point.lng)
+    ));
+    if (cleanPolygon.length < 3) {
+      return fallback || null;
+    }
+
+    const centroid = calculatePolygonCentroid(cleanPolygon);
+    if (centroid && isPointInsidePolygon(centroid, cleanPolygon)) {
+      return centroid;
+    }
+
+    const sum = cleanPolygon.reduce((acc, point) => {
+      acc.lat += point.lat;
+      acc.lng += point.lng;
+      return acc;
+    }, { lat: 0, lng: 0 });
+    const averagePoint = {
+      lat: sum.lat / cleanPolygon.length,
+      lng: sum.lng / cleanPolygon.length
+    };
+    if (Number.isFinite(averagePoint.lat) && Number.isFinite(averagePoint.lng) && isPointInsidePolygon(averagePoint, cleanPolygon)) {
+      return averagePoint;
+    }
+
+    let minLat = cleanPolygon[0].lat;
+    let maxLat = cleanPolygon[0].lat;
+    let minLng = cleanPolygon[0].lng;
+    let maxLng = cleanPolygon[0].lng;
+    cleanPolygon.forEach(point => {
+      if (point.lat < minLat) minLat = point.lat;
+      if (point.lat > maxLat) maxLat = point.lat;
+      if (point.lng < minLng) minLng = point.lng;
+      if (point.lng > maxLng) maxLng = point.lng;
+    });
+    const bboxCenter = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 };
+    if (isPointInsidePolygon(bboxCenter, cleanPolygon)) {
+      return bboxCenter;
+    }
+
+    for (let i = 1; i < cleanPolygon.length - 1; i++) {
+      const a = cleanPolygon[0];
+      const b = cleanPolygon[i];
+      const c = cleanPolygon[i + 1];
+      const triPoint = {
+        lat: (a.lat + b.lat + c.lat) / 3,
+        lng: (a.lng + b.lng + c.lng) / 3
+      };
+      if (isPointInsidePolygon(triPoint, cleanPolygon)) {
+        return triPoint;
+      }
+    }
+
+    if (fallback && Number.isFinite(fallback.lat) && Number.isFinite(fallback.lng) && isPointInsidePolygon(fallback, cleanPolygon)) {
+      return fallback;
+    }
+
+    const first = cleanPolygon[0];
+    const target = centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lng)
+      ? centroid
+      : (fallback || cleanPolygon[1] || first);
+    if (first && target) {
+      const nudged = {
+        lat: first.lat + (target.lat - first.lat) * 0.25,
+        lng: first.lng + (target.lng - first.lng) * 0.25
+      };
+      if (isPointInsidePolygon(nudged, cleanPolygon)) {
+        return nudged;
+      }
+    }
+
+    return first || fallback || null;
+  }
+
   function createVoronoiLabelNode(htmlContent, fallbackText, position) {
     if (!position) return null;
     try {
@@ -1226,9 +1351,17 @@ window.showConfirmModal = showConfirmModal;
     const offers = getVoronoiSourceOffers();
     const dataset = offers
       .map(offer => {
-        const lat = Number(offer?.plot?.lat);
-        const lng = Number(offer?.plot?.lng);
+        const source = offer?.voronoiPoint || null;
+        let lat = Number(source?.lat);
+        let lng = Number(source?.lng);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          lat = Number(offer?.plot?.lat);
+          lng = Number(offer?.plot?.lng);
+        }
+
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
         return { offer, position: { lat, lng } };
       })
       .filter(Boolean);
@@ -1268,11 +1401,11 @@ window.showConfirmModal = showConfirmModal;
       const polygon = new google.maps.Polygon({
         paths: path,
         map: voronoiLayerState.enabled ? map : null,
-        strokeColor: '#9CA3AF',
-        strokeOpacity: 0.6,
-        strokeWeight: 1,
+        strokeColor: '#E5E7EB',
+        strokeOpacity: 0.85,
+        strokeWeight: 1.2,
         fillColor: '#FFFFFF',
-        fillOpacity: 0.18,
+        fillOpacity: 0.32,
         clickable: false,
         zIndex: 40
       });

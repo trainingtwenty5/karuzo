@@ -583,14 +583,14 @@
 .gm-style-iw-c { padding:8px !important; }
 
 .voronoi-label {
-  background:rgba(255,255,255,0.78);
-  border:1px solid rgba(148,163,184,0.4);
+  background:rgba(255,255,255,0.92);
+  border:1px solid rgba(148,163,184,0.25);
   border-radius:8px;
   padding:6px 10px;
   font-size:0.8rem;
   line-height:1.35;
-  color:#1f2937;
-  box-shadow:0 10px 18px rgba(15,23,42,0.18);
+  color:#111827;
+  box-shadow:0 16px 28px rgba(15,23,42,0.16);
   min-width:120px;
   text-align:center;
   font-weight:600;
@@ -606,7 +606,7 @@
 .voronoi-label span {
   display:block;
   font-size:0.75rem;
-  color:#4b5563;
+  color:#6b7280;
   font-weight:500;
 }
 
