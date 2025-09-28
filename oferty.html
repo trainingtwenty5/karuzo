@@ -222,6 +222,12 @@ window.showConfirmModal = showConfirmModal;
     <!-- Lewa strona - statyczna mapa -->
     <div class="map-container">
       <div id="map"></div>
+      <div id="map-controls">
+        <div class="voronoi-toggle-control">
+          <input type="checkbox" id="toggleVoronoiLayer" />
+          <label for="toggleVoronoiLayer">Warstwa Diagramu Voronoi</label>
+        </div>
+      </div>
     </div>
     
     <!-- Prawa strona - przewijana zawartość -->
@@ -409,7 +415,8 @@ window.showConfirmModal = showConfirmModal;
 
 
 
- <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+<script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6.0.2/dist/d3-delaunay.min.js"></script>
 
 <script>
   let map;
@@ -428,6 +435,13 @@ window.showConfirmModal = showConfirmModal;
   let randomPreviewTags = [];
   let randomPreviewSignature = '';
   let currentVisibleOffers = [];
+  const voronoiLayerState = {
+    enabled: false,
+    polygons: [],
+    labels: [],
+    tagWeights: new Map(),
+    maxTagValue: 1
+  };
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
   const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
@@ -871,9 +885,14 @@ window.showConfirmModal = showConfirmModal;
     randomPreviewSignature = '';
     randomPreviewTags = [];
     tagsExpanded = false;
+    generateRandomTagWeightsFromOffers();
     renderTagFilters();
     updateSortButtonsUI();
     applyFilters();
+
+    if (voronoiLayerState.enabled) {
+      updateVoronoiLayer(true);
+    }
 
     if (pendingMapState && pendingMapState.focusOfferId) {
       focusOfferFromMapState();
@@ -894,6 +913,7 @@ window.showConfirmModal = showConfirmModal;
   const tagFiltersList = document.getElementById('tagFiltersList');
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
   const sortButtons = document.querySelectorAll('[data-sort-key]');
+  const voronoiToggleInput = document.getElementById('toggleVoronoiLayer');
 
   const clusterRenderer = {
     render: ({ count, position }) => {
@@ -930,6 +950,18 @@ window.showConfirmModal = showConfirmModal;
       updateSortButtonsUI();
       filterOffersByBounds();
     });
+  });
+
+  voronoiToggleInput?.addEventListener('change', () => {
+    voronoiLayerState.enabled = !!voronoiToggleInput.checked;
+    if (voronoiLayerState.enabled) {
+      if (!voronoiLayerState.tagWeights.size) {
+        generateRandomTagWeightsFromOffers();
+      }
+      updateVoronoiLayer(true);
+    } else {
+      clearVoronoiLayer();
+    }
   });
 
   updateSortButtonsUI();
@@ -995,6 +1027,273 @@ window.showConfirmModal = showConfirmModal;
     return rawTags
       .map(tag => (typeof tag === 'string' ? tag.trim() : String(tag || '').trim()))
       .filter(tag => tag.length);
+  }
+
+  function randomBetween(min, max) {
+    const lower = Math.ceil(Math.min(min, max));
+    const upper = Math.floor(Math.max(min, max));
+    return Math.floor(Math.random() * (upper - lower + 1)) + lower;
+  }
+
+  function generateRandomTagWeightsFromOffers() {
+    const uniqueTags = new Set();
+    allOffers.forEach(offer => {
+      if (Array.isArray(offer.tags)) {
+        offer.tags.forEach(tag => {
+          if (tag) uniqueTags.add(tag);
+        });
+      }
+    });
+
+    const tags = Array.from(uniqueTags);
+    const maxValue = tags.length || 1;
+    const weights = new Map();
+    tags.forEach(tag => {
+      weights.set(tag, randomBetween(1, maxValue));
+    });
+
+    voronoiLayerState.tagWeights = weights;
+    voronoiLayerState.maxTagValue = Math.max(maxValue, 1);
+  }
+
+  function computeTagFactor(tags) {
+    if (!Array.isArray(tags) || !tags.length) return 1;
+    if (!voronoiLayerState.tagWeights.size) {
+      generateRandomTagWeightsFromOffers();
+    }
+    const weights = tags
+      .map(tag => voronoiLayerState.tagWeights.get(tag) || 1);
+    const maxWeight = Math.max(voronoiLayerState.maxTagValue, 1);
+    const average = weights.reduce((sum, value) => sum + value, 0) / weights.length;
+    const normalized = average / maxWeight;
+    return 0.75 + normalized * 0.5;
+  }
+
+  function computeOfferValueWithTags(offer) {
+    const price = Number(offer?.plot?.price);
+    const area = Number(offer?.plot?.pow_dzialki_m2_uldk);
+    const adjustedPrice = Number.isFinite(price) && price > 0
+      ? price * computeTagFactor(offer?.tags)
+      : 0;
+
+    if (adjustedPrice > 0) {
+      const ppm2 = area && area > 0 ? adjustedPrice / area : 0;
+      return { price: adjustedPrice, pricePerSqm: ppm2 > 0 ? ppm2 : 0, area: area > 0 ? area : 0 };
+    }
+
+    const fallbackPrice = randomBetween(80000, 6000000);
+    const fallbackArea = area && area > 0 ? area : randomBetween(800, 12000);
+    const fallbackPpm2 = fallbackArea > 0 ? fallbackPrice / fallbackArea : randomBetween(50, 1500);
+    return { price: fallbackPrice, pricePerSqm: fallbackPpm2, area: fallbackArea };
+  }
+
+  function aggregateVoronoiValues(values, index, neighborIndices) {
+    const aggregated = { price: 0, pricePerSqm: 0, count: 0 };
+    const uniqueIndices = new Set([index]);
+    (neighborIndices || []).forEach(i => {
+      if (Number.isInteger(i)) uniqueIndices.add(i);
+    });
+
+    uniqueIndices.forEach(i => {
+      const entry = values[i];
+      if (!entry) return;
+      aggregated.price += entry.price;
+      aggregated.pricePerSqm += entry.pricePerSqm;
+      aggregated.count += 1;
+    });
+
+    if (!aggregated.count) {
+      return { price: 0, pricePerSqm: 0 };
+    }
+
+    return {
+      price: aggregated.price / aggregated.count,
+      pricePerSqm: aggregated.pricePerSqm / aggregated.count
+    };
+  }
+
+  function formatPriceValue(value) {
+    if (!Number.isFinite(value)) return '0';
+    const rounded = Math.round(value);
+    return rounded.toLocaleString('pl-PL');
+  }
+
+  function buildVoronoiLabelContent(stats) {
+    const total = `${formatPriceValue(stats.price)} zł`;
+    const ppm2 = `${formatPriceValue(stats.pricePerSqm)} zł/m²`;
+    return {
+      html: `<strong>${total}</strong><span>${ppm2}</span>`,
+      plain: `${total}\n(${ppm2})`
+    };
+  }
+
+  function calculatePolygonCentroid(path) {
+    if (!Array.isArray(path) || path.length === 0) return null;
+    let signedArea = 0;
+    let cx = 0;
+    let cy = 0;
+    for (let i = 0; i < path.length; i++) {
+      const current = path[i];
+      const next = path[(i + 1) % path.length];
+      if (!current || !next) continue;
+      const x0 = current.lng;
+      const y0 = current.lat;
+      const x1 = next.lng;
+      const y1 = next.lat;
+      const a = x0 * y1 - x1 * y0;
+      signedArea += a;
+      cx += (x0 + x1) * a;
+      cy += (y0 + y1) * a;
+    }
+    signedArea *= 0.5;
+    if (Math.abs(signedArea) < 1e-6) {
+      return path[0] || null;
+    }
+    cx /= (6 * signedArea);
+    cy /= (6 * signedArea);
+    return { lat: cy, lng: cx };
+  }
+
+  function createVoronoiLabelNode(htmlContent, fallbackText, position) {
+    if (!position) return null;
+    try {
+      if (google?.maps?.marker?.AdvancedMarkerElement) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'voronoi-label';
+        wrapper.innerHTML = htmlContent;
+        return new google.maps.marker.AdvancedMarkerElement({
+          position,
+          map: voronoiLayerState.enabled ? map : null,
+          content: wrapper,
+          zIndex: 120
+        });
+      }
+    } catch (error) {
+      console.warn('Nie udało się utworzyć etykiety AdvancedMarkerElement dla Voronoi.', error);
+    }
+
+    return new google.maps.Marker({
+      position,
+      map: voronoiLayerState.enabled ? map : null,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0.01, strokeWeight: 0 },
+      label: {
+        text: fallbackText,
+        color: '#1f2937',
+        fontSize: '11px',
+        fontWeight: '600'
+      },
+      zIndex: 120
+    });
+  }
+
+  function clearVoronoiLayer() {
+    voronoiLayerState.polygons.forEach(poly => {
+      if (poly && typeof poly.setMap === 'function') {
+        poly.setMap(null);
+      }
+    });
+    voronoiLayerState.polygons = [];
+
+    voronoiLayerState.labels.forEach(label => {
+      if (!label) return;
+      if (typeof label.setMap === 'function') {
+        label.setMap(null);
+      } else if ('map' in label) {
+        label.map = null;
+      }
+    });
+    voronoiLayerState.labels = [];
+  }
+
+  function getVoronoiSourceOffers() {
+    if (currentVisibleOffers.length) {
+      return currentVisibleOffers.slice();
+    }
+    const filtered = getOffersMatchingFilters();
+    if (filtered.length) {
+      return filtered.slice();
+    }
+    return allOffers.slice();
+  }
+
+  function rebuildVoronoiLayer() {
+    if (!voronoiLayerState.enabled || !map) return;
+    if (!window.d3 || !window.d3.Delaunay) {
+      console.warn('Biblioteka d3-delaunay jest niedostępna. Warstwa Voronoi zostanie pominięta.');
+      return;
+    }
+
+    const offers = getVoronoiSourceOffers();
+    const dataset = offers
+      .map(offer => {
+        const lat = Number(offer?.plot?.lat);
+        const lng = Number(offer?.plot?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+        return { offer, position: { lat, lng } };
+      })
+      .filter(Boolean);
+
+    clearVoronoiLayer();
+
+    if (!dataset.length) return;
+
+    const bounds = map.getBounds();
+    if (!bounds) return;
+
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    const extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+
+    let delaunay;
+    try {
+      const points = dataset.map(({ position }) => [position.lng, position.lat]);
+      delaunay = window.d3.Delaunay.from(points);
+    } catch (error) {
+      console.warn('Nie udało się zbudować diagramu Voronoi.', error);
+      return;
+    }
+
+    const voronoi = delaunay.voronoi(extent);
+    const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
+
+    dataset.forEach(({ position }, index) => {
+      const polygonCoords = voronoi.cellPolygon(index);
+      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return;
+
+      const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
+      const neighborIndices = Array.from(delaunay.neighbors(index) || []);
+      const stats = aggregateVoronoiValues(baseValues, index, neighborIndices);
+      const content = buildVoronoiLabelContent(stats);
+
+      const polygon = new google.maps.Polygon({
+        paths: path,
+        map: voronoiLayerState.enabled ? map : null,
+        strokeColor: '#9CA3AF',
+        strokeOpacity: 0.6,
+        strokeWeight: 1,
+        fillColor: '#FFFFFF',
+        fillOpacity: 0.18,
+        clickable: false,
+        zIndex: 40
+      });
+      voronoiLayerState.polygons.push(polygon);
+
+      const centroid = calculatePolygonCentroid(path) || position;
+      const label = createVoronoiLabelNode(content.html, content.plain, centroid);
+      if (label) {
+        voronoiLayerState.labels.push(label);
+      }
+    });
+  }
+
+  function updateVoronoiLayer(forceRebuild = false) {
+    if (!voronoiLayerState.enabled) {
+      clearVoronoiLayer();
+      return;
+    }
+    if (forceRebuild || !voronoiLayerState.polygons.length) {
+      rebuildVoronoiLayer();
+    }
   }
 
   function offerMatchesSelectedTags(offer) {
@@ -1496,6 +1795,9 @@ window.showConfirmModal = showConfirmModal;
     listContainer.innerHTML = "";
     if (!sortedOffers.length) {
       listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
+      if (voronoiLayerState.enabled) {
+        clearVoronoiLayer();
+      }
       return;
     }
 
@@ -1540,6 +1842,10 @@ window.showConfirmModal = showConfirmModal;
 
       listContainer.appendChild(card);
     });
+
+    if (voronoiLayerState.enabled) {
+      updateVoronoiLayer(true);
+    }
   }
 
   // EPSG:2180 -> WGS84
