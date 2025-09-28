@@ -440,7 +440,17 @@ window.showConfirmModal = showConfirmModal;
     polygons: [],
     labels: [],
     tagWeights: new Map(),
-    maxTagValue: 1
+    maxTagValue: 1,
+    labelLayout: {
+      overlay: null,
+      boxes: [],
+      projectionPending: false
+    }
+  };
+
+  const VORONOI_LABEL_SIZE = {
+    width: 132,
+    height: 34
   };
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
@@ -1130,6 +1140,140 @@ window.showConfirmModal = showConfirmModal;
     };
   }
 
+  function ensureVoronoiLabelOverlay() {
+    if (!map) return null;
+    if (voronoiLayerState.labelLayout.overlay) {
+      return voronoiLayerState.labelLayout.overlay;
+    }
+
+    try {
+      const overlay = new google.maps.OverlayView();
+      overlay.onAdd = () => {};
+      overlay.draw = () => {};
+      overlay.onRemove = () => {};
+      overlay.setMap(map);
+      voronoiLayerState.labelLayout.overlay = overlay;
+      return overlay;
+    } catch (error) {
+      console.warn('Nie udało się utworzyć nakładki dla etykiet Voronoi.', error);
+      return null;
+    }
+  }
+
+  function resetVoronoiLabelLayout() {
+    const overlay = ensureVoronoiLabelOverlay();
+    voronoiLayerState.labelLayout.boxes = [];
+    if (!overlay?.getProjection?.() && map && !voronoiLayerState.labelLayout.projectionPending) {
+      voronoiLayerState.labelLayout.projectionPending = true;
+      google.maps.event.addListenerOnce(map, 'idle', () => {
+        voronoiLayerState.labelLayout.projectionPending = false;
+        if (voronoiLayerState.enabled) {
+          updateVoronoiLayer(true);
+        }
+      });
+    }
+  }
+
+  function buildVoronoiLabelBox(centerPoint) {
+    if (!centerPoint) return null;
+    const x = Number(centerPoint.x);
+    const y = Number(centerPoint.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+
+    const halfWidth = VORONOI_LABEL_SIZE.width / 2;
+    const halfHeight = VORONOI_LABEL_SIZE.height / 2;
+
+    return {
+      left: x - halfWidth,
+      right: x + halfWidth,
+      top: y - halfHeight,
+      bottom: y + halfHeight
+    };
+  }
+
+  function boxesOverlap(a, b) {
+    if (!a || !b) return false;
+    return !(
+      a.right < b.left ||
+      a.left > b.right ||
+      a.bottom < b.top ||
+      a.top > b.bottom
+    );
+  }
+
+  function findNonOverlappingLabelPosition(position) {
+    const overlay = ensureVoronoiLabelOverlay();
+    const projection = overlay?.getProjection?.();
+    if (!projection) {
+      return position;
+    }
+
+    let basePoint;
+    try {
+      basePoint = projection.fromLatLngToDivPixel(position);
+    } catch (error) {
+      console.warn('Nie udało się przeliczyć pozycji etykiety Voronoi na piksele.', error);
+      return position;
+    }
+
+    if (!basePoint) {
+      return position;
+    }
+
+    const offsets = [
+      { x: 0, y: 0 },
+      { x: 0, y: -40 },
+      { x: 0, y: 40 },
+      { x: 40, y: 0 },
+      { x: -40, y: 0 },
+      { x: 40, y: -40 },
+      { x: -40, y: -40 },
+      { x: 40, y: 40 },
+      { x: -40, y: 40 },
+      { x: 0, y: -80 },
+      { x: 0, y: 80 },
+      { x: 80, y: 0 },
+      { x: -80, y: 0 },
+      { x: 80, y: -48 },
+      { x: -80, y: -48 },
+      { x: 80, y: 48 },
+      { x: -80, y: 48 }
+    ];
+
+    const existingBoxes = voronoiLayerState.labelLayout.boxes;
+
+    for (const offset of offsets) {
+      const candidatePoint = {
+        x: basePoint.x + offset.x,
+        y: basePoint.y + offset.y
+      };
+      const candidateBox = buildVoronoiLabelBox(candidatePoint);
+      if (!candidateBox) continue;
+
+      const collision = existingBoxes.some(box => boxesOverlap(candidateBox, box));
+      if (collision) continue;
+
+      let latLng;
+      try {
+        latLng = projection.fromDivPixelToLatLng(new google.maps.Point(candidatePoint.x, candidatePoint.y));
+      } catch (error) {
+        console.warn('Nie udało się przeliczyć pikseli na pozycję etykiety Voronoi.', error);
+        continue;
+      }
+
+      if (!latLng) continue;
+
+      existingBoxes.push(candidateBox);
+      return latLng;
+    }
+
+    const fallbackBox = buildVoronoiLabelBox(basePoint);
+    if (fallbackBox) {
+      existingBoxes.push(fallbackBox);
+    }
+    return position;
+  }
+
   function formatPriceValue(value) {
     if (!Number.isFinite(value)) return '0';
     const rounded = Math.round(value);
@@ -1137,11 +1281,10 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function buildVoronoiLabelContent(stats) {
-    const total = `${formatPriceValue(stats.price)} zł`;
     const ppm2 = `${formatPriceValue(stats.pricePerSqm)} zł/m²`;
     return {
-      html: `<strong>${total}</strong><span>${ppm2}</span>`,
-      plain: `${total}\n(${ppm2})`
+      html: `<span class="voronoi-label__value">${ppm2}</span>`,
+      plain: ppm2
     };
   }
 
@@ -1303,8 +1446,8 @@ window.showConfirmModal = showConfirmModal;
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0.01, strokeWeight: 0 },
       label: {
         text: fallbackText,
-        color: '#1f2937',
-        fontSize: '11px',
+        color: '#ffffff',
+        fontSize: '12px',
         fontWeight: '600'
       },
       zIndex: 120
@@ -1328,6 +1471,8 @@ window.showConfirmModal = showConfirmModal;
       }
     });
     voronoiLayerState.labels = [];
+    voronoiLayerState.labelLayout.boxes = [];
+    voronoiLayerState.labelLayout.projectionPending = false;
   }
 
   function getVoronoiSourceOffers() {
@@ -1389,6 +1534,8 @@ window.showConfirmModal = showConfirmModal;
     const voronoi = delaunay.voronoi(extent);
     const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
 
+    resetVoronoiLabelLayout();
+
     dataset.forEach(({ position }, index) => {
       const polygonCoords = voronoi.cellPolygon(index);
       if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return;
@@ -1401,18 +1548,19 @@ window.showConfirmModal = showConfirmModal;
       const polygon = new google.maps.Polygon({
         paths: path,
         map: voronoiLayerState.enabled ? map : null,
-        strokeColor: '#E5E7EB',
-        strokeOpacity: 0.85,
+        strokeColor: '#D1D5DB',
+        strokeOpacity: 0.8,
         strokeWeight: 1.2,
         fillColor: '#FFFFFF',
-        fillOpacity: 0.32,
+        fillOpacity: 0.28,
         clickable: false,
         zIndex: 40
       });
       voronoiLayerState.polygons.push(polygon);
 
       const centroid = calculatePolygonCentroid(path) || position;
-      const label = createVoronoiLabelNode(content.html, content.plain, centroid);
+      const labelPosition = findNonOverlappingLabelPosition(centroid || position);
+      const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
       if (label) {
         voronoiLayerState.labels.push(label);
       }
@@ -1856,6 +2004,7 @@ window.showConfirmModal = showConfirmModal;
     };
 
     keepMapFlat();
+    ensureVoronoiLabelOverlay();
 
     applySavedMapView();
 
