@@ -743,6 +743,25 @@ window.showConfirmModal = showConfirmModal;
 
     const formatNumberPL = (value) => Number.isFinite(value) ? value.toLocaleString('pl-PL') : null;
 
+    const normalizeEmail = (value) => {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      return trimmed ? trimmed.toLowerCase() : null;
+    };
+
+    function buildOwnerLookupKeys(email, uid) {
+      const keys = new Set();
+      const normalizedEmail = normalizeEmail(email);
+      const normalizedUid = typeof uid === 'string' && uid.trim() ? uid.trim() : null;
+      if (normalizedUid) {
+        keys.add(`uid:${normalizedUid}`);
+      }
+      if (normalizedEmail) {
+        keys.add(`email:${normalizedEmail}`);
+      }
+      return Array.from(keys);
+    }
+
     // >>> renderMobileAuth PRZENIESIONE DO MODUŁU <<<
     function renderMobileAuth(user) {
       const navMenu = document.querySelector('.nav-menu');
@@ -974,24 +993,37 @@ window.showConfirmModal = showConfirmModal;
 
       try {
         const colRef = collection(db, 'propertyListings');
+        const docsById = new Map();
+        const lookupKeys = buildOwnerLookupKeys(email, uid);
+
         const queries = [];
+        if (lookupKeys.length) {
+          // Wymagany indeks: propertyListings.ownerLookup ARRAY_CONTAINS_ANY.
+          queries.push(getDocs(query(colRef, where('ownerLookup', 'array-contains-any', lookupKeys))));
+        }
 
         if (email) {
           queries.push(getDocs(query(colRef, where('email', '==', email))));
           queries.push(getDocs(query(colRef, where('userEmail', '==', email))));
+          queries.push(getDocs(query(colRef, where('ownerEmail', '==', email))));
         }
         if (uid) {
           queries.push(getDocs(query(colRef, where('userUid', '==', uid))));
           queries.push(getDocs(query(colRef, where('uid', '==', uid))));
           queries.push(getDocs(query(colRef, where('ownerId', '==', uid))));
+          queries.push(getDocs(query(colRef, where('ownerUid', '==', uid))));
         }
 
         const results = queries.length ? await Promise.allSettled(queries) : [];
-        const docsById = new Map();
         results.forEach(result => {
-          if (result.status === 'fulfilled') {
-            result.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
+          if (result.status !== 'fulfilled') {
+            console.warn('Nie udało się pobrać części ofert użytkownika:', result.reason);
+            return;
           }
+          result.value.forEach(docSnap => {
+            if (!docSnap || !docSnap.exists()) return;
+            docsById.set(docSnap.id, docSnap);
+          });
         });
 
         let hasOwned = false;
@@ -1207,6 +1239,17 @@ window.showConfirmModal = showConfirmModal;
         }
         plots[plotIndex] = { ...plot, mock: false };
         await setDoc(offerRef, { plots }, { merge: true });
+
+        if (typeof window.bumpOffersRevisionHint === 'function') {
+          window.bumpOffersRevisionHint();
+        } else {
+          try {
+            window.localStorage?.removeItem('grunteo::offers-cache::v1');
+          } catch (_) {
+            /* ignore */
+          }
+        }
+
         showToast('Działka usunięta', 'success');
         if (auth.currentUser) {
           loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);

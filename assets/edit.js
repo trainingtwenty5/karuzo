@@ -95,6 +95,74 @@ let charCountersInitialized = false;
 const EMPTY_PLACEHOLDER_NORMALIZED = EMPTY_FIELD_PLACEHOLDER.toLowerCase();
 let htmlInsertDialog = null;
 
+function invalidateOffersCache() {
+  if (typeof window !== 'undefined' && typeof window.bumpOffersRevisionHint === 'function') {
+    try {
+      window.bumpOffersRevisionHint();
+      return;
+    } catch (error) {
+      console.warn('Nie udało się zaktualizować rewizji cache ofert:', error);
+    }
+  }
+
+  const cacheKey = typeof window !== 'undefined' && typeof window.__OFFERS_CACHE_KEY__ === 'string'
+    ? window.__OFFERS_CACHE_KEY__.trim() || 'grunteo::offers-cache::v1'
+    : 'grunteo::offers-cache::v1';
+
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(cacheKey);
+    }
+  } catch (error) {
+    console.warn('Nie udało się wyczyścić cache ofert:', error);
+  }
+}
+
+function buildOwnerLookupFromOffer({ offer = {}, plot = {}, user = null } = {}) {
+  const keys = new Set();
+
+  const pushEmail = (value) => {
+    if (typeof value !== 'string') return;
+    const normalized = value.trim().toLowerCase();
+    if (normalized) {
+      keys.add(`email:${normalized}`);
+    }
+  };
+
+  const pushUid = (value) => {
+    if (typeof value !== 'string') return;
+    const normalized = value.trim();
+    if (normalized) {
+      keys.add(`uid:${normalized}`);
+    }
+  };
+
+  const emailCandidates = [
+    offer.ownerEmail,
+    offer.userEmail,
+    offer.email,
+    plot.ownerEmail,
+    plot.userEmail,
+    user?.email
+  ];
+  emailCandidates.forEach(pushEmail);
+
+  const uidCandidates = [
+    offer.ownerUid,
+    offer.ownerId,
+    offer.userUid,
+    offer.uid,
+    offer.createdBy,
+    plot.ownerUid,
+    plot.ownerId,
+    plot.userUid,
+    user?.uid
+  ];
+  uidCandidates.forEach(pushUid);
+
+  return Array.from(keys);
+}
+
 const elements = {
   loadingState: document.getElementById('loadingState'),
   errorState: document.getElementById('errorState'),
@@ -2607,11 +2675,24 @@ async function handleSave() {
       updatePayload['location.city'] = locationValue;
     }
 
+    const ownerLookup = buildOwnerLookupFromOffer({
+      offer: { ...state.offerData },
+      plot: updatedPlot,
+      user: state.user
+    });
+    if (ownerLookup.length) {
+      updatePayload.ownerLookup = ownerLookup;
+    }
+
     await updateDoc(offerRef, updatePayload);
     showToast('Zapisano zmiany.', 'success');
+    invalidateOffersCache();
     state.offerData.plots = plots;
     if (state.offerData) {
       state.offerData.city = locationValue;
+      if (ownerLookup.length) {
+        state.offerData.ownerLookup = ownerLookup;
+      }
       if (typeof state.offerData.location === 'string' || state.offerData.location === undefined || state.offerData.location === null) {
         state.offerData.location = locationValue;
       } else if (typeof state.offerData.location === 'object') {

@@ -45,7 +45,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-    import { getFirestore, collection, addDoc, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDoc, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
@@ -69,6 +69,7 @@
     window.getDoc = getDoc;
     window.doc = doc;
     window.setDoc = setDoc;
+    window.serverTimestamp = serverTimestamp;
     window.auth = auth;
   </script>
 
@@ -1024,6 +1025,53 @@
       persistSelectedPoints();
     }
 
+    function invalidateOffersCache() {
+      if (typeof window !== 'undefined' && typeof window.bumpOffersRevisionHint === 'function') {
+        try {
+          window.bumpOffersRevisionHint();
+          return;
+        } catch (error) {
+          console.warn('Nie udało się zaktualizować rewizji cache ofert:', error);
+        }
+      }
+
+      const cacheKey = typeof window !== 'undefined' && typeof window.__OFFERS_CACHE_KEY__ === 'string'
+        ? window.__OFFERS_CACHE_KEY__.trim() || 'grunteo::offers-cache::v1'
+        : 'grunteo::offers-cache::v1';
+
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(cacheKey);
+        }
+      } catch (error) {
+        console.warn('Nie udało się wyczyścić cache ofert:', error);
+      }
+    }
+
+    function buildOwnerLookupFromInputs({ email, userEmail, userUid }) {
+      const keys = new Set();
+      const pushEmail = (value) => {
+        if (typeof value !== 'string') return;
+        const normalized = value.trim().toLowerCase();
+        if (normalized) {
+          keys.add(`email:${normalized}`);
+        }
+      };
+      const pushUid = (value) => {
+        if (typeof value !== 'string') return;
+        const normalized = value.trim();
+        if (normalized) {
+          keys.add(`uid:${normalized}`);
+        }
+      };
+
+      pushEmail(email);
+      pushEmail(userEmail);
+      pushUid(userUid);
+
+      return Array.from(keys);
+    }
+
     function updateSelectedPointsList() {
       const container = document.getElementById('selectedPlots');
       if (selectedPoints.length === 0) {
@@ -1084,12 +1132,22 @@
           email,
           city,
           termsConsent,
-          marketingConsent
+          marketingConsent,
+          updatedAt: window.serverTimestamp ? window.serverTimestamp() : new Date()
         };
 
         if (isLoggedIn) {
           base.userUid = user?.uid || '';
           base.userEmail = user?.email || '';
+        }
+
+        const ownerLookup = buildOwnerLookupFromInputs({
+          email,
+          userEmail: base.userEmail,
+          userUid: base.userUid
+        });
+        if (ownerLookup.length) {
+          base.ownerLookup = ownerLookup;
         }
         return base;
     }
@@ -1107,6 +1165,7 @@
       try {
         isSaving = true; if (submitBtn) submitBtn.disabled = true; if (submitText) submitText.textContent = "Zapisywanie...";
         await window.addDoc(window.collection(window.db, "propertyListings"), formData);
+        invalidateOffersCache();
         showToast("Zapisano do bazy!", "success");
         return true;
       } catch (err) {
