@@ -996,38 +996,35 @@ window.showConfirmModal = showConfirmModal;
         const docsById = new Map();
         const lookupKeys = buildOwnerLookupKeys(email, uid);
 
-        let shouldUseLegacyFallback = lookupKeys.length === 0;
-
+        const queries = [];
         if (lookupKeys.length) {
           // Wymagany indeks: propertyListings.ownerLookup ARRAY_CONTAINS_ANY.
-          const snapshot = await getDocs(query(colRef, where('ownerLookup', 'array-contains-any', lookupKeys)));
-          snapshot.forEach(docSnap => docsById.set(docSnap.id, docSnap));
-          if (!docsById.size) {
-            shouldUseLegacyFallback = true;
-          }
+          queries.push(getDocs(query(colRef, where('ownerLookup', 'array-contains-any', lookupKeys))));
         }
 
-        if (shouldUseLegacyFallback) {
-          const legacyQueries = [];
-          if (email) {
-            legacyQueries.push(getDocs(query(colRef, where('email', '==', email))));
-            legacyQueries.push(getDocs(query(colRef, where('userEmail', '==', email))));
-            legacyQueries.push(getDocs(query(colRef, where('ownerEmail', '==', email))));
-          }
-          if (uid) {
-            legacyQueries.push(getDocs(query(colRef, where('userUid', '==', uid))));
-            legacyQueries.push(getDocs(query(colRef, where('uid', '==', uid))));
-            legacyQueries.push(getDocs(query(colRef, where('ownerId', '==', uid))));
-            legacyQueries.push(getDocs(query(colRef, where('ownerUid', '==', uid))));
-          }
+        if (email) {
+          queries.push(getDocs(query(colRef, where('email', '==', email))));
+          queries.push(getDocs(query(colRef, where('userEmail', '==', email))));
+          queries.push(getDocs(query(colRef, where('ownerEmail', '==', email))));
+        }
+        if (uid) {
+          queries.push(getDocs(query(colRef, where('userUid', '==', uid))));
+          queries.push(getDocs(query(colRef, where('uid', '==', uid))));
+          queries.push(getDocs(query(colRef, where('ownerId', '==', uid))));
+          queries.push(getDocs(query(colRef, where('ownerUid', '==', uid))));
+        }
 
-          const legacyResults = legacyQueries.length ? await Promise.allSettled(legacyQueries) : [];
-          legacyResults.forEach(result => {
-            if (result.status === 'fulfilled') {
-              result.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
-            }
+        const results = queries.length ? await Promise.allSettled(queries) : [];
+        results.forEach(result => {
+          if (result.status !== 'fulfilled') {
+            console.warn('Nie udało się pobrać części ofert użytkownika:', result.reason);
+            return;
+          }
+          result.value.forEach(docSnap => {
+            if (!docSnap || !docSnap.exists()) return;
+            docsById.set(docSnap.id, docSnap);
           });
-        }
+        });
 
         let hasOwned = false;
         docsById.forEach(docSnap => {

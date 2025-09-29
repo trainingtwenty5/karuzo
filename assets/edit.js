@@ -95,6 +95,29 @@ let charCountersInitialized = false;
 const EMPTY_PLACEHOLDER_NORMALIZED = EMPTY_FIELD_PLACEHOLDER.toLowerCase();
 let htmlInsertDialog = null;
 
+function invalidateOffersCache() {
+  if (typeof window !== 'undefined' && typeof window.bumpOffersRevisionHint === 'function') {
+    try {
+      window.bumpOffersRevisionHint();
+      return;
+    } catch (error) {
+      console.warn('Nie udało się zaktualizować rewizji cache ofert:', error);
+    }
+  }
+
+  const cacheKey = typeof window !== 'undefined' && typeof window.__OFFERS_CACHE_KEY__ === 'string'
+    ? window.__OFFERS_CACHE_KEY__.trim() || 'grunteo::offers-cache::v1'
+    : 'grunteo::offers-cache::v1';
+
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(cacheKey);
+    }
+  } catch (error) {
+    console.warn('Nie udało się wyczyścić cache ofert:', error);
+  }
+}
+
 function buildOwnerLookupFromOffer({ offer = {}, plot = {}, user = null } = {}) {
   const keys = new Set();
 
@@ -2663,6 +2686,7 @@ async function handleSave() {
 
     await updateDoc(offerRef, updatePayload);
     showToast('Zapisano zmiany.', 'success');
+    invalidateOffersCache();
     state.offerData.plots = plots;
     if (state.offerData) {
       state.offerData.city = locationValue;

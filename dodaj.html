@@ -1025,6 +1025,29 @@
       persistSelectedPoints();
     }
 
+    function invalidateOffersCache() {
+      if (typeof window !== 'undefined' && typeof window.bumpOffersRevisionHint === 'function') {
+        try {
+          window.bumpOffersRevisionHint();
+          return;
+        } catch (error) {
+          console.warn('Nie udało się zaktualizować rewizji cache ofert:', error);
+        }
+      }
+
+      const cacheKey = typeof window !== 'undefined' && typeof window.__OFFERS_CACHE_KEY__ === 'string'
+        ? window.__OFFERS_CACHE_KEY__.trim() || 'grunteo::offers-cache::v1'
+        : 'grunteo::offers-cache::v1';
+
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(cacheKey);
+        }
+      } catch (error) {
+        console.warn('Nie udało się wyczyścić cache ofert:', error);
+      }
+    }
+
     function buildOwnerLookupFromInputs({ email, userEmail, userUid }) {
       const keys = new Set();
       const pushEmail = (value) => {
@@ -1142,6 +1165,7 @@
       try {
         isSaving = true; if (submitBtn) submitBtn.disabled = true; if (submitText) submitText.textContent = "Zapisywanie...";
         await window.addDoc(window.collection(window.db, "propertyListings"), formData);
+        invalidateOffersCache();
         showToast("Zapisano do bazy!", "success");
         return true;
       } catch (err) {
