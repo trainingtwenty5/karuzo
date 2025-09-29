@@ -2217,6 +2217,7 @@ window.showConfirmModal = showConfirmModal;
       center: { lat: 52.0, lng: 19.0 },
       zoom: 6,
       gestureHandling: "greedy",
+      scrollwheel: true,
       mapTypeId: google.maps.MapTypeId.HYBRID,
       tilt: 0,
       heading: 0,
@@ -2249,16 +2250,6 @@ window.showConfirmModal = showConfirmModal;
     await loadOffers();
     focusOfferFromMapState();
 
-    // delikatny zoom kółkiem (opcjonalne)
-    const mapContainer = document.getElementById('map');
-    mapContainer.addEventListener('wheel', function(e) {
-      if (e.target.closest('.gm-style')) {
-        e.preventDefault();
-        const delta = e.deltaY || e.detail || (-e.wheelDelta);
-        const currentZoom = map.getZoom();
-        map.setZoom(delta < 0 ? currentZoom + 0.5 : currentZoom - 0.5);
-      }
-    }, { passive: false });
   }
 
   async function loadOffers(options = {}) {
