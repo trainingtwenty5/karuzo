@@ -385,7 +385,7 @@ window.showConfirmModal = showConfirmModal;
 </div>
   <!-- Firebase -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    import { initializeApp, getApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import {
       getFirestore,
       collection,
@@ -396,7 +396,7 @@ window.showConfirmModal = showConfirmModal;
       limit,
       startAfter,
       Timestamp
-    } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
@@ -407,8 +407,10 @@ window.showConfirmModal = showConfirmModal;
       appId: "1:829161895559:web:d832541aac05b35847ea22"
     };
 
-    const app = initializeApp(firebaseConfig);
+    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+    window.firebaseApp = app;
 
     window.db = db;
     window.collection = collection;
