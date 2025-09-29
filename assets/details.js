@@ -18,6 +18,8 @@ import {
   sanitizeRichText,
   ensureArray,
   parseNumberFromText,
+  getCachedPropertyListing,
+  setCachedPropertyListing,
   syncMobileMenu,
   setDoc,
   richTextToPlainText
@@ -1904,15 +1906,19 @@ async function loadProperty() {
     showError('Nie wskazano identyfikatora oferty.');
     return;
   }
-  const { db } = initFirebase();
   try {
-    const offerRef = doc(db, 'propertyListings', state.offerId);
-    const snap = await getDoc(offerRef);
-    if (!snap.exists()) {
-      showError('Ogłoszenie nie istnieje lub zostało usunięte.');
-      return;
+    let data = getCachedPropertyListing(state.offerId);
+    if (!data) {
+      const { db } = initFirebase();
+      const offerRef = doc(db, 'propertyListings', state.offerId);
+      const snap = await getDoc(offerRef);
+      if (!snap.exists()) {
+        showError('Ogłoszenie nie istnieje lub zostało usunięte.');
+        return;
+      }
+      data = snap.data();
+      setCachedPropertyListing(state.offerId, data);
     }
-    const data = snap.data();
     const plots = Array.isArray(data.plots) ? data.plots : [];
     const plot = plots[state.plotIndex];
     if (!plot) {

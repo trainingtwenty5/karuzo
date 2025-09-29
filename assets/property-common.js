@@ -25,6 +25,9 @@ const firebaseConfig = {
 
 let firebaseCache = null;
 
+const DEFAULT_PROPERTY_CACHE_TTL_MS = 5 * 60 * 1000;
+const propertyListingsCache = new Map();
+
 export function initFirebase() {
   if (firebaseCache) {
     return firebaseCache;
@@ -422,6 +425,79 @@ export function sanitizeRichText(value) {
 
 export function cloneDeep(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizePropertyCacheRevision(revision) {
+  if (revision === null || revision === undefined) {
+    return '';
+  }
+  if (typeof revision === 'string') {
+    return revision;
+  }
+  if (typeof revision === 'number' && Number.isFinite(revision)) {
+    return String(revision);
+  }
+  return String(revision);
+}
+
+function resolvePropertyCacheTtl(overrideTtlMs) {
+  if (Number.isFinite(overrideTtlMs) && overrideTtlMs >= 0) {
+    return overrideTtlMs;
+  }
+  return DEFAULT_PROPERTY_CACHE_TTL_MS;
+}
+
+function buildPropertyCacheKey(offerId, revision) {
+  return `${offerId}::${normalizePropertyCacheRevision(revision)}`;
+}
+
+export function getCachedPropertyListing(offerId, options = {}) {
+  if (!offerId) {
+    return null;
+  }
+  const key = buildPropertyCacheKey(offerId, options.revision);
+  const entry = propertyListingsCache.get(key);
+  if (!entry) {
+    return null;
+  }
+  const ttl = resolvePropertyCacheTtl(options.ttlMs);
+  if (ttl > 0) {
+    const age = Date.now() - entry.timestamp;
+    if (age > ttl) {
+      propertyListingsCache.delete(key);
+      return null;
+    }
+  }
+  return cloneDeep(entry.data);
+}
+
+export function setCachedPropertyListing(offerId, data, options = {}) {
+  if (!offerId) {
+    return;
+  }
+  const key = buildPropertyCacheKey(offerId, options.revision);
+  propertyListingsCache.set(key, {
+    data: cloneDeep(data),
+    timestamp: Date.now()
+  });
+}
+
+export function invalidatePropertyListingCache(offerId, options = {}) {
+  if (!offerId) {
+    return;
+  }
+  const hasRevision = Object.prototype.hasOwnProperty.call(options, 'revision');
+  if (hasRevision) {
+    const key = buildPropertyCacheKey(offerId, options.revision);
+    propertyListingsCache.delete(key);
+    return;
+  }
+  const prefix = `${offerId}::`;
+  for (const key of propertyListingsCache.keys()) {
+    if (key.startsWith(prefix)) {
+      propertyListingsCache.delete(key);
+    }
+  }
 }
 
 export function ensureArray(value) {

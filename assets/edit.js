@@ -25,7 +25,9 @@ import {
   cloneDeep,
   stripHtml,
   richTextToPlainText,
-  syncMobileMenu
+  syncMobileMenu,
+  getCachedPropertyListing,
+  setCachedPropertyListing
 } from './property-common.js';
 import {
   signInWithEmailAndPassword,
@@ -2617,6 +2619,7 @@ async function handleSave() {
       }
     }
     state.plotData = cloneDeep(updatedPlot);
+    setCachedPropertyListing(state.offerId, state.offerData);
     renderPriceUpdatedAt(new Date());
     setPriceEdit(state.price);
     setAreaEdit(state.area);
@@ -2636,15 +2639,19 @@ async function loadProperty() {
     showError('Nie wskazano oferty do edycji.');
     return;
   }
-  const { db } = initFirebase();
   try {
-    const offerRef = doc(db, 'propertyListings', state.offerId);
-    const snap = await getDoc(offerRef);
-    if (!snap.exists()) {
-      showError('Ogłoszenie nie istnieje lub zostało usunięte.');
-      return;
+    let data = getCachedPropertyListing(state.offerId);
+    if (!data) {
+      const { db } = initFirebase();
+      const offerRef = doc(db, 'propertyListings', state.offerId);
+      const snap = await getDoc(offerRef);
+      if (!snap.exists()) {
+        showError('Ogłoszenie nie istnieje lub zostało usunięte.');
+        return;
+      }
+      data = snap.data();
+      setCachedPropertyListing(state.offerId, data);
     }
-    const data = snap.data();
     const ownerUid = pickValue(data.ownerUid, data.userUid, data.uid, data.ownerId);
     if (ownerUid && ownerUid !== state.user?.uid) {
       showToast('Nie masz uprawnień do edycji tej oferty.', 'error');
