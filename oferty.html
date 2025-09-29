@@ -386,7 +386,17 @@ window.showConfirmModal = showConfirmModal;
   <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      where,
+      orderBy,
+      limit,
+      startAfter,
+      Timestamp
+    } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBdhMIiqetOfDGP85ERxtgwn3AXR50pBcE",
@@ -403,6 +413,12 @@ window.showConfirmModal = showConfirmModal;
     window.db = db;
     window.collection = collection;
     window.getDocs = getDocs;
+    window.query = query;
+    window.where = where;
+    window.orderBy = orderBy;
+    window.limit = limit;
+    window.startAfter = startAfter;
+    window.Timestamp = Timestamp;
   </script>
 
 
@@ -606,9 +622,17 @@ window.showConfirmModal = showConfirmModal;
     const ttlMs = Number.isFinite(ttlCandidate) && ttlCandidate > 0
       ? ttlCandidate
       : null; // brak ustawienia TTL wyłącza cache, jeśli config nie został załadowany
+
+    const pageSizeCandidate = Number(window.__OFFERS_PAGE_SIZE__);
+    const maxPagesCandidate = Number(window.__OFFERS_MAX_PAGES__);
+    const staleAfterCandidate = Number(window.__OFFERS_STALE_AFTER_MS__);
+
     return {
       revisionHint: revision || null,
-      ttlMs
+      ttlMs,
+      pageSize: Number.isFinite(pageSizeCandidate) && pageSizeCandidate > 0 ? Math.floor(pageSizeCandidate) : null,
+      maxPages: Number.isFinite(maxPagesCandidate) && maxPagesCandidate > 0 ? Math.floor(maxPagesCandidate) : null,
+      staleAfterMs: Number.isFinite(staleAfterCandidate) && staleAfterCandidate > 0 ? staleAfterCandidate : null
     };
   }
 
@@ -705,6 +729,85 @@ window.showConfirmModal = showConfirmModal;
     };
   }
 
+  function toTimestampMillis(value) {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    if (value instanceof Date) {
+      const time = value.getTime();
+      return Number.isNaN(time) ? null : time;
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+      const parsed = Date.parse(value);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+    if (typeof value === 'object') {
+      if (typeof value.toDate === 'function') {
+        try {
+          const date = value.toDate();
+          return date instanceof Date && !Number.isNaN(date.getTime()) ? date.getTime() : null;
+        } catch (_) {
+          return null;
+        }
+      }
+      if (typeof value.seconds === 'number') {
+        const baseMs = value.seconds * 1000;
+        const nanos = Number(value.nanoseconds);
+        return Number.isFinite(baseMs) ? baseMs + (Number.isFinite(nanos) ? Math.floor(nanos / 1e6) : 0) : null;
+      }
+    }
+    return null;
+  }
+
+  function getOfferUpdatedAtMillis(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+    const data = entry.data || {};
+    const candidates = [
+      data.updatedAt,
+      data.timestamp,
+      data.createdAt,
+      data.created_at,
+      data.modifiedAt
+    ];
+    for (const candidate of candidates) {
+      const ts = toTimestampMillis(candidate);
+      if (ts !== null) {
+        return ts;
+      }
+    }
+    if (Array.isArray(data.plots)) {
+      for (const plot of data.plots) {
+        const plotCandidates = [plot?.updatedAt, plot?.timestamp, plot?.priceUpdatedAt];
+        for (const candidate of plotCandidates) {
+          const ts = toTimestampMillis(candidate);
+          if (ts !== null) {
+            return ts;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function computeLatestUpdatedAt(documents) {
+    if (!Array.isArray(documents) || !documents.length) {
+      return null;
+    }
+    let maxTs = null;
+    documents.forEach((entry) => {
+      const ts = getOfferUpdatedAtMillis(entry);
+      if (ts !== null && (maxTs === null || ts > maxTs)) {
+        maxTs = ts;
+      }
+    });
+    return maxTs;
+  }
+
   function readOffersCache(settings, { allowExpired = false } = {}) {
     if (!window.localStorage) {
       return null;
@@ -758,8 +861,17 @@ window.showConfirmModal = showConfirmModal;
           .filter(Boolean)
       : [];
 
+    const storedAt = Number(parsed.storedAt);
+    const expiresAtNormalized = Number(parsed.expiresAt);
+    const latestUpdatedAtCandidate = Number(parsed.latestUpdatedAt);
+
     const sanitizedPayload = {
       ...parsed,
+      storedAt: Number.isFinite(storedAt) ? storedAt : null,
+      expiresAt: Number.isFinite(expiresAtNormalized) ? expiresAtNormalized : null,
+      latestUpdatedAt: Number.isFinite(latestUpdatedAtCandidate)
+        ? latestUpdatedAtCandidate
+        : computeLatestUpdatedAt(sanitizedDocuments),
       documents: sanitizedDocuments
     };
 
@@ -772,7 +884,7 @@ window.showConfirmModal = showConfirmModal;
     return sanitizedPayload;
   }
 
-  function writeOffersCache(documents, settings) {
+  function writeOffersCache(documents, settings, metadata = {}) {
     if (!window.localStorage) {
       return;
     }
@@ -791,6 +903,9 @@ window.showConfirmModal = showConfirmModal;
         storedAt: now,
         ttlMs: Number.isFinite(ttl) && ttl > 0 ? ttl : null,
         expiresAt: Number.isFinite(ttl) && ttl > 0 ? now + ttl : null,
+        latestUpdatedAt: Number.isFinite(metadata?.latestUpdatedAt)
+          ? metadata.latestUpdatedAt
+          : computeLatestUpdatedAt(safeDocuments),
         documents: safeDocuments
       };
 
@@ -798,6 +913,35 @@ window.showConfirmModal = showConfirmModal;
     } catch (error) {
       console.warn('Nie udało się zapisać cache ofert:', error);
     }
+  }
+
+  function shouldRefreshOffersCache(cacheEntry, settings, { forceRefresh = false } = {}) {
+    if (forceRefresh) {
+      return true;
+    }
+    if (!cacheEntry) {
+      return true;
+    }
+
+    const now = Date.now();
+    const revisionFromCache = typeof cacheEntry.revisionHint === 'string' ? cacheEntry.revisionHint : null;
+    const revisionFromConfig = typeof settings?.revisionHint === 'string' ? settings.revisionHint : null;
+    if (revisionFromConfig && revisionFromCache && revisionFromConfig !== revisionFromCache) {
+      return true;
+    }
+
+    const expiresAt = Number(cacheEntry.expiresAt);
+    if (Number.isFinite(expiresAt) && expiresAt <= now) {
+      return true;
+    }
+
+    const staleAfter = Number(settings?.staleAfterMs);
+    const storedAt = Number(cacheEntry.storedAt);
+    if (Number.isFinite(staleAfter) && staleAfter > 0 && Number.isFinite(storedAt) && storedAt + staleAfter <= now) {
+      return true;
+    }
+
+    return false;
   }
 
   function hydrateOffersFromDocuments(documents) {
@@ -927,15 +1071,99 @@ window.showConfirmModal = showConfirmModal;
     }
   }
 
-  async function refreshOffersFromSource(settings) {
-    const documents = [];
-    const snapshot = await window.getDocs(window.collection(window.db, "propertyListings"));
-    snapshot.forEach(docSnap => {
-      documents.push({ id: docSnap.id, data: docSnap.data() });
+  async function refreshOffersFromSource(settings, options = {}) {
+    const { cachedPayload = null } = options || {};
+    const collectionRef = window.collection(window.db, "propertyListings");
+
+    const cachedDocuments = Array.isArray(cachedPayload?.documents)
+      ? cachedPayload.documents
+      : [];
+    const mergedMap = new Map();
+    cachedDocuments.forEach((entry) => {
+      if (entry && entry.id) {
+        mergedMap.set(entry.id, entry);
+      }
     });
 
-    hydrateOffersFromDocuments(documents);
-    writeOffersCache(documents, settings);
+    const pageSize = Number.isFinite(settings?.pageSize) && settings.pageSize > 0
+      ? settings.pageSize
+      : 200;
+    const maxPages = Number.isFinite(settings?.maxPages) && settings.maxPages > 0
+      ? settings.maxPages
+      : 5;
+
+    const latestCachedUpdate = Number(cachedPayload?.latestUpdatedAt);
+    const hasLatestTimestamp = Number.isFinite(latestCachedUpdate) && latestCachedUpdate > 0 && window.Timestamp;
+
+    const baseConstraints = [];
+    if (hasLatestTimestamp) {
+      // Wymagany indeks: propertyListings.updatedAt ASC (pojedyncze pole wystarcza).
+      baseConstraints.push(window.where('updatedAt', '>', window.Timestamp.fromMillis(latestCachedUpdate)));
+      baseConstraints.push(window.orderBy('updatedAt', 'asc'));
+    } else {
+      baseConstraints.push(window.orderBy('updatedAt', 'desc'));
+    }
+
+    let cursor = null;
+    let fetchedPages = 0;
+    let fetchedDocuments = 0;
+
+    while (fetchedPages < maxPages) {
+      const constraints = [...baseConstraints];
+      if (cursor) {
+        constraints.push(window.startAfter(cursor));
+      }
+      constraints.push(window.limit(pageSize));
+
+      const q = window.query(collectionRef, ...constraints);
+      const snapshot = await window.getDocs(q);
+      if (snapshot.empty) {
+        break;
+      }
+
+      snapshot.forEach((docSnap) => {
+        fetchedDocuments += 1;
+        const sanitized = sanitizeOfferDocumentForCache({ id: docSnap.id, data: docSnap.data() });
+        if (sanitized) {
+          mergedMap.set(docSnap.id, sanitized);
+        } else {
+          mergedMap.delete(docSnap.id);
+        }
+      });
+
+      cursor = snapshot.docs[snapshot.docs.length - 1] || null;
+      fetchedPages += 1;
+
+      if (snapshot.size < pageSize) {
+        break;
+      }
+    }
+
+    if (!fetchedDocuments && !mergedMap.size && !hasLatestTimestamp) {
+      // Kolekcja jest pusta lub dokumenty nie posiadają pola updatedAt – wykonujemy
+      // awaryjne zapytanie bez sortowania po updatedAt.
+      const fallbackSnapshot = await window.getDocs(collectionRef);
+      fallbackSnapshot.forEach((docSnap) => {
+        const sanitized = sanitizeOfferDocumentForCache({ id: docSnap.id, data: docSnap.data() });
+        if (sanitized) {
+          mergedMap.set(docSnap.id, sanitized);
+        }
+      });
+    }
+
+    const mergedDocuments = Array.from(mergedMap.values()).sort((a, b) => {
+      const aTs = getOfferUpdatedAtMillis(a) || 0;
+      const bTs = getOfferUpdatedAtMillis(b) || 0;
+      if (aTs === bTs) {
+        return (a.id || '').localeCompare(b.id || '');
+      }
+      return bTs - aTs;
+    });
+
+    hydrateOffersFromDocuments(mergedDocuments);
+    writeOffersCache(mergedDocuments, settings, {
+      latestUpdatedAt: computeLatestUpdatedAt(mergedDocuments)
+    });
   }
 
   const tagFiltersList = document.getElementById('tagFiltersList');
@@ -2035,19 +2263,19 @@ window.showConfirmModal = showConfirmModal;
     const { forceRefresh = false } = options || {};
     const settings = resolveOffersCacheSettings();
 
-    if (!forceRefresh) {
-      const cached = readOffersCache(settings);
-      if (cached && Array.isArray(cached.documents)) {
-        hydrateOffersFromDocuments(cached.documents);
-        refreshOffersFromSource(settings).catch(error => {
-          console.warn('Nie udało się odświeżyć ofert z sieci po użyciu cache:', error);
-        });
+    const cached = readOffersCache(settings);
+    if (cached && Array.isArray(cached.documents) && cached.documents.length) {
+      hydrateOffersFromDocuments(cached.documents);
+      if (!shouldRefreshOffersCache(cached, settings, { forceRefresh })) {
         return;
       }
+    } else if (!shouldRefreshOffersCache(cached, settings, { forceRefresh: true })) {
+      // brak cache, ale warunek odświeżenia i tak powinien wymusić pobranie
+      // ta gałąź pozostawiona tylko dla czytelności
     }
 
     try {
-      await refreshOffersFromSource(settings);
+      await refreshOffersFromSource(settings, { cachedPayload: cached });
     } catch (err) {
       console.error("Błąd pobierania ofert:", err);
       const fallback = readOffersCache(settings, { allowExpired: true });

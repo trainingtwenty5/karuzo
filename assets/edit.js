@@ -95,6 +95,51 @@ let charCountersInitialized = false;
 const EMPTY_PLACEHOLDER_NORMALIZED = EMPTY_FIELD_PLACEHOLDER.toLowerCase();
 let htmlInsertDialog = null;
 
+function buildOwnerLookupFromOffer({ offer = {}, plot = {}, user = null } = {}) {
+  const keys = new Set();
+
+  const pushEmail = (value) => {
+    if (typeof value !== 'string') return;
+    const normalized = value.trim().toLowerCase();
+    if (normalized) {
+      keys.add(`email:${normalized}`);
+    }
+  };
+
+  const pushUid = (value) => {
+    if (typeof value !== 'string') return;
+    const normalized = value.trim();
+    if (normalized) {
+      keys.add(`uid:${normalized}`);
+    }
+  };
+
+  const emailCandidates = [
+    offer.ownerEmail,
+    offer.userEmail,
+    offer.email,
+    plot.ownerEmail,
+    plot.userEmail,
+    user?.email
+  ];
+  emailCandidates.forEach(pushEmail);
+
+  const uidCandidates = [
+    offer.ownerUid,
+    offer.ownerId,
+    offer.userUid,
+    offer.uid,
+    offer.createdBy,
+    plot.ownerUid,
+    plot.ownerId,
+    plot.userUid,
+    user?.uid
+  ];
+  uidCandidates.forEach(pushUid);
+
+  return Array.from(keys);
+}
+
 const elements = {
   loadingState: document.getElementById('loadingState'),
   errorState: document.getElementById('errorState'),
@@ -2607,11 +2652,23 @@ async function handleSave() {
       updatePayload['location.city'] = locationValue;
     }
 
+    const ownerLookup = buildOwnerLookupFromOffer({
+      offer: { ...state.offerData },
+      plot: updatedPlot,
+      user: state.user
+    });
+    if (ownerLookup.length) {
+      updatePayload.ownerLookup = ownerLookup;
+    }
+
     await updateDoc(offerRef, updatePayload);
     showToast('Zapisano zmiany.', 'success');
     state.offerData.plots = plots;
     if (state.offerData) {
       state.offerData.city = locationValue;
+      if (ownerLookup.length) {
+        state.offerData.ownerLookup = ownerLookup;
+      }
       if (typeof state.offerData.location === 'string' || state.offerData.location === undefined || state.offerData.location === null) {
         state.offerData.location = locationValue;
       } else if (typeof state.offerData.location === 'object') {

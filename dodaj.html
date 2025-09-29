@@ -45,7 +45,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-analytics.js";
-    import { getFirestore, collection, addDoc, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDoc, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
     import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
     const firebaseConfig = {
@@ -69,6 +69,7 @@
     window.getDoc = getDoc;
     window.doc = doc;
     window.setDoc = setDoc;
+    window.serverTimestamp = serverTimestamp;
     window.auth = auth;
   </script>
 
@@ -1024,6 +1025,30 @@
       persistSelectedPoints();
     }
 
+    function buildOwnerLookupFromInputs({ email, userEmail, userUid }) {
+      const keys = new Set();
+      const pushEmail = (value) => {
+        if (typeof value !== 'string') return;
+        const normalized = value.trim().toLowerCase();
+        if (normalized) {
+          keys.add(`email:${normalized}`);
+        }
+      };
+      const pushUid = (value) => {
+        if (typeof value !== 'string') return;
+        const normalized = value.trim();
+        if (normalized) {
+          keys.add(`uid:${normalized}`);
+        }
+      };
+
+      pushEmail(email);
+      pushEmail(userEmail);
+      pushUid(userUid);
+
+      return Array.from(keys);
+    }
+
     function updateSelectedPointsList() {
       const container = document.getElementById('selectedPlots');
       if (selectedPoints.length === 0) {
@@ -1084,12 +1109,22 @@
           email,
           city,
           termsConsent,
-          marketingConsent
+          marketingConsent,
+          updatedAt: window.serverTimestamp ? window.serverTimestamp() : new Date()
         };
 
         if (isLoggedIn) {
           base.userUid = user?.uid || '';
           base.userEmail = user?.email || '';
+        }
+
+        const ownerLookup = buildOwnerLookupFromInputs({
+          email,
+          userEmail: base.userEmail,
+          userUid: base.userUid
+        });
+        if (ownerLookup.length) {
+          base.ownerLookup = ownerLookup;
         }
         return base;
     }

@@ -743,6 +743,25 @@ window.showConfirmModal = showConfirmModal;
 
     const formatNumberPL = (value) => Number.isFinite(value) ? value.toLocaleString('pl-PL') : null;
 
+    const normalizeEmail = (value) => {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      return trimmed ? trimmed.toLowerCase() : null;
+    };
+
+    function buildOwnerLookupKeys(email, uid) {
+      const keys = new Set();
+      const normalizedEmail = normalizeEmail(email);
+      const normalizedUid = typeof uid === 'string' && uid.trim() ? uid.trim() : null;
+      if (normalizedUid) {
+        keys.add(`uid:${normalizedUid}`);
+      }
+      if (normalizedEmail) {
+        keys.add(`email:${normalizedEmail}`);
+      }
+      return Array.from(keys);
+    }
+
     // >>> renderMobileAuth PRZENIESIONE DO MODUŁU <<<
     function renderMobileAuth(user) {
       const navMenu = document.querySelector('.nav-menu');
@@ -974,25 +993,41 @@ window.showConfirmModal = showConfirmModal;
 
       try {
         const colRef = collection(db, 'propertyListings');
-        const queries = [];
-
-        if (email) {
-          queries.push(getDocs(query(colRef, where('email', '==', email))));
-          queries.push(getDocs(query(colRef, where('userEmail', '==', email))));
-        }
-        if (uid) {
-          queries.push(getDocs(query(colRef, where('userUid', '==', uid))));
-          queries.push(getDocs(query(colRef, where('uid', '==', uid))));
-          queries.push(getDocs(query(colRef, where('ownerId', '==', uid))));
-        }
-
-        const results = queries.length ? await Promise.allSettled(queries) : [];
         const docsById = new Map();
-        results.forEach(result => {
-          if (result.status === 'fulfilled') {
-            result.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
+        const lookupKeys = buildOwnerLookupKeys(email, uid);
+
+        let shouldUseLegacyFallback = lookupKeys.length === 0;
+
+        if (lookupKeys.length) {
+          // Wymagany indeks: propertyListings.ownerLookup ARRAY_CONTAINS_ANY.
+          const snapshot = await getDocs(query(colRef, where('ownerLookup', 'array-contains-any', lookupKeys)));
+          snapshot.forEach(docSnap => docsById.set(docSnap.id, docSnap));
+          if (!docsById.size) {
+            shouldUseLegacyFallback = true;
           }
-        });
+        }
+
+        if (shouldUseLegacyFallback) {
+          const legacyQueries = [];
+          if (email) {
+            legacyQueries.push(getDocs(query(colRef, where('email', '==', email))));
+            legacyQueries.push(getDocs(query(colRef, where('userEmail', '==', email))));
+            legacyQueries.push(getDocs(query(colRef, where('ownerEmail', '==', email))));
+          }
+          if (uid) {
+            legacyQueries.push(getDocs(query(colRef, where('userUid', '==', uid))));
+            legacyQueries.push(getDocs(query(colRef, where('uid', '==', uid))));
+            legacyQueries.push(getDocs(query(colRef, where('ownerId', '==', uid))));
+            legacyQueries.push(getDocs(query(colRef, where('ownerUid', '==', uid))));
+          }
+
+          const legacyResults = legacyQueries.length ? await Promise.allSettled(legacyQueries) : [];
+          legacyResults.forEach(result => {
+            if (result.status === 'fulfilled') {
+              result.value.forEach(docSnap => docsById.set(docSnap.id, docSnap));
+            }
+          });
+        }
 
         let hasOwned = false;
         docsById.forEach(docSnap => {
