@@ -2892,6 +2892,13 @@ async function deletePlot(offerId, plotIndex, title) {
     }
     plots[plotIndex] = { ...plot, mock: false };
     await setDoc(offerRef, { plots }, { merge: true });
+
+    if (typeof window.bumpOffersRevisionHint === 'function') {
+      window.bumpOffersRevisionHint();
+    } else {
+      clearOffersCache();
+    }
+
     showToast('Działka usunięta', 'success');
     if (auth.currentUser) {
       loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);

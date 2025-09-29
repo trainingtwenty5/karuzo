@@ -1239,6 +1239,17 @@ window.showConfirmModal = showConfirmModal;
         }
         plots[plotIndex] = { ...plot, mock: false };
         await setDoc(offerRef, { plots }, { merge: true });
+
+        if (typeof window.bumpOffersRevisionHint === 'function') {
+          window.bumpOffersRevisionHint();
+        } else {
+          try {
+            window.localStorage?.removeItem('grunteo::offers-cache::v1');
+          } catch (_) {
+            /* ignore */
+          }
+        }
+
         showToast('Działka usunięta', 'success');
         if (auth.currentUser) {
           loadUserOffers(auth.currentUser.email || null, auth.currentUser.uid || null);
