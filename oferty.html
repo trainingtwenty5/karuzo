@@ -262,6 +262,22 @@ window.showConfirmModal = showConfirmModal;
             aria-hidden="true"
             hidden
           >
+            <div class="voronoi-inspector__summary" id="voronoiInspectorSummary" hidden>
+              <div class="voronoi-inspector__summary-header">
+                <span class="voronoi-inspector__summary-title">Podsumowanie</span>
+                <span class="voronoi-inspector__summary-badge" id="voronoiInspectorSummaryBadge" hidden>szac.</span>
+              </div>
+              <div class="voronoi-inspector__summary-grid">
+                <div class="voronoi-inspector__summary-item">
+                  <span class="voronoi-inspector__summary-label">Średnia cena m²</span>
+                  <span class="voronoi-inspector__summary-value" id="voronoiInspectorAvgValue">—</span>
+                </div>
+                <div class="voronoi-inspector__summary-item">
+                  <span class="voronoi-inspector__summary-label">Szacowana wartość działki</span>
+                  <span class="voronoi-inspector__summary-value" id="voronoiInspectorEstimateValue">—</span>
+                </div>
+              </div>
+            </div>
             <p
               class="voronoi-inspector__empty"
               id="voronoiInspectorEmpty"
@@ -601,10 +617,14 @@ window.showConfirmModal = showConfirmModal;
     const container = document.getElementById('voronoiInspector');
     const list = document.getElementById('voronoiInspectorList');
     const emptyState = document.getElementById('voronoiInspectorEmpty');
+    const summary = document.getElementById('voronoiInspectorSummary');
+    const summaryAvg = document.getElementById('voronoiInspectorAvgValue');
+    const summaryEstimate = document.getElementById('voronoiInspectorEstimateValue');
+    const summaryBadge = document.getElementById('voronoiInspectorSummaryBadge');
     if (!container || !list || !emptyState) {
       return null;
     }
-    return { container, list, emptyState };
+    return { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge };
   }
 
   function extractPlotAreaFromOffer(offer) {
@@ -634,11 +654,23 @@ window.showConfirmModal = showConfirmModal;
   function hideVoronoiTagInspector() {
     const elements = getVoronoiInspectorElements();
     if (!elements) return;
-    const { container, list, emptyState } = elements;
+    const { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge } = elements;
     list.innerHTML = '';
     const defaultMessage = emptyState.dataset.defaultMessage || emptyState.textContent || '';
     emptyState.textContent = defaultMessage;
     emptyState.hidden = false;
+    if (summary) {
+      summary.setAttribute('hidden', 'true');
+    }
+    if (summaryAvg) {
+      summaryAvg.textContent = '—';
+    }
+    if (summaryEstimate) {
+      summaryEstimate.textContent = '—';
+    }
+    if (summaryBadge) {
+      summaryBadge.setAttribute('hidden', 'true');
+    }
     container.setAttribute('hidden', 'true');
     container.setAttribute('aria-hidden', 'true');
   }
@@ -646,7 +678,7 @@ window.showConfirmModal = showConfirmModal;
   function updateVoronoiTagInspector(index) {
     const elements = getVoronoiInspectorElements();
     if (!elements) return;
-    const { container, list, emptyState } = elements;
+    const { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge } = elements;
 
     if (!Number.isInteger(index) || index < 0) {
       hideVoronoiTagInspector();
@@ -656,6 +688,9 @@ window.showConfirmModal = showConfirmModal;
     const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
       ? voronoiLayerState.datasetSnapshot[index]
       : null;
+    const resolvedEntry = Array.isArray(voronoiLayerState.resolvedValues)
+      ? voronoiLayerState.resolvedValues[index]
+      : null;
     const offerTags = Array.isArray(datasetEntry?.offer?.tags)
       ? datasetEntry.offer.tags.filter(tag => typeof tag === 'string' && tag.trim().length)
       : [];
@@ -663,6 +698,58 @@ window.showConfirmModal = showConfirmModal;
     container.removeAttribute('hidden');
     container.setAttribute('aria-hidden', 'false');
     list.innerHTML = '';
+
+    if (summary) {
+      const summaryData = (() => {
+        if (!resolvedEntry) {
+          return null;
+        }
+        let pricePerSqm = Number(resolvedEntry.pricePerSqm);
+        let totalPrice = Number(resolvedEntry.price);
+        let area = Number(resolvedEntry.area);
+        if (!(area > 0)) {
+          area = extractPlotAreaFromOffer(datasetEntry?.offer);
+        }
+        if (!(pricePerSqm > 0) && totalPrice > 0 && area > 0) {
+          pricePerSqm = totalPrice / area;
+        }
+        if (!(totalPrice > 0) && pricePerSqm > 0 && area > 0) {
+          totalPrice = pricePerSqm * area;
+        }
+        if (!(pricePerSqm > 0) && !(totalPrice > 0)) {
+          return null;
+        }
+        return {
+          pricePerSqm: pricePerSqm > 0 ? pricePerSqm : 0,
+          totalPrice: totalPrice > 0 ? totalPrice : 0,
+          fallback: Array.isArray(resolvedEntry.fallbackSources) && resolvedEntry.fallbackSources.length > 0
+        };
+      })();
+
+      if (summaryData) {
+        const avgText = summaryData.pricePerSqm > 0
+          ? `${formatPriceValue(summaryData.pricePerSqm)} zł/m²`
+          : '—';
+        const totalText = summaryData.totalPrice > 0
+          ? `${formatPriceValue(summaryData.totalPrice)} zł`
+          : '—';
+        summaryAvg && (summaryAvg.textContent = avgText);
+        summaryEstimate && (summaryEstimate.textContent = totalText);
+        if (summaryBadge) {
+          if (summaryData.fallback) {
+            summaryBadge.removeAttribute('hidden');
+          } else {
+            summaryBadge.setAttribute('hidden', 'true');
+          }
+        }
+        summary.removeAttribute('hidden');
+      } else {
+        summary.setAttribute('hidden', 'true');
+        summaryAvg && (summaryAvg.textContent = '—');
+        summaryEstimate && (summaryEstimate.textContent = '—');
+        summaryBadge && summaryBadge.setAttribute('hidden', 'true');
+      }
+    }
 
     if (!offerTags.length) {
       emptyState.textContent = 'Brak tagów dla tej działki.';
