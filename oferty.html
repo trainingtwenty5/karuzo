@@ -2066,7 +2066,16 @@ window.showConfirmModal = showConfirmModal;
     cells.forEach((cell, index) => {
       if (!cell) return;
       const neighborIndices = adjacencyList[index] || [];
-      const stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
+      let stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
+      if ((!stats || stats.pricePerSqm <= 0) && resolvedValues[index] && Number.isFinite(resolvedValues[index].pricePerSqm) && resolvedValues[index].pricePerSqm > 0) {
+        stats = {
+          price: resolvedValues[index].price,
+          pricePerSqm: resolvedValues[index].pricePerSqm
+        };
+      }
+      if (!stats) {
+        stats = { price: 0, pricePerSqm: 0 };
+      }
       const content = buildVoronoiLabelContent(stats);
 
       const polygon = new google.maps.Polygon({
@@ -2628,9 +2637,17 @@ window.showConfirmModal = showConfirmModal;
     if (!sortedOffers.length) {
       listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
       if (voronoiLayerState.enabled) {
-        clearVoronoiLayer();
-        voronoiLayerState.cachedDataset = null;
-        voronoiLayerState.cacheSignature = null;
+        const freezeActive = shouldFreezeVoronoiLayout();
+        const hasFrozenCache = freezeActive && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
+          && voronoiLayerState.cachedDataset.dataset.length;
+
+        if (hasFrozenCache) {
+          updateVoronoiLayer(true);
+        } else {
+          clearVoronoiLayer();
+          voronoiLayerState.cachedDataset = null;
+          voronoiLayerState.cacheSignature = null;
+        }
       }
       return;
     }
