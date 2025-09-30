@@ -25,104 +25,115 @@
   align-items:flex-end;
 }
 
-#map-controls .voronoi-panel {
+
+.sidebar-stack {
   display:flex;
   flex-direction:column;
-  gap:10px;
-  min-width:180px;
-  max-width:220px;
+  gap:22px;
+  margin-bottom:24px;
+}
+
+.voronoi-panel {
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  width:100%;
   background:rgba(15,23,42,0.92);
   border:1px solid rgba(59,130,246,0.42);
   box-shadow:0 12px 28px rgba(2,6,23,0.55);
-  border-radius:14px;
-  padding:12px 14px;
+  border-radius:16px;
+  padding:18px 20px;
   color:#e2e8f0;
   backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);
 }
 
-#map-controls .voronoi-panel__header {
+.voronoi-panel__header {
   width:100%;
   display:flex;
   align-items:center;
-  justify-content:flex-end;
+  justify-content:space-between;
 }
 
-#map-controls .voronoi-toggle-control {
+.voronoi-toggle-control {
   display:flex;
   align-items:center;
-  gap:8px;
-  font-size:0.78rem;
+  justify-content:space-between;
+  gap:12px;
+  width:100%;
+  font-size:0.82rem;
   color:#cbd5f5;
 }
 
-#map-controls .voronoi-legend {
+.voronoi-legend {
   width:100%;
   background:rgba(30,64,175,0.35);
   border:1px solid rgba(96,165,250,0.45);
-  border-radius:10px;
-  padding:8px 10px;
+  border-radius:12px;
+  padding:12px 14px;
   display:flex;
   flex-direction:column;
-  gap:6px;
-  font-size:0.72rem;
+  gap:8px;
+  font-size:0.78rem;
   color:#dbeafe;
 }
 
-#map-controls .voronoi-legend__item {
+.voronoi-legend__item {
   display:flex;
   align-items:center;
-  gap:6px;
+  gap:8px;
   white-space:nowrap;
 }
 
-#map-controls .voronoi-legend__swatch {
-  width:14px;
-  height:14px;
+.voronoi-legend__swatch {
+  width:16px;
+  height:16px;
   border-radius:4px;
   border:1px solid rgba(148,163,184,0.6);
   box-shadow:0 1px 3px rgba(2,6,23,0.4);
 }
 
-#map-controls .voronoi-legend__swatch--selected {
+.voronoi-legend__swatch--selected {
   background:rgba(34,197,94,0.7);
   border-color:#22c55e;
 }
 
-#map-controls .voronoi-legend__swatch--source {
+.voronoi-legend__swatch--source {
   background:rgba(59,130,246,0.65);
   border-color:#2563eb;
 }
 
-#map-controls .voronoi-legend__label {
-  font-weight:500;
+.voronoi-legend__label {
+  font-weight:600;
   color:#e2e8f0;
 }
 
-#map-controls .voronoi-toggle-control input[type="checkbox"] {
-  width:16px;
-  height:16px;
+.voronoi-toggle-control input[type="checkbox"] {
+  width:18px;
+  height:18px;
   accent-color:#60a5fa;
   cursor:pointer;
+  flex-shrink:0;
 }
 
-#map-controls .voronoi-toggle-control label {
+.voronoi-toggle-control label {
   cursor:pointer;
   font-weight:600;
   color:#e0e7ff;
-  text-align:right;
+  text-align:left;
+  line-height:1.4;
 }
 
-#map-controls .voronoi-inspector {
+.voronoi-inspector {
   width:100%;
   color:#f8fafc;
   display:flex;
   flex-direction:column;
-  gap:6px;
-  font-size:0.74rem;
+  gap:10px;
+  font-size:0.82rem;
 }
 
-#map-controls .voronoi-inspector[hidden] {
+.voronoi-inspector[hidden] {
   display:none !important;
 }
 
@@ -194,15 +205,16 @@
   border:1px solid var(--filters-border);
   box-shadow:var(--filters-shadow);
   padding:20px 22px;
-  margin-bottom:22px;
+  margin:0;
   display:flex;
   flex-direction:column;
   gap:1.15rem;
-  position:sticky;
-  top:24px;
-  z-index:5;
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
+}
+
+.sidebar-stack .filters-panel {
+  margin-bottom:0;
 }
 
 @media (min-width:993px){
@@ -212,9 +224,10 @@
     overflow-y:visible;
   }
 
-  .filters-panel {
+  .sidebar-stack {
     position:sticky;
     top:24px;
+    z-index:5;
   }
 }
 
@@ -230,26 +243,24 @@
 }
 
 @media (max-width:768px){
-  #map-controls {
-    left:auto;
-    right:12px;
-    transform:none;
-    align-items:flex-end;
+  .sidebar-stack {
+    position:static;
+    top:auto;
+    z-index:auto;
+    gap:18px;
+    margin-bottom:18px;
   }
 
-  #map-controls .voronoi-panel {
-    min-width:unset;
-    width:min(88vw,260px);
-    padding:12px 14px;
-    gap:8px;
+  .voronoi-panel {
+    padding:16px 18px;
+    gap:10px;
   }
 
-  #map-controls .voronoi-inspector {
+  .voronoi-inspector {
     font-size:0.78rem;
     max-height:45vh;
     overflow-y:auto;
     gap:8px;
-    padding:10px 12px;
   }
 
   .voronoi-inspector__list {

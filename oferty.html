@@ -222,7 +222,12 @@ window.showConfirmModal = showConfirmModal;
     <!-- Lewa strona - statyczna mapa -->
     <div class="map-container">
       <div id="map"></div>
-      <div id="map-controls">
+      <div id="map-controls"></div>
+    </div>
+
+    <!-- Prawa strona - przewijana zawartość -->
+    <div class="content-container">
+      <div class="sidebar-stack">
         <div class="voronoi-panel" id="voronoiPanel">
           <div class="voronoi-panel__header">
             <div class="voronoi-toggle-control">
@@ -256,34 +261,31 @@ window.showConfirmModal = showConfirmModal;
             <ul class="voronoi-inspector__list" id="voronoiInspectorList"></ul>
           </div>
         </div>
-      </div>
-    </div>
-    
-    <!-- Prawa strona - przewijana zawartość -->
-    <div class="content-container">
-      <!-- Panel filtrów ofert -->
-      <div class="filters-panel" id="filtersPanel">
-        <h3 class="filters-title">Filtruj działki</h3>
-        <div class="filters-row sort-row">
-          <span class="filters-label">Sortuj:</span>
-          <div class="sort-buttons">
-            <button type="button" class="sort-chip" data-sort-key="price" aria-pressed="false">
-              Cena
-            </button>
-            <button type="button" class="sort-chip" data-sort-key="area" aria-pressed="false">
-              Powierzchnia
-            </button>
-          </div>
-        </div>
-        <div class="filters-row tags-row">
-          <span class="filters-label">Tagi:</span>
-          <div class="tags-area">
-            <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
-              <span class="tag-placeholder">Ładuję tagi…</span>
+
+        <!-- Panel filtrów ofert -->
+        <div class="filters-panel" id="filtersPanel">
+          <h3 class="filters-title">Filtruj działki</h3>
+          <div class="filters-row sort-row">
+            <span class="filters-label">Sortuj:</span>
+            <div class="sort-buttons">
+              <button type="button" class="sort-chip" data-sort-key="price" aria-pressed="false">
+                Cena
+              </button>
+              <button type="button" class="sort-chip" data-sort-key="area" aria-pressed="false">
+                Powierzchnia
+              </button>
             </div>
-            <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
-              Pokaż wszystkie tagi
-            </button>
+          </div>
+          <div class="filters-row tags-row">
+            <span class="filters-label">Tagi:</span>
+            <div class="tags-area">
+              <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
+                <span class="tag-placeholder">Ładuję tagi…</span>
+              </div>
+              <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
+                Pokaż wszystkie tagi
+              </button>
+            </div>
           </div>
         </div>
       </div>
