@@ -2571,7 +2571,10 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function clearVoronoiLayer(options = {}) {
-    const { resetHighlight = true } = options || {};
+    const {
+      resetHighlight = true,
+      preserveResolvedData = false
+    } = options || {};
     clearVoronoiHighlights({ resetSelection: resetHighlight });
 
     voronoiLayerState.polygons.forEach(poly => {
@@ -2599,10 +2602,12 @@ window.showConfirmModal = showConfirmModal;
     voronoiLayerState.labels = [];
     voronoiLayerState.labelLayout.boxes = [];
     voronoiLayerState.labelLayout.projectionPending = false;
-    voronoiLayerState.connectorIndexMap = new Map();
-    voronoiLayerState.resolvedValues = [];
-    voronoiLayerState.datasetSnapshot = [];
-    voronoiLayerState.cells = [];
+    if (!preserveResolvedData) {
+      voronoiLayerState.connectorIndexMap = new Map();
+      voronoiLayerState.resolvedValues = [];
+      voronoiLayerState.datasetSnapshot = [];
+      voronoiLayerState.cells = [];
+    }
   }
 
   function getVoronoiSourceOffers() {
@@ -2634,8 +2639,7 @@ window.showConfirmModal = showConfirmModal;
     }
 
     if (shouldHideVoronoiLayer()) {
-      clearVoronoiLayer();
-      voronoiLayerState.cachedDataset = null;
+      clearVoronoiLayer({ resetHighlight: false, preserveResolvedData: true });
       return;
     }
 
