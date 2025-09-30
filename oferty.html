@@ -227,6 +227,16 @@ window.showConfirmModal = showConfirmModal;
           <input type="checkbox" id="toggleVoronoiLayer" />
           <label for="toggleVoronoiLayer">Wycena nieruchomości (beta)</label>
         </div>
+        <div class="voronoi-legend" aria-live="polite">
+          <div class="voronoi-legend__item">
+            <span class="voronoi-legend__swatch voronoi-legend__swatch--selected" aria-hidden="true"></span>
+            <span class="voronoi-legend__label">Wybrana działka</span>
+          </div>
+          <div class="voronoi-legend__item">
+            <span class="voronoi-legend__swatch voronoi-legend__swatch--source" aria-hidden="true"></span>
+            <span class="voronoi-legend__label">Źródło wyceny</span>
+          </div>
+        </div>
         <div
           class="voronoi-inspector"
           id="voronoiInspector"

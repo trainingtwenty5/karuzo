@@ -40,6 +40,51 @@
   -webkit-backdrop-filter:blur(12px);
 }
 
+#map-controls .voronoi-legend {
+  background:rgba(255,255,255,0.92);
+  border:1px solid rgba(148,163,184,0.35);
+  box-shadow:0 14px 28px rgba(15,23,42,0.22);
+  border-radius:10px;
+  padding:12px 14px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  font-size:0.78rem;
+  color:#1f2937;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+
+#map-controls .voronoi-legend__item {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  white-space:nowrap;
+}
+
+#map-controls .voronoi-legend__swatch {
+  width:16px;
+  height:16px;
+  border-radius:4px;
+  border:1px solid rgba(15,23,42,0.25);
+  box-shadow:0 2px 4px rgba(15,23,42,0.18);
+}
+
+#map-controls .voronoi-legend__swatch--selected {
+  background:#DCFCE7;
+  border-color:#15803D;
+}
+
+#map-controls .voronoi-legend__swatch--source {
+  background:#DBEAFE;
+  border-color:#1D4ED8;
+}
+
+#map-controls .voronoi-legend__label {
+  font-weight:600;
+  color:#1f2937;
+}
+
 #map-controls .voronoi-toggle-control input[type="checkbox"] {
   width:18px;
   height:18px;
