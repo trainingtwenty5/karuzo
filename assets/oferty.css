@@ -79,14 +79,6 @@
   margin-left:auto;
 }
 
-.voronoi-toggle__label {
-  font-size:0.72rem;
-  font-weight:700;
-  letter-spacing:0.08em;
-  text-transform:uppercase;
-  color:#1d4ed8;
-}
-
 .voronoi-toggle__controls {
   position:relative;
   display:inline-flex;
