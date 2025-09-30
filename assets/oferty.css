@@ -38,14 +38,12 @@
   flex-direction:column;
   gap:14px;
   width:100%;
-  background:rgba(15,23,42,0.92);
-  border:1px solid rgba(59,130,246,0.42);
-  box-shadow:0 12px 28px rgba(2,6,23,0.55);
+  background:#fff;
+  border:1px solid rgba(148,163,184,0.25);
+  box-shadow:0 18px 40px rgba(15,23,42,0.08);
   border-radius:16px;
   padding:18px 20px;
-  color:#e2e8f0;
-  backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
+  color:#1f2937;
 }
 
 .voronoi-panel__header {
@@ -62,7 +60,7 @@
   gap:12px;
   width:100%;
   font-size:0.82rem;
-  color:#cbd5f5;
+  color:#1f2937;
 }
 
 .voronoi-legend {
@@ -119,14 +117,14 @@
 .voronoi-toggle-control label {
   cursor:pointer;
   font-weight:600;
-  color:#e0e7ff;
+  color:#0f172a;
   text-align:left;
   line-height:1.4;
 }
 
 .voronoi-inspector {
   width:100%;
-  color:#f8fafc;
+  color:#1f2937;
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -139,7 +137,7 @@
 
 .voronoi-inspector__empty {
   margin:0;
-  color:rgba(226,232,240,0.8);
+  color:#64748b;
   line-height:1.4;
 }
 
@@ -161,7 +159,7 @@
 
 .voronoi-inspector__tag {
   font-weight:600;
-  color:#e2e8f0;
+  color:#0f172a;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -169,7 +167,7 @@
 
 .voronoi-inspector__percentage {
   font-weight:600;
-  color:#bae6fd;
+  color:#1d4ed8;
   font-variant-numeric:tabular-nums;
 }
 
