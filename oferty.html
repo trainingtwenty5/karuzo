@@ -1486,151 +1486,210 @@ window.showConfirmModal = showConfirmModal;
 
   function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset) {
     const baseEntry = baseValues[index] || {};
-    const basePosition = dataset[index]?.position || null;
+    const baseArea = Number(baseEntry.area);
     const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
-    const directPriced = directNeighbors
-      .map(neighborIndex => ({ index: neighborIndex, value: baseValues[neighborIndex] }))
-      .filter(entry => entry.value?.hasPrice && entry.value.price > 0);
 
-    if (directPriced.length) {
-      let chosenEntry = null;
-      let bestDistance = Infinity;
-
-      directPriced.forEach(entry => {
-        const neighborPosition = dataset[entry.index]?.position || null;
-        const distance = computeDistanceBetweenPoints(basePosition, neighborPosition);
-        const normalizedDistance = Number.isFinite(distance) ? distance : 0;
-        if (normalizedDistance < bestDistance) {
-          bestDistance = normalizedDistance;
-          chosenEntry = entry;
-        }
-      });
-
-      if (chosenEntry) {
-        const neighborValue = chosenEntry.value;
-        const area = Number(baseEntry.area);
-        const neighborPricePerSqm = Number(neighborValue.pricePerSqm);
-        const neighborPrice = Number(neighborValue.price);
-        const resolvedPricePerSqm = neighborPricePerSqm > 0
-          ? neighborPricePerSqm
-          : (neighborPrice > 0 && area > 0)
-            ? neighborPrice / area
-            : 0;
-        const resolvedPrice = area > 0 && resolvedPricePerSqm > 0
-          ? resolvedPricePerSqm * area
-          : neighborPrice;
-
-        if (resolvedPrice > 0) {
-          return {
-            price: resolvedPrice,
-            pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-            paths: [[index, chosenEntry.index]]
-          };
-        }
-      }
+    if (!directNeighbors.length) {
+      return null;
     }
 
-    const visited = new Set([index]);
-    const parents = new Map();
-    let frontier = directNeighbors.slice();
+    const contributions = [];
+    const usedSources = new Set();
 
-    frontier.forEach(neighborIndex => {
-      if (Number.isInteger(neighborIndex)) {
-        parents.set(neighborIndex, index);
+    const buildPriceMetrics = (value) => {
+      if (!value?.hasPrice || !(value.price > 0)) {
+        return null;
       }
-    });
+      const sourcePrice = Number(value.price);
+      const sourcePricePerSqm = Number(value.pricePerSqm);
+      const sourceArea = Number(value.area);
+      const normalizedPerSqm = sourcePricePerSqm > 0
+        ? sourcePricePerSqm
+        : (sourcePrice > 0 && Number.isFinite(sourceArea) && sourceArea > 0)
+          ? sourcePrice / sourceArea
+          : 0;
+      return {
+        price: sourcePrice > 0 ? sourcePrice : 0,
+        pricePerSqm: normalizedPerSqm > 0 ? normalizedPerSqm : 0
+      };
+    };
 
-    while (frontier.length) {
-      const pricedIndices = [];
-      const pricedValues = [];
-      const nextSet = new Set();
-
-      frontier.forEach(neighborIndex => {
-        if (visited.has(neighborIndex)) return;
-        visited.add(neighborIndex);
-
-        const value = baseValues[neighborIndex];
-        if (value?.hasPrice && value.price > 0) {
-          pricedIndices.push(neighborIndex);
-          pricedValues.push(value);
-        }
-
-        (adjacencyList[neighborIndex] || []).forEach(nextIndex => {
-          if (!visited.has(nextIndex) && Number.isInteger(nextIndex)) {
-            if (!parents.has(nextIndex)) {
-              parents.set(nextIndex, neighborIndex);
-            }
-            nextSet.add(nextIndex);
-          }
-        });
+    const pushContribution = (sourceIndex, pathIndices, value) => {
+      const metrics = buildPriceMetrics(value);
+      if (!metrics || !Array.isArray(pathIndices) || pathIndices.length < 2) {
+        return;
+      }
+      contributions.push({
+        sourceIndex,
+        path: pathIndices.slice(),
+        price: metrics.price,
+        pricePerSqm: metrics.pricePerSqm
       });
+      usedSources.add(sourceIndex);
+    };
 
-      if (pricedValues.length) {
-        let chosenIndex = null;
-        let chosenPath = null;
-        let chosenDistance = Infinity;
-
-        pricedIndices.forEach(targetIndex => {
-          const path = [];
-          let current = targetIndex;
-          let guard = 0;
-          const guardLimit = Math.max(baseValues.length * 4, 16);
-          while (Number.isInteger(current) && guard < guardLimit) {
-            path.push(current);
-            if (current === index) {
-              break;
-            }
-            current = parents.get(current);
-            guard += 1;
-            if (!Number.isInteger(current)) {
-              break;
-            }
-          }
-          if (path[path.length - 1] !== index) {
-            path.push(index);
-          }
-          const normalizedPath = path.reverse();
-          const distance = computePathDistance(normalizedPath, dataset);
-          const normalizedDistance = Number.isFinite(distance) ? distance : Number.MAX_VALUE;
-          if (normalizedDistance < chosenDistance) {
-            chosenDistance = normalizedDistance;
-            chosenIndex = targetIndex;
-            chosenPath = normalizedPath;
-          }
-        });
-
-        if (chosenIndex !== null) {
-          const chosenValue = baseValues[chosenIndex];
-          if (chosenValue?.hasPrice && chosenValue.price > 0) {
-            const area = Number(baseEntry.area);
-            const neighborPricePerSqm = Number(chosenValue.pricePerSqm);
-            const neighborPrice = Number(chosenValue.price);
-            const resolvedPricePerSqm = neighborPricePerSqm > 0
-              ? neighborPricePerSqm
-              : (neighborPrice > 0 && area > 0)
-                ? neighborPrice / area
-                : 0;
-            const resolvedPrice = area > 0 && resolvedPricePerSqm > 0
-              ? resolvedPricePerSqm * area
-              : neighborPrice;
-
-            if (resolvedPrice > 0) {
-              return {
-                price: resolvedPrice,
-                pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-                paths: Array.isArray(chosenPath) ? [chosenPath] : []
-              };
-            }
-          }
+    const reconstructPath = (targetIndex, parentsMap) => {
+      const path = [targetIndex];
+      let current = targetIndex;
+      const guardLimit = Math.max(baseValues.length * 4, 16);
+      let guard = 0;
+      while (current !== index && guard < guardLimit) {
+        current = parentsMap.get(current);
+        if (!Number.isInteger(current)) {
+          break;
         }
+        path.push(current);
+        guard += 1;
+      }
+      if (path[path.length - 1] !== index) {
+        path.push(index);
+      }
+      return path.reverse();
+    };
 
+    const findSourceForNeighbor = (startIndex, disallowUsed = true) => {
+      if (!Number.isInteger(startIndex)) {
         return null;
       }
 
-      frontier = Array.from(nextSet);
+      const visited = new Set([index]);
+      const parents = new Map();
+      const queue = [];
+
+      visited.add(startIndex);
+      parents.set(startIndex, index);
+      queue.push({ node: startIndex, depth: 0 });
+
+      let candidateDepth = null;
+      const candidates = [];
+
+      while (queue.length) {
+        const { node, depth } = queue.shift();
+
+        const value = baseValues[node];
+        const alreadyUsed = usedSources.has(node);
+        const isCandidate = node !== index
+          && value?.hasPrice
+          && value.price > 0
+          && (!disallowUsed || !alreadyUsed);
+
+        if (isCandidate) {
+          if (candidateDepth === null) {
+            candidateDepth = depth;
+          }
+          if (depth === candidateDepth) {
+            candidates.push(node);
+          }
+        }
+
+        if (candidateDepth !== null && depth >= candidateDepth) {
+          continue;
+        }
+
+        (adjacencyList[node] || []).forEach(nextIndex => {
+          if (!Number.isInteger(nextIndex) || visited.has(nextIndex)) {
+            return;
+          }
+          visited.add(nextIndex);
+          parents.set(nextIndex, node);
+          queue.push({ node: nextIndex, depth: depth + 1 });
+        });
+      }
+
+      if (!candidates.length) {
+        return null;
+      }
+
+      let chosenIndex = candidates[0];
+      let chosenPath = reconstructPath(chosenIndex, parents);
+      let chosenDistance = computePathDistance(chosenPath, dataset);
+      if (!Number.isFinite(chosenDistance)) {
+        chosenDistance = Infinity;
+      }
+
+      candidates.slice(1).forEach(candidate => {
+        const path = reconstructPath(candidate, parents);
+        const distance = computePathDistance(path, dataset);
+        const normalizedDistance = Number.isFinite(distance) ? distance : Infinity;
+        if (normalizedDistance < chosenDistance) {
+          chosenDistance = normalizedDistance;
+          chosenIndex = candidate;
+          chosenPath = path;
+        }
+      });
+
+      return {
+        sourceIndex: chosenIndex,
+        path: chosenPath
+      };
+    };
+
+    const neighborsNeedingSources = [];
+
+    directNeighbors.forEach(neighborIndex => {
+      const neighborValue = baseValues[neighborIndex];
+      if (neighborValue?.hasPrice && neighborValue.price > 0) {
+        pushContribution(neighborIndex, [index, neighborIndex], neighborValue);
+      } else {
+        neighborsNeedingSources.push(neighborIndex);
+      }
+    });
+
+    neighborsNeedingSources.forEach(neighborIndex => {
+      let result = findSourceForNeighbor(neighborIndex, true);
+      if (!result) {
+        result = findSourceForNeighbor(neighborIndex, false);
+      }
+      if (!result) {
+        return;
+      }
+      const sourceValue = baseValues[result.sourceIndex];
+      if (!sourceValue?.hasPrice || !(sourceValue.price > 0)) {
+        return;
+      }
+      pushContribution(result.sourceIndex, result.path, sourceValue);
+    });
+
+    if (!contributions.length) {
+      return null;
     }
 
-    return null;
+    const ppmValues = contributions
+      .map(entry => Number(entry.pricePerSqm))
+      .filter(value => Number.isFinite(value) && value > 0);
+    const priceValues = contributions
+      .map(entry => Number(entry.price))
+      .filter(value => Number.isFinite(value) && value > 0);
+
+    const resolvedPricePerSqm = ppmValues.length
+      ? ppmValues.reduce((sum, value) => sum + value, 0) / ppmValues.length
+      : 0;
+
+    let resolvedPrice = 0;
+    if (resolvedPricePerSqm > 0 && Number.isFinite(baseArea) && baseArea > 0) {
+      resolvedPrice = resolvedPricePerSqm * baseArea;
+    } else if (priceValues.length) {
+      resolvedPrice = priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length;
+    }
+
+    if (!(resolvedPrice > 0) && !(resolvedPricePerSqm > 0)) {
+      return null;
+    }
+
+    const connectorPaths = contributions
+      .map(entry => entry.path)
+      .filter(path => Array.isArray(path) && path.length >= 2)
+      .map(path => path.slice());
+
+    if (!connectorPaths.length) {
+      return null;
+    }
+
+    return {
+      price: resolvedPrice > 0 ? resolvedPrice : 0,
+      pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+      paths: connectorPaths
+    };
   }
 
   function resolveVoronoiValues(baseValues, adjacencyList, dataset) {
