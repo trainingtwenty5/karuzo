@@ -457,6 +457,7 @@ window.showConfirmModal = showConfirmModal;
     enabled: false,
     polygons: [],
     labels: [],
+    fallbackPolylines: [],
     tagWeights: new Map(),
     maxTagValue: 1,
     labelLayout: {
@@ -1330,19 +1331,88 @@ window.showConfirmModal = showConfirmModal;
   function computeOfferValueWithTags(offer) {
     const price = Number(offer?.plot?.price);
     const area = Number(offer?.plot?.pow_dzialki_m2_uldk);
-    const adjustedPrice = Number.isFinite(price) && price > 0
-      ? price * computeTagFactor(offer?.tags)
-      : 0;
+    const hasBasePrice = Number.isFinite(price) && price > 0;
+    const adjustedPrice = hasBasePrice ? price * computeTagFactor(offer?.tags) : 0;
+    const sanitizedArea = area && area > 0 ? area : 0;
 
     if (adjustedPrice > 0) {
-      const ppm2 = area && area > 0 ? adjustedPrice / area : 0;
-      return { price: adjustedPrice, pricePerSqm: ppm2 > 0 ? ppm2 : 0, area: area > 0 ? area : 0 };
+      const ppm2 = sanitizedArea > 0 ? adjustedPrice / sanitizedArea : 0;
+      return {
+        price: adjustedPrice,
+        pricePerSqm: ppm2 > 0 ? ppm2 : 0,
+        area: sanitizedArea,
+        hasPrice: true
+      };
     }
 
-    const fallbackPrice = randomBetween(80000, 6000000);
-    const fallbackArea = area && area > 0 ? area : randomBetween(800, 12000);
-    const fallbackPpm2 = fallbackArea > 0 ? fallbackPrice / fallbackArea : randomBetween(50, 1500);
-    return { price: fallbackPrice, pricePerSqm: fallbackPpm2, area: fallbackArea };
+    return { price: 0, pricePerSqm: 0, area: sanitizedArea, hasPrice: false };
+  }
+
+  function computeFallbackFromNeighbors(index, baseValues, adjacencyList) {
+    const visited = new Set([index]);
+    let frontier = (adjacencyList[index] || [])
+      .filter(i => Number.isInteger(i))
+      .map(neighborIndex => {
+        visited.add(neighborIndex);
+        return { index: neighborIndex, path: [index, neighborIndex] };
+      });
+
+    while (frontier.length) {
+      const pricedEntries = [];
+      const nextFrontier = [];
+
+      frontier.forEach(({ index: neighborIndex, path }) => {
+        const value = baseValues[neighborIndex];
+        if (value?.hasPrice && value.price > 0) {
+          pricedEntries.push({ value, index: neighborIndex, path });
+        }
+
+        (adjacencyList[neighborIndex] || []).forEach(nextIndex => {
+          if (!Number.isInteger(nextIndex) || visited.has(nextIndex)) return;
+          visited.add(nextIndex);
+          nextFrontier.push({ index: nextIndex, path: path.concat(nextIndex) });
+        });
+      });
+
+      if (pricedEntries.length) {
+        const priceSum = pricedEntries.reduce((sum, entry) => sum + entry.value.price, 0);
+        const ppm2Sum = pricedEntries.reduce((sum, entry) => sum + entry.value.pricePerSqm, 0);
+        const representative = pricedEntries[0];
+        return {
+          price: priceSum / pricedEntries.length,
+          pricePerSqm: ppm2Sum / pricedEntries.length,
+          sourceIndex: representative.index,
+          path: representative.path
+        };
+      }
+
+      frontier = nextFrontier;
+    }
+
+    return null;
+  }
+
+  function resolveVoronoiValues(baseValues, adjacencyList) {
+    return baseValues.map((entry, index) => {
+      if (!entry) return entry;
+      if (entry.hasPrice && entry.price > 0) {
+        return { ...entry, fallbackPath: null, fallbackSourceIndex: null };
+      }
+
+      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList);
+      if (!fallback) {
+        return { ...entry, fallbackPath: null, fallbackSourceIndex: null };
+      }
+
+      return {
+        ...entry,
+        price: fallback.price,
+        pricePerSqm: fallback.pricePerSqm,
+        hasPrice: true,
+        fallbackPath: Array.isArray(fallback.path) ? fallback.path.slice() : null,
+        fallbackSourceIndex: Number.isInteger(fallback.sourceIndex) ? fallback.sourceIndex : null
+      };
+    });
   }
 
   function aggregateVoronoiValues(values, index, neighborIndices) {
@@ -1692,6 +1762,13 @@ window.showConfirmModal = showConfirmModal;
     });
     voronoiLayerState.polygons = [];
 
+    voronoiLayerState.fallbackPolylines.forEach(line => {
+      if (line && typeof line.setMap === 'function') {
+        line.setMap(null);
+      }
+    });
+    voronoiLayerState.fallbackPolylines = [];
+
     voronoiLayerState.labels.forEach(label => {
       if (!label) return;
       if (typeof label.setMap === 'function') {
@@ -1762,17 +1839,47 @@ window.showConfirmModal = showConfirmModal;
     }
 
     const voronoi = delaunay.voronoi(extent);
+    const adjacencyList = dataset.map((_, index) => {
+      const iterator = delaunay.neighbors(index);
+      if (!iterator) return [];
+      const neighbors = [];
+      for (const neighbor of iterator) {
+        if (Number.isInteger(neighbor)) {
+          neighbors.push(neighbor);
+        }
+      }
+      return neighbors;
+    });
     const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
+    const resolvedValues = resolveVoronoiValues(baseValues, adjacencyList);
 
     resetVoronoiLabelLayout();
+    voronoiLayerState.fallbackPolylines = [];
+
+    const cellPaths = dataset.map((_, index) => {
+      const polygonCoords = voronoi.cellPolygon(index);
+      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return null;
+      return polygonCoords.map(([lng, lat]) => ({ lat, lng }));
+    });
+
+    const centroids = cellPaths.map((path, index) => {
+      const fallbackPosition = dataset[index]?.position;
+      if (!Array.isArray(path) || path.length < 3) {
+        return fallbackPosition;
+      }
+      const centroid = calculatePolygonCentroid(path);
+      if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lng)) {
+        return centroid;
+      }
+      return fallbackPosition;
+    });
 
     dataset.forEach(({ position }, index) => {
-      const polygonCoords = voronoi.cellPolygon(index);
-      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return;
+      const path = cellPaths[index];
+      if (!Array.isArray(path) || path.length < 3) return;
 
-      const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
-      const neighborIndices = Array.from(delaunay.neighbors(index) || []);
-      const stats = aggregateVoronoiValues(baseValues, index, neighborIndices);
+      const neighborIndices = adjacencyList[index] || [];
+      const stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
       const content = buildVoronoiLabelContent(stats);
 
       const polygon = new google.maps.Polygon({
@@ -1788,11 +1895,44 @@ window.showConfirmModal = showConfirmModal;
       });
       voronoiLayerState.polygons.push(polygon);
 
-      const centroid = calculatePolygonCentroid(path) || position;
+      const centroid = centroids[index] || position;
       const labelPosition = findNonOverlappingLabelPosition(centroid || position);
       const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
       if (label) {
         voronoiLayerState.labels.push(label);
+      }
+
+      const resolvedEntry = resolvedValues[index];
+      const fallbackPath = resolvedEntry?.fallbackPath;
+      if (Array.isArray(fallbackPath) && fallbackPath.length > 1) {
+        const linePath = fallbackPath
+          .map(pathIndex => centroids[pathIndex])
+          .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng))
+          .map(point => ({ lat: point.lat, lng: point.lng }));
+
+        if (linePath.length >= 2) {
+          try {
+            const dashedSymbol = {
+              path: 'M 0,-1 0,1',
+              strokeOpacity: 1,
+              scale: 2,
+              strokeColor: '#EF4444'
+            };
+            const polyline = new google.maps.Polyline({
+              map: voronoiLayerState.enabled ? map : null,
+              path: linePath,
+              strokeColor: '#EF4444',
+              strokeOpacity: 0,
+              strokeWeight: 1,
+              icons: [{ icon: dashedSymbol, offset: '0', repeat: '12px' }],
+              clickable: false,
+              zIndex: 55
+            });
+            voronoiLayerState.fallbackPolylines.push(polyline);
+          } catch (error) {
+            console.warn('Nie udało się narysować linii ceny zastępczej Voronoi.', error);
+          }
+        }
       }
     });
   }
