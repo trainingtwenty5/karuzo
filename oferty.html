@@ -1463,9 +1463,57 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset) {
+    const baseEntry = baseValues[index] || {};
+    const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
+    const directPriced = directNeighbors
+      .map(neighborIndex => ({ index: neighborIndex, value: baseValues[neighborIndex] }))
+      .filter(entry => entry.value?.hasPrice && entry.value.price > 0);
+
+    if (directPriced.length) {
+      const ppm2Values = directPriced
+        .map(entry => Number(entry.value.pricePerSqm))
+        .filter(value => Number.isFinite(value) && value > 0);
+      const priceValues = directPriced
+        .map(entry => Number(entry.value.price))
+        .filter(value => Number.isFinite(value) && value > 0);
+
+      const averagePpm2 = ppm2Values.length
+        ? ppm2Values.reduce((sum, value) => sum + value, 0) / ppm2Values.length
+        : 0;
+      const averagePrice = priceValues.length
+        ? priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length
+        : 0;
+
+      const area = Number(baseEntry.area);
+      const resolvedPricePerSqm = averagePpm2 > 0
+        ? averagePpm2
+        : (averagePrice > 0 && area > 0)
+          ? averagePrice / area
+          : 0;
+      const resolvedPrice = area > 0 && resolvedPricePerSqm > 0
+        ? resolvedPricePerSqm * area
+        : averagePrice;
+
+      if (resolvedPrice > 0) {
+        const seen = new Set();
+        const paths = [];
+        directPriced.forEach(entry => {
+          if (!seen.has(entry.index)) {
+            seen.add(entry.index);
+            paths.push([index, entry.index]);
+          }
+        });
+        return {
+          price: resolvedPrice,
+          pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+          paths
+        };
+      }
+    }
+
     const visited = new Set([index]);
     const parents = new Map();
-    let frontier = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
+    let frontier = directNeighbors.slice();
 
     frontier.forEach(neighborIndex => {
       if (Number.isInteger(neighborIndex)) {
@@ -1537,7 +1585,7 @@ window.showConfirmModal = showConfirmModal;
             return {
               price: chosenValue.price,
               pricePerSqm: chosenValue.pricePerSqm,
-              path: Array.isArray(chosenPath) ? chosenPath : null
+              paths: Array.isArray(chosenPath) ? [chosenPath] : []
             };
           }
         }
@@ -1569,14 +1617,18 @@ window.showConfirmModal = showConfirmModal;
         };
       }
 
+      const sourcePaths = Array.isArray(fallback.paths)
+        ? fallback.paths.filter(path => Array.isArray(path) && path.length >= 2).map(path => path.slice())
+        : (Array.isArray(fallback.path) && fallback.path.length >= 2)
+          ? [fallback.path.slice()]
+          : [];
+
       return {
         ...entry,
         price: fallback.price,
         pricePerSqm: fallback.pricePerSqm,
         hasPrice: true,
-        fallbackSources: Array.isArray(fallback.path) && fallback.path.length >= 2
-          ? [fallback.path.slice()]
-          : []
+        fallbackSources: sourcePaths
       };
     });
   }
