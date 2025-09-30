@@ -53,27 +53,78 @@
   justify-content:space-between;
 }
 
-.voronoi-toggle-control {
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  width:100%;
-  font-size:0.82rem;
+.voronoi-panel__title {
+  margin:0;
+  font-size:1rem;
+  font-weight:700;
+  letter-spacing:0.01em;
   color:#1f2937;
+}
+
+.voronoi-switch {
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  cursor:pointer;
+}
+
+.voronoi-switch__input {
+  position:absolute;
+  opacity:0;
+  width:1px;
+  height:1px;
+  margin:0;
+}
+
+.voronoi-switch__track {
+  position:relative;
+  width:48px;
+  height:26px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,0.65);
+  background:linear-gradient(135deg, #e2e8f0, #cbd5f5);
+  display:inline-flex;
+  align-items:center;
+  padding:0 4px;
+  transition:background-color 0.24s ease, border-color 0.24s ease;
+}
+
+.voronoi-switch__thumb {
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  background:#fff;
+  box-shadow:0 2px 4px rgba(15,23,42,0.18);
+  transform:translateX(0);
+  transition:transform 0.24s ease;
+}
+
+.voronoi-switch__input:checked + .voronoi-switch__track {
+  background:linear-gradient(135deg, #60a5fa, #2563eb);
+  border-color:#2563eb;
+}
+
+.voronoi-switch__input:checked + .voronoi-switch__track .voronoi-switch__thumb {
+  transform:translateX(20px);
+  box-shadow:0 2px 4px rgba(2,6,23,0.3);
+}
+
+.voronoi-switch__input:focus-visible + .voronoi-switch__track {
+  outline:3px solid rgba(59,130,246,0.45);
+  outline-offset:2px;
 }
 
 .voronoi-legend {
   width:100%;
-  background:rgba(30,64,175,0.35);
-  border:1px solid rgba(96,165,250,0.45);
+  background:#f8fafc;
+  border:1px solid rgba(148,163,184,0.35);
   border-radius:12px;
   padding:12px 14px;
   display:flex;
   flex-direction:column;
   gap:8px;
   font-size:0.78rem;
-  color:#dbeafe;
+  color:#1f2937;
 }
 
 .voronoi-legend__item {
@@ -87,8 +138,7 @@
   width:16px;
   height:16px;
   border-radius:4px;
-  border:1px solid rgba(148,163,184,0.6);
-  box-shadow:0 1px 3px rgba(2,6,23,0.4);
+  border:1px solid rgba(148,163,184,0.45);
 }
 
 .voronoi-legend__swatch--selected {
@@ -97,29 +147,13 @@
 }
 
 .voronoi-legend__swatch--source {
-  background:rgba(59,130,246,0.65);
-  border-color:#2563eb;
+  background:rgba(96,165,250,0.65);
+  border-color:#3b82f6;
 }
 
 .voronoi-legend__label {
   font-weight:600;
-  color:#e2e8f0;
-}
-
-.voronoi-toggle-control input[type="checkbox"] {
-  width:18px;
-  height:18px;
-  accent-color:#60a5fa;
-  cursor:pointer;
-  flex-shrink:0;
-}
-
-.voronoi-toggle-control label {
-  cursor:pointer;
-  font-weight:600;
-  color:#0f172a;
-  text-align:left;
-  line-height:1.4;
+  color:#1f2937;
 }
 
 .voronoi-inspector {

@@ -230,19 +230,27 @@ window.showConfirmModal = showConfirmModal;
       <div class="sidebar-stack">
         <div class="voronoi-panel" id="voronoiPanel">
           <div class="voronoi-panel__header">
-            <div class="voronoi-toggle-control">
-              <input type="checkbox" id="toggleVoronoiLayer" />
-              <label for="toggleVoronoiLayer">Wycena nieruchomości (beta)</label>
-            </div>
+            <h3 class="filters-title voronoi-panel__title">Wycena nieruchomości</h3>
+            <label class="voronoi-switch" for="toggleVoronoiLayer">
+              <input
+                type="checkbox"
+                id="toggleVoronoiLayer"
+                class="voronoi-switch__input"
+                aria-label="Włącz warstwę wyceny nieruchomości"
+              />
+              <span class="voronoi-switch__track" aria-hidden="true">
+                <span class="voronoi-switch__thumb"></span>
+              </span>
+            </label>
           </div>
           <div class="voronoi-legend" aria-live="polite">
             <div class="voronoi-legend__item">
               <span class="voronoi-legend__swatch voronoi-legend__swatch--selected" aria-hidden="true"></span>
-              <span class="voronoi-legend__label">Zaznaczona wycena – zielony</span>
+              <span class="voronoi-legend__label">Zaznaczona wycena</span>
             </div>
             <div class="voronoi-legend__item">
               <span class="voronoi-legend__swatch voronoi-legend__swatch--source" aria-hidden="true"></span>
-              <span class="voronoi-legend__label">Źródło wyceny – niebieski</span>
+              <span class="voronoi-legend__label">Źródło wyceny</span>
             </div>
           </div>
           <div
@@ -529,19 +537,19 @@ window.showConfirmModal = showConfirmModal;
     }
     if (mode === 'sourceHighlight') {
       return {
-        strokeColor: '#1D4ED8',
-        strokeOpacity: 0.9,
+        strokeColor: '#2563EB',
+        strokeOpacity: 0.92,
         strokeWeight: 2,
-        fillColor: '#1E3A8A',
-        fillOpacity: 0.5
+        fillColor: '#60A5FA',
+        fillOpacity: 0.45
       };
     }
     return {
-      strokeColor: '#1e3a8a',
-      strokeOpacity: 0.75,
+      strokeColor: '#2563EB',
+      strokeOpacity: 0.72,
       strokeWeight: 1.2,
-      fillColor: '#1B2A5B',
-      fillOpacity: 0.22
+      fillColor: '#3B82F6',
+      fillOpacity: 0.2
     };
   }
 
