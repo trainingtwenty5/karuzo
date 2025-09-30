@@ -234,6 +234,23 @@ window.showConfirmModal = showConfirmModal;
           hidden
         >
           <div class="voronoi-inspector__title">Tagi i wagi</div>
+          <div
+            class="voronoi-inspector__summary"
+            id="voronoiInspectorSummary"
+            aria-hidden="true"
+            hidden
+          >
+            <div class="voronoi-inspector__summary-pill">
+              <div class="voronoi-inspector__summary-row">
+                <span class="voronoi-inspector__summary-label">Śr. cena za m²</span>
+                <span class="voronoi-inspector__summary-value" id="voronoiInspectorPricePerSqm">—</span>
+              </div>
+              <div class="voronoi-inspector__summary-row">
+                <span class="voronoi-inspector__summary-label">Szacunkowa wartość działki</span>
+                <span class="voronoi-inspector__summary-value" id="voronoiInspectorEstimatedValue">—</span>
+              </div>
+            </div>
+          </div>
           <p
             class="voronoi-inspector__empty"
             id="voronoiInspectorEmpty"
@@ -575,10 +592,85 @@ window.showConfirmModal = showConfirmModal;
     const container = document.getElementById('voronoiInspector');
     const list = document.getElementById('voronoiInspectorList');
     const emptyState = document.getElementById('voronoiInspectorEmpty');
+    const summary = document.getElementById('voronoiInspectorSummary');
+    const average = document.getElementById('voronoiInspectorPricePerSqm');
+    const estimated = document.getElementById('voronoiInspectorEstimatedValue');
     if (!container || !list || !emptyState) {
       return null;
     }
-    return { container, list, emptyState };
+    return { container, list, emptyState, summary, average, estimated };
+  }
+
+  function extractPlotAreaFromOffer(offer) {
+    if (!offer || typeof offer !== 'object') {
+      return 0;
+    }
+    const plot = offer.plot || {};
+    const candidates = [
+      plot.pow_dzialki_m2_uldk,
+      plot.powierzchnia,
+      plot.powierzchnia_m2,
+      plot.area,
+      plot.areaM2,
+      plot.powierzchniaDzialki,
+      offer.area,
+      offer.areaM2
+    ];
+    for (const candidate of candidates) {
+      const value = Number(candidate);
+      if (Number.isFinite(value) && value > 0) {
+        return value;
+      }
+    }
+    return 0;
+  }
+
+  function updateVoronoiInspectorSummary(elements, datasetEntry, resolvedEntry) {
+    if (!elements) return;
+    const { summary, average, estimated } = elements;
+    if (!summary || !average || !estimated) {
+      return;
+    }
+
+    const offer = datasetEntry?.offer || null;
+    const baseStats = offer ? computeOfferValueWithTags(offer) : null;
+
+    let area = Number(baseStats?.area);
+    if (!(Number.isFinite(area) && area > 0)) {
+      const extractedArea = extractPlotAreaFromOffer(offer);
+      area = Number.isFinite(extractedArea) && extractedArea > 0 ? extractedArea : 0;
+    }
+
+    let pricePerSqm = Number(resolvedEntry?.pricePerSqm);
+    let price = Number(resolvedEntry?.price);
+
+    if (!(pricePerSqm > 0) && Number.isFinite(baseStats?.pricePerSqm) && baseStats.pricePerSqm > 0) {
+      pricePerSqm = baseStats.pricePerSqm;
+    }
+    if (!(price > 0) && Number.isFinite(baseStats?.price) && baseStats.price > 0) {
+      price = baseStats.price;
+    }
+
+    if (!(price > 0) && pricePerSqm > 0 && area > 0) {
+      price = pricePerSqm * area;
+    }
+    if (!(pricePerSqm > 0) && price > 0 && area > 0) {
+      pricePerSqm = price / area;
+    }
+
+    const hasSummary = (pricePerSqm > 0) || (price > 0);
+
+    if (hasSummary) {
+      summary.hidden = false;
+      summary.setAttribute('aria-hidden', 'false');
+      average.textContent = pricePerSqm > 0 ? `${formatPriceValue(pricePerSqm)} zł/m²` : '—';
+      estimated.textContent = price > 0 ? `${formatPriceValue(price)} zł` : '—';
+    } else {
+      summary.hidden = true;
+      summary.setAttribute('aria-hidden', 'true');
+      average.textContent = '—';
+      estimated.textContent = '—';
+    }
   }
 
   function hideVoronoiTagInspector() {
@@ -591,6 +683,7 @@ window.showConfirmModal = showConfirmModal;
     emptyState.hidden = false;
     container.setAttribute('hidden', 'true');
     container.setAttribute('aria-hidden', 'true');
+    updateVoronoiInspectorSummary(elements, null, null);
   }
 
   function updateVoronoiTagInspector(index) {
@@ -606,6 +699,10 @@ window.showConfirmModal = showConfirmModal;
     const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
       ? voronoiLayerState.datasetSnapshot[index]
       : null;
+    const resolvedEntry = Array.isArray(voronoiLayerState.resolvedValues)
+      ? voronoiLayerState.resolvedValues[index]
+      : null;
+    updateVoronoiInspectorSummary(elements, datasetEntry, resolvedEntry);
     const offerTags = Array.isArray(datasetEntry?.offer?.tags)
       ? datasetEntry.offer.tags.filter(tag => typeof tag === 'string' && tag.trim().length)
       : [];
