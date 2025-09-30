@@ -460,6 +460,9 @@ window.showConfirmModal = showConfirmModal;
     fallbackPolylines: [],
     tagWeights: new Map(),
     maxTagValue: 1,
+    stableSourceOffers: [],
+    stableSourceSignature: '',
+    stableZoomLevel: null,
     labelLayout: {
       overlay: null,
       boxes: [],
@@ -471,6 +474,8 @@ window.showConfirmModal = showConfirmModal;
     width: 132,
     height: 34
   };
+
+  const VORONOI_FREEZE_ZOOM = 14;
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
   const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
@@ -1060,6 +1065,9 @@ window.showConfirmModal = showConfirmModal;
     randomPreviewSignature = '';
     randomPreviewTags = [];
     tagsExpanded = false;
+    voronoiLayerState.stableSourceOffers = [];
+    voronoiLayerState.stableSourceSignature = '';
+    voronoiLayerState.stableZoomLevel = null;
     generateRandomTagWeightsFromOffers();
     renderTagFilters();
     updateSortButtonsUI();
@@ -1783,10 +1791,37 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function getVoronoiSourceOffers() {
-    if (currentVisibleOffers.length) {
-      return currentVisibleOffers.slice();
-    }
+    const zoom = map && typeof map.getZoom === 'function' ? map.getZoom() : null;
+    const visible = currentVisibleOffers.length ? currentVisibleOffers.slice() : [];
     const filtered = getOffersMatchingFilters();
+
+    if (Number.isFinite(zoom) && zoom >= VORONOI_FREEZE_ZOOM) {
+      let candidate = filtered.length ? filtered : visible;
+      if (!candidate.length) {
+        candidate = allOffers.slice();
+      }
+
+      const signature = candidate.map(offer => offer?.key).filter(Boolean).join('|');
+      if (signature !== voronoiLayerState.stableSourceSignature) {
+        voronoiLayerState.stableSourceSignature = signature;
+        voronoiLayerState.stableSourceOffers = candidate.slice();
+      } else if (!voronoiLayerState.stableSourceOffers.length) {
+        voronoiLayerState.stableSourceOffers = candidate.slice();
+      }
+
+      voronoiLayerState.stableZoomLevel = zoom;
+      return voronoiLayerState.stableSourceOffers.slice();
+    }
+
+    if (voronoiLayerState.stableSourceOffers.length || voronoiLayerState.stableSourceSignature) {
+      voronoiLayerState.stableSourceOffers = [];
+      voronoiLayerState.stableSourceSignature = '';
+      voronoiLayerState.stableZoomLevel = null;
+    }
+
+    if (visible.length) {
+      return visible;
+    }
     if (filtered.length) {
       return filtered.slice();
     }
