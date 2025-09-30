@@ -1595,12 +1595,24 @@ window.showConfirmModal = showConfirmModal;
       return null;
     }
 
-    const resolvedPricePerSqm = metrics.pricePerSqm > 0 ? metrics.pricePerSqm : 0;
+    const sourceArea = Number(baseValues[bestSource.sourceIndex]?.area);
+    const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
+      ? baseArea
+      : (Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0);
+
+    let resolvedPricePerSqm = metrics.pricePerSqm > 0 ? metrics.pricePerSqm : 0;
+    if (!(resolvedPricePerSqm > 0) && metrics.price > 0 && fallbackArea > 0) {
+      resolvedPricePerSqm = metrics.price / fallbackArea;
+    }
+
     let resolvedPrice = 0;
     if (resolvedPricePerSqm > 0 && Number.isFinite(baseArea) && baseArea > 0) {
       resolvedPrice = resolvedPricePerSqm * baseArea;
-    } else {
-      resolvedPrice = metrics.price > 0 ? metrics.price : 0;
+    } else if (metrics.price > 0) {
+      resolvedPrice = metrics.price;
+      if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
+        resolvedPricePerSqm = metrics.price / fallbackArea;
+      }
     }
 
     if (!(resolvedPrice > 0) && !(resolvedPricePerSqm > 0)) {
@@ -2208,19 +2220,29 @@ window.showConfirmModal = showConfirmModal;
     cells.forEach((cell, index) => {
       if (!cell) return;
       let stats = aggregateVoronoiValues(resolvedValues, index);
-      if ((!stats || stats.pricePerSqm <= 0) && resolvedValues[index] && Number.isFinite(resolvedValues[index].pricePerSqm) && resolvedValues[index].pricePerSqm > 0) {
+      const resolvedEntry = resolvedValues[index];
+      const resolvedPricePerSqm = Number(resolvedEntry?.pricePerSqm);
+      const resolvedPriceValue = Number(resolvedEntry?.price);
+      const hasFallbackSources = Array.isArray(resolvedEntry?.fallbackSources) && resolvedEntry.fallbackSources.length > 0;
+
+      if (
+        (!stats || stats.pricePerSqm <= 0 || stats.price <= 0)
+        && resolvedEntry
+        && ((Number.isFinite(resolvedPricePerSqm) && resolvedPricePerSqm > 0) || (Number.isFinite(resolvedPriceValue) && resolvedPriceValue > 0))
+      ) {
         stats = {
-          price: resolvedValues[index].price,
-          pricePerSqm: resolvedValues[index].pricePerSqm
+          price: Number.isFinite(resolvedPriceValue) && resolvedPriceValue > 0 ? resolvedPriceValue : 0,
+          pricePerSqm: Number.isFinite(resolvedPricePerSqm) && resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0
         };
       }
+
       if (!stats) {
         stats = { price: 0, pricePerSqm: 0 };
       }
-      const fallbackSources = Array.isArray(resolvedValues[index]?.fallbackSources)
-        ? resolvedValues[index].fallbackSources
+      const fallbackSources = Array.isArray(resolvedEntry?.fallbackSources)
+        ? resolvedEntry.fallbackSources
         : [];
-      const isFallback = fallbackSources.length > 0;
+      const isFallback = hasFallbackSources;
       const content = buildVoronoiLabelContent(stats, { fallback: isFallback });
 
       const polygon = new google.maps.Polygon({
