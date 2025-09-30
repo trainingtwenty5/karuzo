@@ -470,8 +470,8 @@ window.showConfirmModal = showConfirmModal;
   };
 
   const VORONOI_LABEL_SIZE = {
-    width: 132,
-    height: 34
+    width: 150,
+    height: 42
   };
 
   const VORONOI_FREEZE_ZOOM_LEVEL = 16;
@@ -542,6 +542,28 @@ window.showConfirmModal = showConfirmModal;
       }
     }
     return true;
+  }
+
+  function determineVoronoiLabelDensity(count) {
+    if (!Number.isFinite(count) || count <= 0) {
+      return 'default';
+    }
+    const zoom = getMapZoomLevel();
+    if (!Number.isFinite(zoom)) {
+      return 'default';
+    }
+
+    if (count >= 220 && zoom <= 16) {
+      return 'compact';
+    }
+    if (count >= 160 && zoom <= 15) {
+      return 'compact';
+    }
+    if (count >= 110 && zoom <= 14) {
+      return 'compact';
+    }
+
+    return 'default';
   }
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
@@ -1464,50 +1486,47 @@ window.showConfirmModal = showConfirmModal;
 
   function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset) {
     const baseEntry = baseValues[index] || {};
+    const basePosition = dataset[index]?.position || null;
     const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
     const directPriced = directNeighbors
       .map(neighborIndex => ({ index: neighborIndex, value: baseValues[neighborIndex] }))
       .filter(entry => entry.value?.hasPrice && entry.value.price > 0);
 
     if (directPriced.length) {
-      const ppm2Values = directPriced
-        .map(entry => Number(entry.value.pricePerSqm))
-        .filter(value => Number.isFinite(value) && value > 0);
-      const priceValues = directPriced
-        .map(entry => Number(entry.value.price))
-        .filter(value => Number.isFinite(value) && value > 0);
+      let chosenEntry = null;
+      let bestDistance = Infinity;
 
-      const averagePpm2 = ppm2Values.length
-        ? ppm2Values.reduce((sum, value) => sum + value, 0) / ppm2Values.length
-        : 0;
-      const averagePrice = priceValues.length
-        ? priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length
-        : 0;
+      directPriced.forEach(entry => {
+        const neighborPosition = dataset[entry.index]?.position || null;
+        const distance = computeDistanceBetweenPoints(basePosition, neighborPosition);
+        const normalizedDistance = Number.isFinite(distance) ? distance : 0;
+        if (normalizedDistance < bestDistance) {
+          bestDistance = normalizedDistance;
+          chosenEntry = entry;
+        }
+      });
 
-      const area = Number(baseEntry.area);
-      const resolvedPricePerSqm = averagePpm2 > 0
-        ? averagePpm2
-        : (averagePrice > 0 && area > 0)
-          ? averagePrice / area
-          : 0;
-      const resolvedPrice = area > 0 && resolvedPricePerSqm > 0
-        ? resolvedPricePerSqm * area
-        : averagePrice;
+      if (chosenEntry) {
+        const neighborValue = chosenEntry.value;
+        const area = Number(baseEntry.area);
+        const neighborPricePerSqm = Number(neighborValue.pricePerSqm);
+        const neighborPrice = Number(neighborValue.price);
+        const resolvedPricePerSqm = neighborPricePerSqm > 0
+          ? neighborPricePerSqm
+          : (neighborPrice > 0 && area > 0)
+            ? neighborPrice / area
+            : 0;
+        const resolvedPrice = area > 0 && resolvedPricePerSqm > 0
+          ? resolvedPricePerSqm * area
+          : neighborPrice;
 
-      if (resolvedPrice > 0) {
-        const seen = new Set();
-        const paths = [];
-        directPriced.forEach(entry => {
-          if (!seen.has(entry.index)) {
-            seen.add(entry.index);
-            paths.push([index, entry.index]);
-          }
-        });
-        return {
-          price: resolvedPrice,
-          pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-          paths
-        };
+        if (resolvedPrice > 0) {
+          return {
+            price: resolvedPrice,
+            pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+            paths: [[index, chosenEntry.index]]
+          };
+        }
       }
     }
 
@@ -1572,8 +1591,9 @@ window.showConfirmModal = showConfirmModal;
           }
           const normalizedPath = path.reverse();
           const distance = computePathDistance(normalizedPath, dataset);
-          if (distance < chosenDistance) {
-            chosenDistance = distance;
+          const normalizedDistance = Number.isFinite(distance) ? distance : Number.MAX_VALUE;
+          if (normalizedDistance < chosenDistance) {
+            chosenDistance = normalizedDistance;
             chosenIndex = targetIndex;
             chosenPath = normalizedPath;
           }
@@ -1582,11 +1602,25 @@ window.showConfirmModal = showConfirmModal;
         if (chosenIndex !== null) {
           const chosenValue = baseValues[chosenIndex];
           if (chosenValue?.hasPrice && chosenValue.price > 0) {
-            return {
-              price: chosenValue.price,
-              pricePerSqm: chosenValue.pricePerSqm,
-              paths: Array.isArray(chosenPath) ? [chosenPath] : []
-            };
+            const area = Number(baseEntry.area);
+            const neighborPricePerSqm = Number(chosenValue.pricePerSqm);
+            const neighborPrice = Number(chosenValue.price);
+            const resolvedPricePerSqm = neighborPricePerSqm > 0
+              ? neighborPricePerSqm
+              : (neighborPrice > 0 && area > 0)
+                ? neighborPrice / area
+                : 0;
+            const resolvedPrice = area > 0 && resolvedPricePerSqm > 0
+              ? resolvedPricePerSqm * area
+              : neighborPrice;
+
+            if (resolvedPrice > 0) {
+              return {
+                price: resolvedPrice,
+                pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+                paths: Array.isArray(chosenPath) ? [chosenPath] : []
+              };
+            }
           }
         }
 
@@ -1784,11 +1818,35 @@ window.showConfirmModal = showConfirmModal;
     return rounded.toLocaleString('pl-PL');
   }
 
-  function buildVoronoiLabelContent(stats) {
+  function buildVoronoiLabelContent(stats, options = {}) {
+    const isFallback = options.fallback === true;
     const ppm2 = `${formatPriceValue(stats.pricePerSqm)} zł/m²`;
+    const priceValue = Number.isFinite(stats.price) && stats.price > 0
+      ? `${formatPriceValue(stats.price)} zł`
+      : null;
+
+    const parts = [];
+    if (isFallback) {
+      parts.push('<span class="voronoi-label__badge" aria-hidden="true">szac.</span>');
+    }
+    const stackParts = [`<span class="voronoi-label__value">${ppm2}</span>`];
+    if (priceValue) {
+      stackParts.push(`<span class="voronoi-label__price">${priceValue}</span>`);
+    }
+    parts.push(`<span class="voronoi-label__stack">${stackParts.join('')}</span>`);
+
+    const plainParts = [ppm2];
+    if (priceValue) {
+      plainParts.push(priceValue);
+    }
+    if (isFallback) {
+      plainParts.push('szac.');
+    }
+
     return {
-      html: `<span class="voronoi-label__value">${ppm2}</span>`,
-      plain: ppm2
+      html: parts.join(''),
+      plain: plainParts.join(' · '),
+      fallback: isFallback
     };
   }
 
@@ -1926,13 +1984,21 @@ window.showConfirmModal = showConfirmModal;
     return first || fallback || null;
   }
 
-  function createVoronoiLabelNode(htmlContent, fallbackText, position) {
+  function createVoronoiLabelNode(htmlContent, fallbackText, position, options = {}) {
     if (!position) return null;
+    const isFallback = options.fallback === true;
+    const density = typeof options.density === 'string' ? options.density : 'default';
     try {
       if (google?.maps?.marker?.AdvancedMarkerElement) {
         const wrapper = document.createElement('div');
         wrapper.className = 'voronoi-label';
         wrapper.innerHTML = htmlContent;
+        if (isFallback) {
+          wrapper.dataset.fallback = 'true';
+        }
+        if (density && density !== 'default') {
+          wrapper.dataset.density = density;
+        }
         return new google.maps.marker.AdvancedMarkerElement({
           position,
           map: voronoiLayerState.enabled ? map : null,
@@ -2147,6 +2213,7 @@ window.showConfirmModal = showConfirmModal;
     resetVoronoiLabelLayout();
 
     const shouldRenderLabels = shouldRenderVoronoiLabelsForDatasetSize(dataset.length);
+    const labelDensity = determineVoronoiLabelDensity(dataset.length);
     const cells = dataset.map(({ position }, index) => {
       if (!voronoi) return null;
       const polygonCoords = voronoi.cellPolygon(index);
@@ -2168,7 +2235,11 @@ window.showConfirmModal = showConfirmModal;
       if (!stats) {
         stats = { price: 0, pricePerSqm: 0 };
       }
-      const content = buildVoronoiLabelContent(stats);
+      const fallbackSources = Array.isArray(resolvedValues[index]?.fallbackSources)
+        ? resolvedValues[index].fallbackSources
+        : [];
+      const isFallback = fallbackSources.length > 0;
+      const content = buildVoronoiLabelContent(stats, { fallback: isFallback });
 
       const polygon = new google.maps.Polygon({
         paths: cell.path,
@@ -2185,15 +2256,15 @@ window.showConfirmModal = showConfirmModal;
 
       if (shouldRenderLabels) {
         const labelPosition = findNonOverlappingLabelPosition(cell.centroid || cell.position);
-        const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
+        const label = createVoronoiLabelNode(content.html, content.plain, labelPosition, {
+          fallback: isFallback,
+          density: labelDensity
+        });
         if (label) {
           voronoiLayerState.labels.push(label);
         }
       }
 
-      const fallbackSources = Array.isArray(resolvedValues[index]?.fallbackSources)
-        ? resolvedValues[index].fallbackSources
-        : [];
       fallbackSources.forEach(pathIndices => {
         const connectorPath = Array.isArray(pathIndices)
           ? pathIndices
