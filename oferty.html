@@ -475,12 +475,12 @@ window.showConfirmModal = showConfirmModal;
   };
 
   const VORONOI_FREEZE_ZOOM_LEVEL = 16;
-  const VORONOI_LABEL_BASE_MIN_ZOOM = 10;
+  const VORONOI_LABEL_BASE_MIN_ZOOM = 13;
   const VORONOI_LABEL_VISIBILITY_RULES = [
-    { minCount: 220, minZoom: 14 },
-    { minCount: 160, minZoom: 13 },
-    { minCount: 110, minZoom: 12 },
-    { minCount: 70, minZoom: 11 }
+    { minCount: 220, minZoom: 16 },
+    { minCount: 160, minZoom: 15 },
+    { minCount: 110, minZoom: 14 },
+    { minCount: 70, minZoom: 13 }
   ];
 
   function getMapZoomLevel() {
@@ -1422,7 +1422,47 @@ window.showConfirmModal = showConfirmModal;
     return { price: 0, pricePerSqm: 0, area: sanitizedArea, hasPrice: false };
   }
 
-  function computeFallbackFromNeighbors(index, baseValues, adjacencyList) {
+  function toRadians(degrees) {
+    return (degrees * Math.PI) / 180;
+  }
+
+  function computeDistanceBetweenPoints(a, b) {
+    if (!a || !b) return Infinity;
+    const lat1 = Number(a.lat);
+    const lng1 = Number(a.lng);
+    const lat2 = Number(b.lat);
+    const lng2 = Number(b.lng);
+    if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) {
+      return Infinity;
+    }
+    const earthRadius = 6371000; // metry
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+    const rLat1 = toRadians(lat1);
+    const rLat2 = toRadians(lat2);
+    const aVal = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+    return earthRadius * c;
+  }
+
+  function computePathDistance(path, dataset) {
+    if (!Array.isArray(path) || path.length < 2 || !Array.isArray(dataset)) {
+      return Infinity;
+    }
+    let total = 0;
+    for (let i = 1; i < path.length; i++) {
+      const prev = dataset[path[i - 1]]?.position || null;
+      const next = dataset[path[i]]?.position || null;
+      const segment = computeDistanceBetweenPoints(prev, next);
+      if (!Number.isFinite(segment)) {
+        return Infinity;
+      }
+      total += segment;
+    }
+    return total;
+  }
+
+  function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset) {
     const visited = new Set([index]);
     const parents = new Map();
     let frontier = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
@@ -1459,9 +1499,11 @@ window.showConfirmModal = showConfirmModal;
       });
 
       if (pricedValues.length) {
-        const priceSum = pricedValues.reduce((sum, value) => sum + value.price, 0);
-        const ppm2Sum = pricedValues.reduce((sum, value) => sum + value.pricePerSqm, 0);
-        const paths = pricedIndices.map(targetIndex => {
+        let chosenIndex = null;
+        let chosenPath = null;
+        let chosenDistance = Infinity;
+
+        pricedIndices.forEach(targetIndex => {
           const path = [];
           let current = targetIndex;
           let guard = 0;
@@ -1480,14 +1522,27 @@ window.showConfirmModal = showConfirmModal;
           if (path[path.length - 1] !== index) {
             path.push(index);
           }
-          return path.reverse();
+          const normalizedPath = path.reverse();
+          const distance = computePathDistance(normalizedPath, dataset);
+          if (distance < chosenDistance) {
+            chosenDistance = distance;
+            chosenIndex = targetIndex;
+            chosenPath = normalizedPath;
+          }
         });
 
-        return {
-          price: priceSum / pricedValues.length,
-          pricePerSqm: ppm2Sum / pricedValues.length,
-          paths
-        };
+        if (chosenIndex !== null) {
+          const chosenValue = baseValues[chosenIndex];
+          if (chosenValue?.hasPrice && chosenValue.price > 0) {
+            return {
+              price: chosenValue.price,
+              pricePerSqm: chosenValue.pricePerSqm,
+              path: Array.isArray(chosenPath) ? chosenPath : null
+            };
+          }
+        }
+
+        return null;
       }
 
       frontier = Array.from(nextSet);
@@ -1496,7 +1551,7 @@ window.showConfirmModal = showConfirmModal;
     return null;
   }
 
-  function resolveVoronoiValues(baseValues, adjacencyList) {
+  function resolveVoronoiValues(baseValues, adjacencyList, dataset) {
     return baseValues.map((entry, index) => {
       if (!entry) return entry;
       if (entry.hasPrice && entry.price > 0) {
@@ -1506,7 +1561,7 @@ window.showConfirmModal = showConfirmModal;
         };
       }
 
-      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList);
+      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset);
       if (!fallback) {
         return {
           ...entry,
@@ -1519,36 +1574,22 @@ window.showConfirmModal = showConfirmModal;
         price: fallback.price,
         pricePerSqm: fallback.pricePerSqm,
         hasPrice: true,
-        fallbackSources: Array.isArray(fallback.paths)
-          ? fallback.paths.filter(path => Array.isArray(path) && path.length >= 2)
+        fallbackSources: Array.isArray(fallback.path) && fallback.path.length >= 2
+          ? [fallback.path.slice()]
           : []
       };
     });
   }
 
-  function aggregateVoronoiValues(values, index, neighborIndices) {
-    const aggregated = { price: 0, pricePerSqm: 0, count: 0 };
-    const uniqueIndices = new Set([index]);
-    (neighborIndices || []).forEach(i => {
-      if (Number.isInteger(i)) uniqueIndices.add(i);
-    });
-
-    uniqueIndices.forEach(i => {
-      const entry = values[i];
-      if (!entry) return;
-      aggregated.price += entry.price;
-      aggregated.pricePerSqm += entry.pricePerSqm;
-      aggregated.count += 1;
-    });
-
-    if (!aggregated.count) {
-      return { price: 0, pricePerSqm: 0 };
+  function aggregateVoronoiValues(values, index) {
+    const entry = values[index];
+    if (entry?.hasPrice && entry.price > 0) {
+      return {
+        price: entry.price,
+        pricePerSqm: entry.pricePerSqm
+      };
     }
-
-    return {
-      price: aggregated.price / aggregated.count,
-      pricePerSqm: aggregated.pricePerSqm / aggregated.count
-    };
+    return { price: 0, pricePerSqm: 0 };
   }
 
   function ensureVoronoiLabelOverlay() {
@@ -2040,7 +2081,7 @@ window.showConfirmModal = showConfirmModal;
         return neighbors;
       });
       const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
-      resolvedValues = resolveVoronoiValues(baseValues, adjacencyList);
+      resolvedValues = resolveVoronoiValues(baseValues, adjacencyList, dataset);
       shouldUpdateCache = true;
     }
 
@@ -2065,8 +2106,7 @@ window.showConfirmModal = showConfirmModal;
 
     cells.forEach((cell, index) => {
       if (!cell) return;
-      const neighborIndices = adjacencyList[index] || [];
-      let stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
+      let stats = aggregateVoronoiValues(resolvedValues, index);
       if ((!stats || stats.pricePerSqm <= 0) && resolvedValues[index] && Number.isFinite(resolvedValues[index].pricePerSqm) && resolvedValues[index].pricePerSqm > 0) {
         stats = {
           price: resolvedValues[index].price,
