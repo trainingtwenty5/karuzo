@@ -473,8 +473,11 @@ window.showConfirmModal = showConfirmModal;
     cells: [],
     highlight: {
       baseIndex: null,
+      selectedOfferKey: null,
+      selectedIndexHint: null,
       polygons: new Set(),
-      connectors: new Set()
+      connectors: new Set(),
+      ignoreNextMapClear: false
     }
   };
 
@@ -544,7 +547,16 @@ window.showConfirmModal = showConfirmModal;
     connector.setOptions(buildVoronoiConnectorStyle(mode));
   }
 
-  function clearVoronoiHighlights() {
+  function getVoronoiDatasetOfferKey(entry) {
+    if (!entry || !entry.offer) {
+      return null;
+    }
+    const rawKey = entry.offer.key ?? entry.offer.id ?? entry.offer.plot?.id ?? null;
+    return rawKey != null ? String(rawKey) : null;
+  }
+
+  function clearVoronoiHighlights(options = {}) {
+    const { resetSelection = true } = options || {};
     const highlight = voronoiLayerState.highlight;
     if (highlight.polygons.size) {
       highlight.polygons.forEach(polygon => applyVoronoiPolygonStyle(polygon, 'default'));
@@ -555,6 +567,11 @@ window.showConfirmModal = showConfirmModal;
     highlight.polygons.clear();
     highlight.connectors.clear();
     highlight.baseIndex = null;
+    if (resetSelection) {
+      highlight.selectedOfferKey = null;
+      highlight.selectedIndexHint = null;
+      highlight.ignoreNextMapClear = false;
+    }
   }
 
   function highlightVoronoiPolygon(index) {
@@ -566,12 +583,18 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
 
-    clearVoronoiHighlights();
+    clearVoronoiHighlights({ resetSelection: false });
 
     const highlight = voronoiLayerState.highlight;
     applyVoronoiPolygonStyle(polygon, 'baseHighlight');
     highlight.polygons.add(polygon);
     highlight.baseIndex = index;
+    highlight.selectedIndexHint = index;
+    const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
+      ? voronoiLayerState.datasetSnapshot[index]
+      : null;
+    const offerKey = getVoronoiDatasetOfferKey(datasetEntry);
+    highlight.selectedOfferKey = offerKey;
 
     const resolvedEntry = Array.isArray(voronoiLayerState.resolvedValues)
       ? voronoiLayerState.resolvedValues[index]
@@ -608,15 +631,15 @@ window.showConfirmModal = showConfirmModal;
     }
   }
 
-  const VORONOI_FREEZE_ZOOM_LEVEL = 15;
+  const VORONOI_FREEZE_ZOOM_LEVEL = 14;
   const VORONOI_HIDE_ZOOM_LEVEL = 19;
-  const VORONOI_LABEL_BASE_MIN_ZOOM = 14;
+  const VORONOI_LABEL_BASE_MIN_ZOOM = 15;
   const VORONOI_LABEL_VISIBILITY_RULES = [
     { minCount: 260, minZoom: 18 },
     { minCount: 200, minZoom: 17 },
     { minCount: 150, minZoom: 16 },
     { minCount: 100, minZoom: 15 },
-    { minCount: 60, minZoom: 14 }
+    { minCount: 60, minZoom: 15 }
   ];
 
   function getMapZoomLevel() {
@@ -2231,8 +2254,9 @@ window.showConfirmModal = showConfirmModal;
     });
   }
 
-  function clearVoronoiLayer() {
-    clearVoronoiHighlights();
+  function clearVoronoiLayer(options = {}) {
+    const { resetHighlight = true } = options || {};
+    clearVoronoiHighlights({ resetSelection: resetHighlight });
 
     voronoiLayerState.polygons.forEach(poly => {
       if (poly && typeof poly.setMap === 'function') {
@@ -2428,7 +2452,9 @@ window.showConfirmModal = showConfirmModal;
       voronoiLayerState.cacheSignature = sourceSignature;
     }
 
-    clearVoronoiLayer();
+    const preservedSelectionKey = voronoiLayerState.highlight.selectedOfferKey;
+    const preservedIndexHint = voronoiLayerState.highlight.selectedIndexHint;
+    clearVoronoiLayer({ resetHighlight: false });
     resetVoronoiLabelLayout();
 
     const shouldRenderLabels = shouldRenderVoronoiLabelsForDatasetSize(dataset.length);
@@ -2485,7 +2511,11 @@ window.showConfirmModal = showConfirmModal;
       polygon.__voronoiIndex = index;
       polygon.addListener('click', () => {
         if (!voronoiLayerState.enabled) return;
+        voronoiLayerState.highlight.ignoreNextMapClear = true;
         highlightVoronoiPolygon(index);
+        window.setTimeout(() => {
+          voronoiLayerState.highlight.ignoreNextMapClear = false;
+        }, 0);
       });
       voronoiLayerState.polygons.push(polygon);
 
@@ -2531,6 +2561,27 @@ window.showConfirmModal = showConfirmModal;
         voronoiLayerState.connectorIndexMap.set(index, connectorsForBase);
       });
     });
+
+    if (preservedSelectionKey || Number.isInteger(preservedIndexHint)) {
+      let rehighlightIndex = -1;
+      if (preservedSelectionKey) {
+        rehighlightIndex = voronoiLayerState.datasetSnapshot.findIndex(entry => {
+          const entryKey = getVoronoiDatasetOfferKey(entry);
+          return entryKey && entryKey === preservedSelectionKey;
+        });
+      }
+      if (rehighlightIndex < 0 && Number.isInteger(preservedIndexHint)) {
+        if (preservedIndexHint >= 0 && preservedIndexHint < voronoiLayerState.datasetSnapshot.length) {
+          rehighlightIndex = preservedIndexHint;
+        }
+      }
+      if (rehighlightIndex >= 0) {
+        highlightVoronoiPolygon(rehighlightIndex);
+      } else {
+        voronoiLayerState.highlight.selectedOfferKey = null;
+        voronoiLayerState.highlight.selectedIndexHint = null;
+      }
+    }
   }
 
   function updateVoronoiLayer(forceRebuild = false) {
@@ -2984,7 +3035,11 @@ window.showConfirmModal = showConfirmModal;
       updatePolygonVisibility();
     });
     google.maps.event.addListener(map, "click", () => {
-      clearVoronoiHighlights();
+      if (voronoiLayerState.highlight.ignoreNextMapClear) {
+        voronoiLayerState.highlight.ignoreNextMapClear = false;
+        return;
+      }
+      clearVoronoiHighlights({ resetSelection: true });
     });
     await loadOffers();
     focusOfferFromMapState();
