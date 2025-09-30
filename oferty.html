@@ -223,52 +223,56 @@ window.showConfirmModal = showConfirmModal;
     <div class="map-container">
       <div id="map"></div>
       <div id="map-controls">
-        <div class="voronoi-toggle-control">
-          <input type="checkbox" id="toggleVoronoiLayer" />
-          <label for="toggleVoronoiLayer">Wycena nieruchomości (beta)</label>
-        </div>
-        <div class="voronoi-legend" aria-live="polite">
-          <div class="voronoi-legend__item">
-            <span class="voronoi-legend__swatch voronoi-legend__swatch--selected" aria-hidden="true"></span>
-            <span class="voronoi-legend__label">Wybrana działka</span>
+        <div class="voronoi-panel" id="voronoiPanel">
+          <div class="voronoi-panel__header">
+            <div class="voronoi-toggle-control">
+              <input type="checkbox" id="toggleVoronoiLayer" />
+              <label for="toggleVoronoiLayer">Wycena nieruchomości (beta)</label>
+            </div>
           </div>
-          <div class="voronoi-legend__item">
-            <span class="voronoi-legend__swatch voronoi-legend__swatch--source" aria-hidden="true"></span>
-            <span class="voronoi-legend__label">Źródło wyceny</span>
+          <div class="voronoi-legend" aria-live="polite">
+            <div class="voronoi-legend__item">
+              <span class="voronoi-legend__swatch voronoi-legend__swatch--selected" aria-hidden="true"></span>
+              <span class="voronoi-legend__label">Wybrana działka</span>
+            </div>
+            <div class="voronoi-legend__item">
+              <span class="voronoi-legend__swatch voronoi-legend__swatch--source" aria-hidden="true"></span>
+              <span class="voronoi-legend__label">Źródło wyceny</span>
+            </div>
           </div>
-        </div>
-        <div
-          class="voronoi-inspector"
-          id="voronoiInspector"
-          aria-hidden="true"
-          hidden
-        >
-          <div class="voronoi-inspector__title">Tagi i wagi</div>
           <div
-            class="voronoi-inspector__summary"
-            id="voronoiInspectorSummary"
+            class="voronoi-inspector"
+            id="voronoiInspector"
             aria-hidden="true"
             hidden
           >
-            <div class="voronoi-inspector__summary-pill">
-              <div class="voronoi-inspector__summary-row">
-                <span class="voronoi-inspector__summary-label">Śr. cena za m²</span>
-                <span class="voronoi-inspector__summary-value" id="voronoiInspectorPricePerSqm">—</span>
-              </div>
-              <div class="voronoi-inspector__summary-row">
-                <span class="voronoi-inspector__summary-label">Szacunkowa wartość działki</span>
-                <span class="voronoi-inspector__summary-value" id="voronoiInspectorEstimatedValue">—</span>
+            <div class="voronoi-inspector__title">Tagi i wagi</div>
+            <div
+              class="voronoi-inspector__summary"
+              id="voronoiInspectorSummary"
+              aria-hidden="true"
+              hidden
+            >
+              <div class="voronoi-inspector__summary-pill">
+                <div class="voronoi-inspector__summary-row">
+                  <span class="voronoi-inspector__summary-label">Śr. cena za m²</span>
+                  <span class="voronoi-inspector__summary-value" id="voronoiInspectorPricePerSqm">—</span>
+                </div>
+                <div class="voronoi-inspector__summary-row">
+                  <span class="voronoi-inspector__summary-label">Szacunkowa wartość działki</span>
+                  <span class="voronoi-inspector__summary-value" id="voronoiInspectorEstimatedValue">—</span>
+                </div>
               </div>
             </div>
+            <p
+              class="voronoi-inspector__empty"
+              id="voronoiInspectorEmpty"
+              data-default-message="Kliknij poligon, aby zobaczyć tagi i ich wagi."
+            >
+              Kliknij poligon, aby zobaczyć tagi i ich wagi.
+            </p>
+            <ul class="voronoi-inspector__list" id="voronoiInspectorList"></ul>
           </div>
-          <p
-            class="voronoi-inspector__empty"
-            id="voronoiInspectorEmpty"
-            data-default-message="Kliknij poligon, aby zobaczyć tagi i ich wagi."
-          >
-            Kliknij poligon, aby zobaczyć tagi i ich wagi.
-          </p>
-          <ul class="voronoi-inspector__list" id="voronoiInspectorList"></ul>
         </div>
       </div>
     </div>
@@ -1891,7 +1895,8 @@ window.showConfirmModal = showConfirmModal;
           : 0;
       return {
         price: sourcePrice > 0 ? sourcePrice : 0,
-        pricePerSqm: normalizedPerSqm > 0 ? normalizedPerSqm : 0
+        pricePerSqm: normalizedPerSqm > 0 ? normalizedPerSqm : 0,
+        area: Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0
       };
     };
 
@@ -1950,26 +1955,69 @@ window.showConfirmModal = showConfirmModal;
     };
 
     if (pricedNeighbors.length) {
-      let bestDirect = null;
+      const fallbackSources = [];
+      const seenNeighborSources = new Set();
+      let weightedPerSqmSum = 0;
+      let weightSum = 0;
+      let totalPrice = 0;
+      let totalArea = 0;
+
       pricedNeighbors.forEach(entry => {
-        const path = [index, entry.index];
-        const distance = computePathDistance(path, dataset);
-        const normalizedDistance = Number.isFinite(distance) ? distance : Infinity;
-        if (!bestDirect || normalizedDistance < bestDirect.distance) {
-          bestDirect = {
-            sourceIndex: entry.index,
-            metrics: entry.metrics,
-            path,
-            distance: normalizedDistance
-          };
+        const neighborIndex = entry.index;
+        if (seenNeighborSources.has(neighborIndex)) {
+          return;
+        }
+        seenNeighborSources.add(neighborIndex);
+        const { price, pricePerSqm, area } = entry.metrics;
+        fallbackSources.push({
+          sourceIndex: neighborIndex,
+          directPath: [index, neighborIndex],
+          fullPath: [index, neighborIndex]
+        });
+
+        if (pricePerSqm > 0) {
+          const weight = area > 0 ? area : 1;
+          weightedPerSqmSum += pricePerSqm * weight;
+          weightSum += weight;
+        }
+
+        if (price > 0) {
+          totalPrice += price;
+        }
+
+        if (area > 0) {
+          totalArea += area;
         }
       });
 
-      if (bestDirect) {
-        const fallback = buildFallbackFromSource(bestDirect.sourceIndex, bestDirect.path, bestDirect.metrics);
-        if (fallback) {
-          return fallback;
+      const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
+        ? baseArea
+        : (totalArea > 0 ? totalArea / pricedNeighbors.length : 0);
+
+      let resolvedPricePerSqm = weightSum > 0 ? weightedPerSqmSum / weightSum : 0;
+      if (!(resolvedPricePerSqm > 0) && totalArea > 0 && totalPrice > 0) {
+        resolvedPricePerSqm = totalPrice / totalArea;
+      }
+      if (!(resolvedPricePerSqm > 0) && fallbackArea > 0 && totalPrice > 0 && pricedNeighbors.length) {
+        resolvedPricePerSqm = (totalPrice / pricedNeighbors.length) / fallbackArea;
+      }
+
+      let resolvedPrice = 0;
+      if (resolvedPricePerSqm > 0 && fallbackArea > 0) {
+        resolvedPrice = resolvedPricePerSqm * fallbackArea;
+      } else if (totalPrice > 0 && pricedNeighbors.length) {
+        resolvedPrice = totalPrice / pricedNeighbors.length;
+        if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
+          resolvedPricePerSqm = resolvedPrice / fallbackArea;
         }
+      }
+
+      if (resolvedPrice > 0 || resolvedPricePerSqm > 0) {
+        return {
+          price: resolvedPrice > 0 ? resolvedPrice : 0,
+          pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+          sources: fallbackSources
+        };
       }
     }
 
