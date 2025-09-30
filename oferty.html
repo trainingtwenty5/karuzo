@@ -231,19 +231,22 @@ window.showConfirmModal = showConfirmModal;
         <div class="voronoi-panel" id="voronoiPanel">
           <div class="voronoi-panel__header">
             <h3 class="filters-title voronoi-panel__title">Wycena nieruchomości (beta)</h3>
-            <div class="voronoi-toggle" role="group" aria-label="Wycena nieruchomości">
-              <input
-                type="checkbox"
-                id="toggleVoronoiLayer"
-                class="voronoi-toggle__input"
-                aria-label="Przełącz warstwę wyceny nieruchomości"
-              />
-              <button type="button" class="voronoi-toggle__option" data-voronoi-toggle="off" aria-pressed="false">
-                Wyłączone
-              </button>
-              <button type="button" class="voronoi-toggle__option" data-voronoi-toggle="on" aria-pressed="false">
-                Włączone
-              </button>
+            <div class="voronoi-toggle" role="group" aria-labelledby="voronoiToggleLabel">
+              <span class="voronoi-toggle__label" id="voronoiToggleLabel">Feature toggle / feature flag</span>
+              <div class="voronoi-toggle__controls">
+                <input
+                  type="checkbox"
+                  id="toggleVoronoiLayer"
+                  class="voronoi-toggle__input"
+                  aria-label="Przełącz warstwę wyceny nieruchomości"
+                />
+                <button type="button" class="voronoi-toggle__option" data-voronoi-toggle="off" aria-pressed="false">
+                  Wyłączone
+                </button>
+                <button type="button" class="voronoi-toggle__option" data-voronoi-toggle="on" aria-pressed="false">
+                  Włączone
+                </button>
+              </div>
             </div>
           </div>
           <div class="voronoi-legend" aria-live="polite">

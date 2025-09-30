@@ -49,8 +49,10 @@
 .voronoi-panel__header {
   width:100%;
   display:flex;
-  align-items:center;
+  align-items:flex-start;
   justify-content:space-between;
+  flex-wrap:wrap;
+  gap:12px;
 }
 
 .voronoi-panel__title {
@@ -59,17 +61,42 @@
   font-weight:700;
   letter-spacing:0.01em;
   color:#1f2937;
+  flex:1 1 auto;
 }
 
 .voronoi-toggle {
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  padding:12px 16px;
+  border-radius:16px;
+  background:linear-gradient(140deg, rgba(255,255,255,0.96), rgba(241,248,255,0.96));
+  border:1px solid rgba(148,163,184,0.28);
+  box-shadow:0 16px 32px rgba(15,23,42,0.08);
+  min-width:220px;
+  max-width:100%;
+  margin-left:auto;
+}
+
+.voronoi-toggle__label {
+  font-size:0.72rem;
+  font-weight:700;
+  letter-spacing:0.08em;
+  text-transform:uppercase;
+  color:#1d4ed8;
+}
+
+.voronoi-toggle__controls {
   position:relative;
   display:inline-flex;
   align-items:center;
-  padding:3px;
+  padding:4px;
   border-radius:999px;
   background:linear-gradient(135deg, rgba(191,219,254,0.55), rgba(148,197,255,0.75));
   border:1px solid rgba(96,165,250,0.6);
   gap:4px;
+  width:100%;
 }
 
 .voronoi-toggle__input {
@@ -84,11 +111,11 @@
   z-index:1;
   border:0;
   border-radius:999px;
-  padding:6px 14px;
-  font-size:0.78rem;
+  padding:7px 16px;
+  font-size:0.82rem;
   font-weight:600;
   color:#1d4ed8;
-  background:transparent;
+  background:rgba(255,255,255,0.35);
   cursor:pointer;
   transition:color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -96,7 +123,14 @@
 .voronoi-toggle__option--active {
   color:#0b1c4a;
   background:#e0f2ff;
-  box-shadow:0 6px 16px rgba(30,64,175,0.18);
+  box-shadow:0 8px 18px rgba(30,64,175,0.18);
+}
+
+@media (max-width: 640px) {
+  .voronoi-toggle {
+    width:100%;
+    margin-left:0;
+  }
 }
 
 .voronoi-toggle__option:focus-visible {
