@@ -1339,10 +1339,8 @@ window.showConfirmModal = showConfirmModal;
       return { price: adjustedPrice, pricePerSqm: ppm2 > 0 ? ppm2 : 0, area: area > 0 ? area : 0 };
     }
 
-    const fallbackPrice = randomBetween(80000, 6000000);
-    const fallbackArea = area && area > 0 ? area : randomBetween(800, 12000);
-    const fallbackPpm2 = fallbackArea > 0 ? fallbackPrice / fallbackArea : randomBetween(50, 1500);
-    return { price: fallbackPrice, pricePerSqm: fallbackPpm2, area: fallbackArea };
+    const sanitizedArea = area && area > 0 ? area : 0;
+    return { price: 0, pricePerSqm: 0, area: sanitizedArea };
   }
 
   function aggregateVoronoiValues(values, index, neighborIndices) {
