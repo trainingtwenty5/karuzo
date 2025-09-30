@@ -1330,17 +1330,81 @@ window.showConfirmModal = showConfirmModal;
   function computeOfferValueWithTags(offer) {
     const price = Number(offer?.plot?.price);
     const area = Number(offer?.plot?.pow_dzialki_m2_uldk);
-    const adjustedPrice = Number.isFinite(price) && price > 0
-      ? price * computeTagFactor(offer?.tags)
-      : 0;
+    const hasBasePrice = Number.isFinite(price) && price > 0;
+    const adjustedPrice = hasBasePrice ? price * computeTagFactor(offer?.tags) : 0;
+    const sanitizedArea = area && area > 0 ? area : 0;
 
     if (adjustedPrice > 0) {
-      const ppm2 = area && area > 0 ? adjustedPrice / area : 0;
-      return { price: adjustedPrice, pricePerSqm: ppm2 > 0 ? ppm2 : 0, area: area > 0 ? area : 0 };
+      const ppm2 = sanitizedArea > 0 ? adjustedPrice / sanitizedArea : 0;
+      return {
+        price: adjustedPrice,
+        pricePerSqm: ppm2 > 0 ? ppm2 : 0,
+        area: sanitizedArea,
+        hasPrice: true
+      };
     }
 
-    const sanitizedArea = area && area > 0 ? area : 0;
-    return { price: 0, pricePerSqm: 0, area: sanitizedArea };
+    return { price: 0, pricePerSqm: 0, area: sanitizedArea, hasPrice: false };
+  }
+
+  function computeFallbackFromNeighbors(index, baseValues, adjacencyList) {
+    const visited = new Set([index]);
+    let frontier = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
+
+    while (frontier.length) {
+      const pricedValues = [];
+      const nextSet = new Set();
+
+      frontier.forEach(neighborIndex => {
+        if (visited.has(neighborIndex)) return;
+        visited.add(neighborIndex);
+
+        const value = baseValues[neighborIndex];
+        if (value?.hasPrice && value.price > 0) {
+          pricedValues.push(value);
+        }
+
+        (adjacencyList[neighborIndex] || []).forEach(nextIndex => {
+          if (!visited.has(nextIndex) && Number.isInteger(nextIndex)) {
+            nextSet.add(nextIndex);
+          }
+        });
+      });
+
+      if (pricedValues.length) {
+        const priceSum = pricedValues.reduce((sum, value) => sum + value.price, 0);
+        const ppm2Sum = pricedValues.reduce((sum, value) => sum + value.pricePerSqm, 0);
+        return {
+          price: priceSum / pricedValues.length,
+          pricePerSqm: ppm2Sum / pricedValues.length
+        };
+      }
+
+      frontier = Array.from(nextSet);
+    }
+
+    return null;
+  }
+
+  function resolveVoronoiValues(baseValues, adjacencyList) {
+    return baseValues.map((entry, index) => {
+      if (!entry) return entry;
+      if (entry.hasPrice && entry.price > 0) {
+        return entry;
+      }
+
+      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList);
+      if (!fallback) {
+        return entry;
+      }
+
+      return {
+        ...entry,
+        price: fallback.price,
+        pricePerSqm: fallback.pricePerSqm,
+        hasPrice: true
+      };
+    });
   }
 
   function aggregateVoronoiValues(values, index, neighborIndices) {
@@ -1760,7 +1824,19 @@ window.showConfirmModal = showConfirmModal;
     }
 
     const voronoi = delaunay.voronoi(extent);
+    const adjacencyList = dataset.map((_, index) => {
+      const iterator = delaunay.neighbors(index);
+      if (!iterator) return [];
+      const neighbors = [];
+      for (const neighbor of iterator) {
+        if (Number.isInteger(neighbor)) {
+          neighbors.push(neighbor);
+        }
+      }
+      return neighbors;
+    });
     const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
+    const resolvedValues = resolveVoronoiValues(baseValues, adjacencyList);
 
     resetVoronoiLabelLayout();
 
@@ -1769,8 +1845,8 @@ window.showConfirmModal = showConfirmModal;
       if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return;
 
       const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
-      const neighborIndices = Array.from(delaunay.neighbors(index) || []);
-      const stats = aggregateVoronoiValues(baseValues, index, neighborIndices);
+      const neighborIndices = adjacencyList[index] || [];
+      const stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
       const content = buildVoronoiLabelContent(stats);
 
       const polygon = new google.maps.Polygon({
