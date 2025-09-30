@@ -230,18 +230,21 @@ window.showConfirmModal = showConfirmModal;
       <div class="sidebar-stack">
         <div class="voronoi-panel" id="voronoiPanel">
           <div class="voronoi-panel__header">
-            <h3 class="filters-title voronoi-panel__title">Wycena nieruchomości</h3>
-            <label class="voronoi-switch" for="toggleVoronoiLayer">
+            <h3 class="filters-title voronoi-panel__title">Wycena nieruchomości (beta)</h3>
+            <div class="voronoi-toggle" role="group" aria-label="Wycena nieruchomości">
               <input
                 type="checkbox"
                 id="toggleVoronoiLayer"
-                class="voronoi-switch__input"
-                aria-label="Włącz warstwę wyceny nieruchomości"
+                class="voronoi-toggle__input"
+                aria-label="Przełącz warstwę wyceny nieruchomości"
               />
-              <span class="voronoi-switch__track" aria-hidden="true">
-                <span class="voronoi-switch__thumb"></span>
-              </span>
-            </label>
+              <button type="button" class="voronoi-toggle__option" data-voronoi-toggle="off" aria-pressed="false">
+                Wyłączone
+              </button>
+              <button type="button" class="voronoi-toggle__option" data-voronoi-toggle="on" aria-pressed="false">
+                Włączone
+              </button>
+            </div>
           </div>
           <div class="voronoi-legend" aria-live="polite">
             <div class="voronoi-legend__item">
@@ -540,16 +543,16 @@ window.showConfirmModal = showConfirmModal;
         strokeColor: '#2563EB',
         strokeOpacity: 0.92,
         strokeWeight: 2,
-        fillColor: '#60A5FA',
-        fillOpacity: 0.45
+        fillColor: '#A5C8FF',
+        fillOpacity: 0.48
       };
     }
     return {
-      strokeColor: '#2563EB',
+      strokeColor: '#1D4ED8',
       strokeOpacity: 0.72,
       strokeWeight: 1.2,
-      fillColor: '#3B82F6',
-      fillOpacity: 0.2
+      fillColor: '#93C5FD',
+      fillOpacity: 0.26
     };
   }
 
@@ -1585,6 +1588,20 @@ window.showConfirmModal = showConfirmModal;
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
   const sortButtons = document.querySelectorAll('[data-sort-key]');
   const voronoiToggleInput = document.getElementById('toggleVoronoiLayer');
+  const voronoiToggleButtons = document.querySelectorAll('[data-voronoi-toggle]');
+
+  function syncVoronoiToggleUI() {
+    if (!voronoiToggleButtons?.length) {
+      return;
+    }
+    const isEnabled = !!voronoiToggleInput?.checked;
+    voronoiToggleButtons.forEach(button => {
+      const shouldEnable = button.dataset.voronoiToggle === 'on';
+      const isActive = shouldEnable === isEnabled;
+      button.classList.toggle('voronoi-toggle__option--active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
 
   const clusterRenderer = {
     render: ({ count, position }) => {
@@ -1633,7 +1650,27 @@ window.showConfirmModal = showConfirmModal;
     } else {
       clearVoronoiLayer();
     }
+    syncVoronoiToggleUI();
   });
+
+  if (voronoiToggleButtons?.length) {
+    voronoiToggleButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        if (!voronoiToggleInput) {
+          return;
+        }
+        const shouldEnable = button.dataset.voronoiToggle === 'on';
+        if (voronoiToggleInput.checked !== shouldEnable) {
+          voronoiToggleInput.checked = shouldEnable;
+          voronoiToggleInput.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          syncVoronoiToggleUI();
+        }
+      });
+    });
+  }
+
+  syncVoronoiToggleUI();
 
   updateSortButtonsUI();
 

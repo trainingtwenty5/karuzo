@@ -61,62 +61,52 @@
   color:#1f2937;
 }
 
-.voronoi-switch {
+.voronoi-toggle {
   position:relative;
   display:inline-flex;
   align-items:center;
-  cursor:pointer;
+  padding:3px;
+  border-radius:999px;
+  background:linear-gradient(135deg, rgba(191,219,254,0.55), rgba(148,197,255,0.75));
+  border:1px solid rgba(96,165,250,0.6);
+  gap:4px;
 }
 
-.voronoi-switch__input {
+.voronoi-toggle__input {
   position:absolute;
+  inset:0;
   opacity:0;
-  width:1px;
-  height:1px;
-  margin:0;
+  pointer-events:none;
 }
 
-.voronoi-switch__track {
+.voronoi-toggle__option {
   position:relative;
-  width:48px;
-  height:26px;
+  z-index:1;
+  border:0;
   border-radius:999px;
-  border:1px solid rgba(148,163,184,0.65);
-  background:linear-gradient(135deg, #e2e8f0, #cbd5f5);
-  display:inline-flex;
-  align-items:center;
-  padding:0 4px;
-  transition:background-color 0.24s ease, border-color 0.24s ease;
+  padding:6px 14px;
+  font-size:0.78rem;
+  font-weight:600;
+  color:#1d4ed8;
+  background:transparent;
+  cursor:pointer;
+  transition:color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.voronoi-switch__thumb {
-  width:18px;
-  height:18px;
-  border-radius:999px;
-  background:#fff;
-  box-shadow:0 2px 4px rgba(15,23,42,0.18);
-  transform:translateX(0);
-  transition:transform 0.24s ease;
+.voronoi-toggle__option--active {
+  color:#0b1c4a;
+  background:#e0f2ff;
+  box-shadow:0 6px 16px rgba(30,64,175,0.18);
 }
 
-.voronoi-switch__input:checked + .voronoi-switch__track {
-  background:linear-gradient(135deg, #60a5fa, #2563eb);
-  border-color:#2563eb;
-}
-
-.voronoi-switch__input:checked + .voronoi-switch__track .voronoi-switch__thumb {
-  transform:translateX(20px);
-  box-shadow:0 2px 4px rgba(2,6,23,0.3);
-}
-
-.voronoi-switch__input:focus-visible + .voronoi-switch__track {
-  outline:3px solid rgba(59,130,246,0.45);
+.voronoi-toggle__option:focus-visible {
+  outline:3px solid rgba(59,130,246,0.55);
   outline-offset:2px;
 }
 
 .voronoi-legend {
   width:100%;
-  background:#f8fafc;
+  background:transparent;
   border:1px solid rgba(148,163,184,0.35);
   border-radius:12px;
   padding:12px 14px;
@@ -147,8 +137,8 @@
 }
 
 .voronoi-legend__swatch--source {
-  background:rgba(96,165,250,0.65);
-  border-color:#3b82f6;
+  background:rgba(147,197,253,0.7);
+  border-color:#60a5fa;
 }
 
 .voronoi-legend__label {
