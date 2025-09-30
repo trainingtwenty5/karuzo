@@ -486,19 +486,19 @@ window.showConfirmModal = showConfirmModal;
   function getVoronoiPolygonStyle(mode = 'default') {
     if (mode === 'baseHighlight') {
       return {
-        strokeColor: '#DC2626',
+        strokeColor: '#15803D',
         strokeOpacity: 0.95,
         strokeWeight: 2.4,
-        fillColor: '#FEE2E2',
+        fillColor: '#DCFCE7',
         fillOpacity: 0.55
       };
     }
     if (mode === 'sourceHighlight') {
       return {
-        strokeColor: '#F87171',
+        strokeColor: '#1D4ED8',
         strokeOpacity: 0.9,
         strokeWeight: 2,
-        fillColor: '#FFE4E6',
+        fillColor: '#DBEAFE',
         fillOpacity: 0.45
       };
     }
@@ -609,12 +609,14 @@ window.showConfirmModal = showConfirmModal;
   }
 
   const VORONOI_FREEZE_ZOOM_LEVEL = 15;
-  const VORONOI_LABEL_BASE_MIN_ZOOM = 13;
+  const VORONOI_HIDE_ZOOM_LEVEL = 19;
+  const VORONOI_LABEL_BASE_MIN_ZOOM = 14;
   const VORONOI_LABEL_VISIBILITY_RULES = [
-    { minCount: 220, minZoom: 16 },
-    { minCount: 160, minZoom: 15 },
-    { minCount: 110, minZoom: 14 },
-    { minCount: 70, minZoom: 13 }
+    { minCount: 260, minZoom: 18 },
+    { minCount: 200, minZoom: 17 },
+    { minCount: 150, minZoom: 16 },
+    { minCount: 100, minZoom: 15 },
+    { minCount: 60, minZoom: 14 }
   ];
 
   function getMapZoomLevel() {
@@ -626,6 +628,11 @@ window.showConfirmModal = showConfirmModal;
   function shouldFreezeVoronoiLayout() {
     const zoom = getMapZoomLevel();
     return Number.isFinite(zoom) && zoom >= VORONOI_FREEZE_ZOOM_LEVEL;
+  }
+
+  function shouldHideVoronoiLayer() {
+    const zoom = getMapZoomLevel();
+    return Number.isFinite(zoom) && zoom >= VORONOI_HIDE_ZOOM_LEVEL;
   }
 
   function cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent) {
@@ -687,13 +694,13 @@ window.showConfirmModal = showConfirmModal;
       return 'default';
     }
 
-    if (count >= 220 && zoom <= 16) {
+    if (count >= 150 && zoom <= 16) {
       return 'compact';
     }
-    if (count >= 160 && zoom <= 15) {
+    if (count >= 110 && zoom <= 15) {
       return 'compact';
     }
-    if (count >= 110 && zoom <= 14) {
+    if (count >= 80 && zoom <= 14) {
       return 'compact';
     }
 
@@ -2283,6 +2290,12 @@ window.showConfirmModal = showConfirmModal;
     if (!voronoiLayerState.enabled || !map) return;
     if (!window.d3 || !window.d3.Delaunay) {
       console.warn('Biblioteka d3-delaunay jest niedostępna. Warstwa Voronoi zostanie pominięta.');
+      return;
+    }
+
+    if (shouldHideVoronoiLayer()) {
+      clearVoronoiLayer();
+      voronoiLayerState.cachedDataset = null;
       return;
     }
 
