@@ -1875,6 +1875,16 @@ window.showConfirmModal = showConfirmModal;
     return allOffers.slice();
   }
 
+  function getFrozenVoronoiOffers() {
+    const cached = voronoiLayerState.cachedDataset;
+    if (!cached || !Array.isArray(cached.dataset)) {
+      return [];
+    }
+    return cached.dataset
+      .map(entry => entry?.offer)
+      .filter(Boolean);
+  }
+
   function rebuildVoronoiLayer() {
     if (!voronoiLayerState.enabled || !map) return;
     if (!window.d3 || !window.d3.Delaunay) {
@@ -1883,12 +1893,20 @@ window.showConfirmModal = showConfirmModal;
     }
 
     const freezeActive = shouldFreezeVoronoiLayout();
-    const offers = getVoronoiSourceOffers();
-    const sourceSignature = offers
-      .map(offer => (offer?.key || offer?.id || '')).join('|');
-    const cached = (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
+    const canUseFrozenCache = freezeActive
+      && voronoiLayerState.cacheSignature
+      && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
+      && voronoiLayerState.cachedDataset.dataset.length;
+
+    const offers = (canUseFrozenCache ? getFrozenVoronoiOffers() : getVoronoiSourceOffers());
+    const sourceSignature = canUseFrozenCache && voronoiLayerState.cacheSignature
+      ? voronoiLayerState.cacheSignature
+      : offers.map(offer => (offer?.key || offer?.id || '')).join('|');
+    const cached = canUseFrozenCache
       ? voronoiLayerState.cachedDataset
-      : null;
+      : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
+        ? voronoiLayerState.cachedDataset
+        : null;
 
     let dataset = [];
     let adjacencyList = [];
