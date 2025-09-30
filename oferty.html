@@ -222,39 +222,111 @@ window.showConfirmModal = showConfirmModal;
     <!-- Lewa strona - statyczna mapa -->
     <div class="map-container">
       <div id="map"></div>
-      <div id="map-controls">
-        <div class="voronoi-toggle-control">
-          <input type="checkbox" id="toggleVoronoiLayer" />
-          <label for="toggleVoronoiLayer">Wycena nieruchomości</label>
-        </div>
-      </div>
+      <div id="map-controls"></div>
     </div>
-    
+
     <!-- Prawa strona - przewijana zawartość -->
     <div class="content-container">
-      <!-- Panel filtrów ofert -->
-      <div class="filters-panel" id="filtersPanel">
-        <h3 class="filters-title">Filtruj działki</h3>
-        <div class="filters-row sort-row">
-          <span class="filters-label">Sortuj:</span>
-          <div class="sort-buttons">
-            <button type="button" class="sort-chip" data-sort-key="price" aria-pressed="false">
-              Cena
-            </button>
-            <button type="button" class="sort-chip" data-sort-key="area" aria-pressed="false">
-              Powierzchnia
-            </button>
+      <div class="sidebar-stack">
+        <div class="voronoi-panel" id="voronoiPanel">
+          <div class="voronoi-panel__header">
+            <h3 class="filters-title voronoi-panel__title" id="voronoiPanelTitle">Wycena nieruchomości (beta)</h3>
+            <div class="voronoi-toggle" role="group" aria-labelledby="voronoiPanelTitle">
+              <div class="voronoi-toggle__controls">
+                <input
+                  type="checkbox"
+                  id="toggleVoronoiLayer"
+                  class="voronoi-toggle__input"
+                  aria-label="Przełącz warstwę wyceny nieruchomości"
+                />
+                <button
+                  type="button"
+                  class="voronoi-toggle__option"
+                  data-voronoi-toggle="on"
+                  aria-pressed="false"
+                  aria-label="Włącz warstwę"
+                >
+                  Wł.
+                </button>
+                <button
+                  type="button"
+                  class="voronoi-toggle__option"
+                  data-voronoi-toggle="off"
+                  aria-pressed="false"
+                  aria-label="Wyłącz warstwę"
+                >
+                  Wył.
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="voronoi-legend" aria-live="polite">
+            <div class="voronoi-legend__item">
+              <span class="voronoi-legend__swatch voronoi-legend__swatch--selected" aria-hidden="true"></span>
+              <span class="voronoi-legend__label">Zaznaczona wycena</span>
+            </div>
+            <div class="voronoi-legend__item">
+              <span class="voronoi-legend__swatch voronoi-legend__swatch--source" aria-hidden="true"></span>
+              <span class="voronoi-legend__label">Źródło wyceny</span>
+            </div>
+          </div>
+          <div
+            class="voronoi-inspector"
+            id="voronoiInspector"
+            aria-hidden="true"
+            hidden
+          >
+            <div class="voronoi-inspector__summary" id="voronoiInspectorSummary" hidden>
+              <div class="voronoi-inspector__summary-header">
+                <span class="voronoi-inspector__summary-title">Podsumowanie</span>
+                <span class="voronoi-inspector__summary-badge" id="voronoiInspectorSummaryBadge" hidden>szac.</span>
+              </div>
+              <div class="voronoi-inspector__summary-grid">
+                <div class="voronoi-inspector__summary-item">
+                  <span class="voronoi-inspector__summary-label">Średnia cena m²</span>
+                  <span class="voronoi-inspector__summary-value" id="voronoiInspectorAvgValue">—</span>
+                </div>
+                <div class="voronoi-inspector__summary-item">
+                  <span class="voronoi-inspector__summary-label">Szacowana wartość działki</span>
+                  <span class="voronoi-inspector__summary-value" id="voronoiInspectorEstimateValue">—</span>
+                </div>
+              </div>
+            </div>
+            <p
+              class="voronoi-inspector__empty"
+              id="voronoiInspectorEmpty"
+              data-default-message="Kliknij poligon, aby zobaczyć procenty tagów."
+            >
+              Kliknij poligon, aby zobaczyć procenty tagów.
+            </p>
+            <ul class="voronoi-inspector__list" id="voronoiInspectorList"></ul>
           </div>
         </div>
-        <div class="filters-row tags-row">
-          <span class="filters-label">Tagi:</span>
-          <div class="tags-area">
-            <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
-              <span class="tag-placeholder">Ładuję tagi…</span>
+
+        <!-- Panel filtrów ofert -->
+        <div class="filters-panel" id="filtersPanel">
+          <h3 class="filters-title">Filtruj działki</h3>
+          <div class="filters-row sort-row">
+            <span class="filters-label">Sortuj:</span>
+            <div class="sort-buttons">
+              <button type="button" class="sort-chip" data-sort-key="price" aria-pressed="false">
+                Cena
+              </button>
+              <button type="button" class="sort-chip" data-sort-key="area" aria-pressed="false">
+                Powierzchnia
+              </button>
             </div>
-            <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
-              Pokaż wszystkie tagi
-            </button>
+          </div>
+          <div class="filters-row tags-row">
+            <span class="filters-label">Tagi:</span>
+            <div class="tags-area">
+              <div class="tags-wrapper" id="tagFiltersList" data-expanded="false">
+                <span class="tag-placeholder">Ładuję tagi…</span>
+              </div>
+              <button type="button" class="toggle-tags-btn" id="toggleTagsBtn" aria-expanded="false" aria-controls="tagFiltersList" hidden>
+                Pokaż wszystkie tagi
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -456,6 +528,7 @@ window.showConfirmModal = showConfirmModal;
   const voronoiLayerState = {
     enabled: false,
     polygons: [],
+    connectors: [],
     labels: [],
     tagWeights: new Map(),
     maxTagValue: 1,
@@ -463,13 +536,455 @@ window.showConfirmModal = showConfirmModal;
       overlay: null,
       boxes: [],
       projectionPending: false
+    },
+    cachedDataset: null,
+    cacheSignature: null,
+    connectorIndexMap: new Map(),
+    resolvedValues: [],
+    datasetSnapshot: [],
+    cells: [],
+    highlight: {
+      baseIndex: null,
+      selectedOfferKey: null,
+      selectedIndexHint: null,
+      polygons: new Set(),
+      connectors: new Set(),
+      ignoreNextMapClear: false
     }
   };
 
   const VORONOI_LABEL_SIZE = {
-    width: 132,
-    height: 34
+    width: 150,
+    height: 42
   };
+
+  function getVoronoiPolygonStyle(mode = 'default') {
+    if (mode === 'baseHighlight') {
+      return {
+        strokeColor: '#15803D',
+        strokeOpacity: 0.95,
+        strokeWeight: 2.4,
+        fillColor: '#DCFCE7',
+        fillOpacity: 0.55
+      };
+    }
+    if (mode === 'sourceHighlight') {
+      return {
+        strokeColor: '#2563EB',
+        strokeOpacity: 0.92,
+        strokeWeight: 2,
+        fillColor: '#A5C8FF',
+        fillOpacity: 0.48
+      };
+    }
+    return {
+      strokeColor: '#1D4ED8',
+      strokeOpacity: 0.72,
+      strokeWeight: 1.2,
+      fillColor: '#93C5FD',
+      fillOpacity: 0.26
+    };
+  }
+
+  function applyVoronoiPolygonStyle(polygon, mode = 'default') {
+    if (!polygon || typeof polygon.setOptions !== 'function') {
+      return;
+    }
+    polygon.setOptions(getVoronoiPolygonStyle(mode));
+  }
+
+  function buildVoronoiConnectorStyle(mode = 'default') {
+    const presets = mode === 'highlight'
+      ? { strokeOpacity: 0.95, strokeWeight: 2, scale: 3, repeat: '10px', zIndex: 41 }
+      : { strokeOpacity: 0.65, strokeWeight: 1.1, scale: 2, repeat: '12px', zIndex: 38 };
+
+    return {
+      strokeColor: '#DC2626',
+      strokeOpacity: presets.strokeOpacity,
+      strokeWeight: presets.strokeWeight,
+      geodesic: true,
+      icons: [{
+        icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: presets.scale },
+        offset: '0',
+        repeat: presets.repeat
+      }],
+      zIndex: presets.zIndex
+    };
+  }
+
+  function applyVoronoiConnectorStyle(connector, mode = 'default') {
+    if (!connector || typeof connector.setOptions !== 'function') {
+      return;
+    }
+    connector.setOptions(buildVoronoiConnectorStyle(mode));
+  }
+
+  function getVoronoiDatasetOfferKey(entry) {
+    if (!entry || !entry.offer) {
+      return null;
+    }
+    const rawKey = entry.offer.key ?? entry.offer.id ?? entry.offer.plot?.id ?? null;
+    return rawKey != null ? String(rawKey) : null;
+  }
+
+  function getVoronoiInspectorElements() {
+    const container = document.getElementById('voronoiInspector');
+    const list = document.getElementById('voronoiInspectorList');
+    const emptyState = document.getElementById('voronoiInspectorEmpty');
+    const summary = document.getElementById('voronoiInspectorSummary');
+    const summaryAvg = document.getElementById('voronoiInspectorAvgValue');
+    const summaryEstimate = document.getElementById('voronoiInspectorEstimateValue');
+    const summaryBadge = document.getElementById('voronoiInspectorSummaryBadge');
+    if (!container || !list || !emptyState) {
+      return null;
+    }
+    return { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge };
+  }
+
+  function extractPlotAreaFromOffer(offer) {
+    if (!offer || typeof offer !== 'object') {
+      return 0;
+    }
+    const plot = offer.plot || {};
+    const candidates = [
+      plot.pow_dzialki_m2_uldk,
+      plot.powierzchnia,
+      plot.powierzchnia_m2,
+      plot.area,
+      plot.areaM2,
+      plot.powierzchniaDzialki,
+      offer.area,
+      offer.areaM2
+    ];
+    for (const candidate of candidates) {
+      const value = Number(candidate);
+      if (Number.isFinite(value) && value > 0) {
+        return value;
+      }
+    }
+    return 0;
+  }
+
+  function hideVoronoiTagInspector() {
+    const elements = getVoronoiInspectorElements();
+    if (!elements) return;
+    const { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge } = elements;
+    list.innerHTML = '';
+    const defaultMessage = emptyState.dataset.defaultMessage || emptyState.textContent || '';
+    emptyState.textContent = defaultMessage;
+    emptyState.hidden = false;
+    if (summary) {
+      summary.setAttribute('hidden', 'true');
+    }
+    if (summaryAvg) {
+      summaryAvg.textContent = '—';
+    }
+    if (summaryEstimate) {
+      summaryEstimate.textContent = '—';
+    }
+    if (summaryBadge) {
+      summaryBadge.setAttribute('hidden', 'true');
+    }
+    container.setAttribute('hidden', 'true');
+    container.setAttribute('aria-hidden', 'true');
+  }
+
+  function updateVoronoiTagInspector(index) {
+    const elements = getVoronoiInspectorElements();
+    if (!elements) return;
+    const { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge } = elements;
+
+    if (!Number.isInteger(index) || index < 0) {
+      hideVoronoiTagInspector();
+      return;
+    }
+
+    const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
+      ? voronoiLayerState.datasetSnapshot[index]
+      : null;
+    const resolvedEntry = Array.isArray(voronoiLayerState.resolvedValues)
+      ? voronoiLayerState.resolvedValues[index]
+      : null;
+    const offerTags = Array.isArray(datasetEntry?.offer?.tags)
+      ? datasetEntry.offer.tags.filter(tag => typeof tag === 'string' && tag.trim().length)
+      : [];
+
+    container.removeAttribute('hidden');
+    container.setAttribute('aria-hidden', 'false');
+    list.innerHTML = '';
+
+    if (summary) {
+      const summaryData = (() => {
+        if (!resolvedEntry) {
+          return null;
+        }
+        let pricePerSqm = Number(resolvedEntry.pricePerSqm);
+        let totalPrice = Number(resolvedEntry.price);
+        let area = Number(resolvedEntry.area);
+        if (!(area > 0)) {
+          area = extractPlotAreaFromOffer(datasetEntry?.offer);
+        }
+        if (!(pricePerSqm > 0) && totalPrice > 0 && area > 0) {
+          pricePerSqm = totalPrice / area;
+        }
+        if (!(totalPrice > 0) && pricePerSqm > 0 && area > 0) {
+          totalPrice = pricePerSqm * area;
+        }
+        if (!(pricePerSqm > 0) && !(totalPrice > 0)) {
+          return null;
+        }
+        return {
+          pricePerSqm: pricePerSqm > 0 ? pricePerSqm : 0,
+          totalPrice: totalPrice > 0 ? totalPrice : 0,
+          fallback: Array.isArray(resolvedEntry.fallbackSources) && resolvedEntry.fallbackSources.length > 0
+        };
+      })();
+
+      if (summaryData) {
+        const avgText = summaryData.pricePerSqm > 0
+          ? `${formatPriceValue(summaryData.pricePerSqm)} zł/m²`
+          : '—';
+        const totalText = summaryData.totalPrice > 0
+          ? `${formatPriceValue(summaryData.totalPrice)} zł`
+          : '—';
+        summaryAvg && (summaryAvg.textContent = avgText);
+        summaryEstimate && (summaryEstimate.textContent = totalText);
+        if (summaryBadge) {
+          if (summaryData.fallback) {
+            summaryBadge.removeAttribute('hidden');
+          } else {
+            summaryBadge.setAttribute('hidden', 'true');
+          }
+        }
+        summary.removeAttribute('hidden');
+      } else {
+        summary.setAttribute('hidden', 'true');
+        summaryAvg && (summaryAvg.textContent = '—');
+        summaryEstimate && (summaryEstimate.textContent = '—');
+        summaryBadge && summaryBadge.setAttribute('hidden', 'true');
+      }
+    }
+
+    if (!offerTags.length) {
+      emptyState.textContent = 'Brak tagów dla tej działki.';
+      emptyState.hidden = false;
+      return;
+    }
+
+    emptyState.hidden = true;
+
+    const uniqueTags = Array.from(new Set(offerTags));
+    uniqueTags.sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
+
+    const weightMap = voronoiLayerState.tagWeights instanceof Map
+      ? voronoiLayerState.tagWeights
+      : new Map();
+    const maxValue = Math.max(Number(voronoiLayerState.maxTagValue) || 1, 1);
+    const totalWeight = uniqueTags.reduce((sum, tag) => {
+      const weight = Number(weightMap.get(tag));
+      return sum + (Number.isFinite(weight) && weight > 0 ? weight : 0);
+    }, 0);
+
+    uniqueTags.forEach(tag => {
+      const weight = Number(weightMap.get(tag)) || 0;
+      const percentBase = totalWeight > 0 ? totalWeight : maxValue;
+      const rawPercent = percentBase > 0 ? Math.round((weight / percentBase) * 100) : 0;
+      const displayPercent = percentBase > 0 && weight > 0 ? Math.max(1, rawPercent) : 0;
+
+      const item = document.createElement('li');
+      item.className = 'voronoi-inspector__item';
+
+      const tagLabel = document.createElement('span');
+      tagLabel.className = 'voronoi-inspector__tag';
+      tagLabel.textContent = formatTagLabel(tag);
+
+      const value = document.createElement('span');
+      value.className = 'voronoi-inspector__percentage';
+      value.textContent = `${displayPercent}%`;
+
+      item.appendChild(tagLabel);
+      item.appendChild(value);
+      list.appendChild(item);
+    });
+  }
+
+  function clearVoronoiHighlights(options = {}) {
+    const { resetSelection = true } = options || {};
+    const highlight = voronoiLayerState.highlight;
+    if (highlight.polygons.size) {
+      highlight.polygons.forEach(polygon => applyVoronoiPolygonStyle(polygon, 'default'));
+    }
+    if (highlight.connectors.size) {
+      highlight.connectors.forEach(connector => applyVoronoiConnectorStyle(connector, 'default'));
+    }
+    highlight.polygons.clear();
+    highlight.connectors.clear();
+    highlight.baseIndex = null;
+    if (resetSelection) {
+      highlight.selectedOfferKey = null;
+      highlight.selectedIndexHint = null;
+      highlight.ignoreNextMapClear = false;
+      hideVoronoiTagInspector();
+    }
+  }
+
+  function highlightVoronoiPolygon(index) {
+    if (!Number.isInteger(index) || index < 0) {
+      return;
+    }
+    const polygon = voronoiLayerState.polygons[index];
+    if (!polygon) {
+      return;
+    }
+
+    clearVoronoiHighlights({ resetSelection: false });
+
+    const highlight = voronoiLayerState.highlight;
+    applyVoronoiPolygonStyle(polygon, 'baseHighlight');
+    highlight.polygons.add(polygon);
+    highlight.baseIndex = index;
+    highlight.selectedIndexHint = index;
+    const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
+      ? voronoiLayerState.datasetSnapshot[index]
+      : null;
+    const offerKey = getVoronoiDatasetOfferKey(datasetEntry);
+    highlight.selectedOfferKey = offerKey;
+
+    const resolvedEntry = Array.isArray(voronoiLayerState.resolvedValues)
+      ? voronoiLayerState.resolvedValues[index]
+      : null;
+    const fallbackSources = Array.isArray(resolvedEntry?.fallbackSources)
+      ? resolvedEntry.fallbackSources
+      : [];
+    const uniqueSources = new Set();
+
+    fallbackSources.forEach(path => {
+      if (!Array.isArray(path) || path.length < 2) return;
+      const sourceIndex = path[path.length - 1];
+      if (Number.isInteger(sourceIndex)) {
+        uniqueSources.add(sourceIndex);
+      }
+    });
+
+    uniqueSources.forEach(sourceIndex => {
+      if (sourceIndex === index) return;
+      const sourcePolygon = voronoiLayerState.polygons[sourceIndex];
+      if (!sourcePolygon) return;
+      applyVoronoiPolygonStyle(sourcePolygon, 'sourceHighlight');
+      highlight.polygons.add(sourcePolygon);
+    });
+
+    const connectorList = voronoiLayerState.connectorIndexMap instanceof Map
+      ? voronoiLayerState.connectorIndexMap.get(index)
+      : null;
+    if (Array.isArray(connectorList)) {
+      connectorList.forEach(connector => {
+        applyVoronoiConnectorStyle(connector, 'highlight');
+        highlight.connectors.add(connector);
+      });
+    }
+
+    updateVoronoiTagInspector(index);
+  }
+
+  const VORONOI_FREEZE_ZOOM_LEVEL = 14;
+  const VORONOI_HIDE_ZOOM_LEVEL = 19;
+  const VORONOI_LABEL_BASE_MIN_ZOOM = 15;
+  const VORONOI_LABEL_VISIBILITY_RULES = [
+    { minCount: 260, minZoom: 18 },
+    { minCount: 200, minZoom: 17 },
+    { minCount: 150, minZoom: 16 },
+    { minCount: 100, minZoom: 15 },
+    { minCount: 60, minZoom: 15 }
+  ];
+
+  function getMapZoomLevel() {
+    if (!map || typeof map.getZoom !== 'function') return null;
+    const zoom = map.getZoom();
+    return typeof zoom === 'number' ? zoom : null;
+  }
+
+  function shouldFreezeVoronoiLayout() {
+    const zoom = getMapZoomLevel();
+    return Number.isFinite(zoom) && zoom >= VORONOI_FREEZE_ZOOM_LEVEL;
+  }
+
+  function shouldHideVoronoiLayer() {
+    const zoom = getMapZoomLevel();
+    return Number.isFinite(zoom) && zoom >= VORONOI_HIDE_ZOOM_LEVEL;
+  }
+
+  function cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent) {
+    return {
+      dataset: Array.isArray(dataset)
+        ? dataset.map(entry => ({
+            offer: entry.offer,
+            position: entry?.position
+              ? { lat: entry.position.lat, lng: entry.position.lng }
+              : null
+          }))
+        : [],
+      adjacencyList: Array.isArray(adjacencyList)
+        ? adjacencyList.map(neighbors => Array.isArray(neighbors) ? neighbors.slice() : [])
+        : [],
+      resolvedValues: Array.isArray(resolvedValues)
+        ? resolvedValues.map(value => {
+            if (!value) return value;
+            return {
+              ...value,
+              fallbackSources: Array.isArray(value.fallbackSources)
+                ? value.fallbackSources.map(path => Array.isArray(path) ? path.slice() : [])
+                : []
+            };
+          })
+        : [],
+      extent: Array.isArray(extent) ? extent.slice() : null
+    };
+  }
+
+  function shouldRenderVoronoiLabelsForDatasetSize(count) {
+    if (!Number.isFinite(count) || count <= 0) {
+      return false;
+    }
+    if (count <= 20) {
+      return true;
+    }
+    const zoom = getMapZoomLevel();
+    if (!Number.isFinite(zoom)) {
+      return false;
+    }
+    if (zoom < VORONOI_LABEL_BASE_MIN_ZOOM) {
+      return false;
+    }
+    for (const rule of VORONOI_LABEL_VISIBILITY_RULES) {
+      if (count >= rule.minCount && zoom < rule.minZoom) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function determineVoronoiLabelDensity(count) {
+    if (!Number.isFinite(count) || count <= 0) {
+      return 'default';
+    }
+    const zoom = getMapZoomLevel();
+    if (!Number.isFinite(zoom)) {
+      return 'default';
+    }
+
+    if (count >= 150 && zoom <= 16) {
+      return 'compact';
+    }
+    if (count >= 110 && zoom <= 15) {
+      return 'compact';
+    }
+    if (count >= 80 && zoom <= 14) {
+      return 'compact';
+    }
+
+    return 'default';
+  }
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
   const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
@@ -961,6 +1476,8 @@ window.showConfirmModal = showConfirmModal;
     availableTags = [];
     tagMetrics = new Map();
     currentVisibleOffers = [];
+    voronoiLayerState.cachedDataset = null;
+    voronoiLayerState.cacheSignature = null;
 
     if (!Array.isArray(documents)) {
       renderTagFilters();
@@ -1172,6 +1689,20 @@ window.showConfirmModal = showConfirmModal;
   const toggleTagsBtn = document.getElementById('toggleTagsBtn');
   const sortButtons = document.querySelectorAll('[data-sort-key]');
   const voronoiToggleInput = document.getElementById('toggleVoronoiLayer');
+  const voronoiToggleButtons = document.querySelectorAll('[data-voronoi-toggle]');
+
+  function syncVoronoiToggleUI() {
+    if (!voronoiToggleButtons?.length) {
+      return;
+    }
+    const isEnabled = !!voronoiToggleInput?.checked;
+    voronoiToggleButtons.forEach(button => {
+      const shouldEnable = button.dataset.voronoiToggle === 'on';
+      const isActive = shouldEnable === isEnabled;
+      button.classList.toggle('voronoi-toggle__option--active', isActive);
+      button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
 
   const clusterRenderer = {
     render: ({ count, position }) => {
@@ -1220,7 +1751,27 @@ window.showConfirmModal = showConfirmModal;
     } else {
       clearVoronoiLayer();
     }
+    syncVoronoiToggleUI();
   });
+
+  if (voronoiToggleButtons?.length) {
+    voronoiToggleButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        if (!voronoiToggleInput) {
+          return;
+        }
+        const shouldEnable = button.dataset.voronoiToggle === 'on';
+        if (voronoiToggleInput.checked !== shouldEnable) {
+          voronoiToggleInput.checked = shouldEnable;
+          voronoiToggleInput.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          syncVoronoiToggleUI();
+        }
+      });
+    });
+  }
+
+  syncVoronoiToggleUI();
 
   updateSortButtonsUI();
 
@@ -1347,89 +1898,341 @@ window.showConfirmModal = showConfirmModal;
     return { price: 0, pricePerSqm: 0, area: sanitizedArea, hasPrice: false };
   }
 
-  function computeFallbackFromNeighbors(index, baseValues, adjacencyList) {
-    const visited = new Set([index]);
-    let frontier = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
-
-    while (frontier.length) {
-      const pricedValues = [];
-      const nextSet = new Set();
-
-      frontier.forEach(neighborIndex => {
-        if (visited.has(neighborIndex)) return;
-        visited.add(neighborIndex);
-
-        const value = baseValues[neighborIndex];
-        if (value?.hasPrice && value.price > 0) {
-          pricedValues.push(value);
-        }
-
-        (adjacencyList[neighborIndex] || []).forEach(nextIndex => {
-          if (!visited.has(nextIndex) && Number.isInteger(nextIndex)) {
-            nextSet.add(nextIndex);
-          }
-        });
-      });
-
-      if (pricedValues.length) {
-        const priceSum = pricedValues.reduce((sum, value) => sum + value.price, 0);
-        const ppm2Sum = pricedValues.reduce((sum, value) => sum + value.pricePerSqm, 0);
-        return {
-          price: priceSum / pricedValues.length,
-          pricePerSqm: ppm2Sum / pricedValues.length
-        };
-      }
-
-      frontier = Array.from(nextSet);
-    }
-
-    return null;
+  function toRadians(degrees) {
+    return (degrees * Math.PI) / 180;
   }
 
-  function resolveVoronoiValues(baseValues, adjacencyList) {
+  function computeDistanceBetweenPoints(a, b) {
+    if (!a || !b) return Infinity;
+    const lat1 = Number(a.lat);
+    const lng1 = Number(a.lng);
+    const lat2 = Number(b.lat);
+    const lng2 = Number(b.lng);
+    if (!Number.isFinite(lat1) || !Number.isFinite(lng1) || !Number.isFinite(lat2) || !Number.isFinite(lng2)) {
+      return Infinity;
+    }
+    const earthRadius = 6371000; // metry
+    const dLat = toRadians(lat2 - lat1);
+    const dLng = toRadians(lng2 - lng1);
+    const rLat1 = toRadians(lat1);
+    const rLat2 = toRadians(lat2);
+    const aVal = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLng / 2) ** 2;
+    const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+    return earthRadius * c;
+  }
+
+  function computePathDistance(path, dataset) {
+    if (!Array.isArray(path) || path.length < 2 || !Array.isArray(dataset)) {
+      return Infinity;
+    }
+    let total = 0;
+    for (let i = 1; i < path.length; i++) {
+      const prev = dataset[path[i - 1]]?.position || null;
+      const next = dataset[path[i]]?.position || null;
+      const segment = computeDistanceBetweenPoints(prev, next);
+      if (!Number.isFinite(segment)) {
+        return Infinity;
+      }
+      total += segment;
+    }
+    return total;
+  }
+
+  function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset) {
+    const baseEntry = baseValues[index] || {};
+    const baseArea = Number(baseEntry.area);
+    const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
+
+    if (!directNeighbors.length) {
+      return null;
+    }
+
+    const buildPriceMetrics = (value) => {
+      if (!value?.hasPrice || !(value.price > 0)) {
+        return null;
+      }
+      const sourcePrice = Number(value.price);
+      const sourcePricePerSqm = Number(value.pricePerSqm);
+      const sourceArea = Number(value.area);
+      const normalizedPerSqm = sourcePricePerSqm > 0
+        ? sourcePricePerSqm
+        : (sourcePrice > 0 && Number.isFinite(sourceArea) && sourceArea > 0)
+          ? sourcePrice / sourceArea
+          : 0;
+      return {
+        price: sourcePrice > 0 ? sourcePrice : 0,
+        pricePerSqm: normalizedPerSqm > 0 ? normalizedPerSqm : 0,
+        area: Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0
+      };
+    };
+
+    const pricedNeighbors = directNeighbors
+      .map(neighbor => ({ index: neighbor, metrics: buildPriceMetrics(baseValues[neighbor]) }))
+      .filter(entry => !!entry.metrics);
+
+    const buildFallbackFromSource = (sourceIndex, path, metrics) => {
+      if (!Number.isInteger(sourceIndex) || !metrics) {
+        return null;
+      }
+
+      const normalizedPath = Array.isArray(path) && path.length >= 2
+        ? path.slice()
+        : [index, sourceIndex];
+      if (normalizedPath[0] !== index) {
+        normalizedPath.unshift(index);
+      }
+      if (normalizedPath[normalizedPath.length - 1] !== sourceIndex) {
+        normalizedPath.push(sourceIndex);
+      }
+
+      const sourceArea = Number(baseValues[sourceIndex]?.area);
+      const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
+        ? baseArea
+        : (Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0);
+
+      let resolvedPricePerSqm = metrics.pricePerSqm > 0 ? metrics.pricePerSqm : 0;
+      if (!(resolvedPricePerSqm > 0) && metrics.price > 0 && fallbackArea > 0) {
+        resolvedPricePerSqm = metrics.price / fallbackArea;
+      }
+
+      let resolvedPrice = 0;
+      if (resolvedPricePerSqm > 0 && Number.isFinite(baseArea) && baseArea > 0) {
+        resolvedPrice = resolvedPricePerSqm * baseArea;
+      } else if (metrics.price > 0) {
+        resolvedPrice = metrics.price;
+        if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
+          resolvedPricePerSqm = metrics.price / fallbackArea;
+        }
+      }
+
+      if (!(resolvedPrice > 0) && !(resolvedPricePerSqm > 0)) {
+        return null;
+      }
+
+      return {
+        price: resolvedPrice > 0 ? resolvedPrice : 0,
+        pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+        sources: [{
+          sourceIndex,
+          directPath: [index, sourceIndex],
+          fullPath: normalizedPath
+        }]
+      };
+    };
+
+    if (pricedNeighbors.length) {
+      const fallbackSources = [];
+      const seenNeighborSources = new Set();
+      let weightedPerSqmSum = 0;
+      let weightSum = 0;
+      let totalPrice = 0;
+      let totalArea = 0;
+
+      pricedNeighbors.forEach(entry => {
+        const neighborIndex = entry.index;
+        if (seenNeighborSources.has(neighborIndex)) {
+          return;
+        }
+        seenNeighborSources.add(neighborIndex);
+        const { price, pricePerSqm, area } = entry.metrics;
+        fallbackSources.push({
+          sourceIndex: neighborIndex,
+          directPath: [index, neighborIndex],
+          fullPath: [index, neighborIndex]
+        });
+
+        if (pricePerSqm > 0) {
+          const weight = area > 0 ? area : 1;
+          weightedPerSqmSum += pricePerSqm * weight;
+          weightSum += weight;
+        }
+
+        if (price > 0) {
+          totalPrice += price;
+        }
+
+        if (area > 0) {
+          totalArea += area;
+        }
+      });
+
+      const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
+        ? baseArea
+        : (totalArea > 0 ? totalArea / pricedNeighbors.length : 0);
+
+      let resolvedPricePerSqm = weightSum > 0 ? weightedPerSqmSum / weightSum : 0;
+      if (!(resolvedPricePerSqm > 0) && totalArea > 0 && totalPrice > 0) {
+        resolvedPricePerSqm = totalPrice / totalArea;
+      }
+      if (!(resolvedPricePerSqm > 0) && fallbackArea > 0 && totalPrice > 0 && pricedNeighbors.length) {
+        resolvedPricePerSqm = (totalPrice / pricedNeighbors.length) / fallbackArea;
+      }
+
+      let resolvedPrice = 0;
+      if (resolvedPricePerSqm > 0 && fallbackArea > 0) {
+        resolvedPrice = resolvedPricePerSqm * fallbackArea;
+      } else if (totalPrice > 0 && pricedNeighbors.length) {
+        resolvedPrice = totalPrice / pricedNeighbors.length;
+        if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
+          resolvedPricePerSqm = resolvedPrice / fallbackArea;
+        }
+      }
+
+      if (resolvedPrice > 0 || resolvedPricePerSqm > 0) {
+        return {
+          price: resolvedPrice > 0 ? resolvedPrice : 0,
+          pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+          sources: fallbackSources
+        };
+      }
+    }
+
+    const reconstructPath = (targetIndex, parentsMap) => {
+      const path = [targetIndex];
+      let current = targetIndex;
+      const guardLimit = Math.max(baseValues.length * 4, 16);
+      let guard = 0;
+      while (current !== index && guard < guardLimit) {
+        current = parentsMap.get(current);
+        if (!Number.isInteger(current)) {
+          break;
+        }
+        path.push(current);
+        guard += 1;
+      }
+      if (path[path.length - 1] !== index) {
+        path.push(index);
+      }
+      return path.reverse();
+    };
+
+    const findNearestPricedPolygon = () => {
+      const visited = new Set([index]);
+      const parents = new Map();
+      const queue = [];
+
+      directNeighbors.forEach(neighbor => {
+        if (!Number.isInteger(neighbor) || visited.has(neighbor)) {
+          return;
+        }
+        visited.add(neighbor);
+        parents.set(neighbor, index);
+        queue.push({ node: neighbor, depth: 1 });
+      });
+
+      let best = null;
+
+      while (queue.length) {
+        const { node, depth } = queue.shift();
+        if (best && depth > best.depth) {
+          break;
+        }
+
+        const value = baseValues[node];
+        if (value?.hasPrice && value.price > 0) {
+          const path = reconstructPath(node, parents);
+          const distance = computePathDistance(path, dataset);
+          const normalizedDistance = Number.isFinite(distance) ? distance : Infinity;
+          if (!best || depth < best.depth || (depth === best.depth && normalizedDistance < best.distance)) {
+            best = {
+              sourceIndex: node,
+              path,
+              depth,
+              distance: normalizedDistance
+            };
+          }
+          continue;
+        }
+
+        if (best && depth >= best.depth) {
+          continue;
+        }
+
+        (adjacencyList[node] || []).forEach(nextIndex => {
+          if (!Number.isInteger(nextIndex) || visited.has(nextIndex)) {
+            return;
+          }
+          visited.add(nextIndex);
+          parents.set(nextIndex, node);
+          queue.push({ node: nextIndex, depth: depth + 1 });
+        });
+      }
+
+      return best;
+    };
+
+    const bestSource = findNearestPricedPolygon();
+    if (!bestSource) {
+      return null;
+    }
+
+    const metrics = buildPriceMetrics(baseValues[bestSource.sourceIndex]);
+    if (!metrics) {
+      return null;
+    }
+
+    return buildFallbackFromSource(bestSource.sourceIndex, bestSource.path, metrics);
+  }
+
+  function resolveVoronoiValues(baseValues, adjacencyList, dataset) {
     return baseValues.map((entry, index) => {
       if (!entry) return entry;
       if (entry.hasPrice && entry.price > 0) {
-        return entry;
+        return {
+          ...entry,
+          fallbackSources: Array.isArray(entry.fallbackSources) ? entry.fallbackSources.slice() : []
+        };
       }
 
-      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList);
+      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset);
       if (!fallback) {
-        return entry;
+        return {
+          ...entry,
+          fallbackSources: []
+        };
       }
+
+      const sourcePaths = Array.isArray(fallback.sources)
+        ? fallback.sources
+            .map(source => {
+              if (Array.isArray(source?.directPath) && source.directPath.length >= 2) {
+                return source.directPath.slice();
+              }
+              if (Array.isArray(source?.fullPath) && source.fullPath.length >= 2) {
+                const path = source.fullPath.slice();
+                if (path[0] !== index) {
+                  path.unshift(index);
+                }
+                return path;
+              }
+              const sourceIndex = Number.isInteger(source?.sourceIndex) ? source.sourceIndex : null;
+              if (!Number.isInteger(sourceIndex)) {
+                return null;
+              }
+              return [index, sourceIndex];
+            })
+            .filter(path => Array.isArray(path) && path.length >= 2)
+        : [];
 
       return {
         ...entry,
         price: fallback.price,
         pricePerSqm: fallback.pricePerSqm,
-        hasPrice: true
+        hasPrice: true,
+        fallbackSources: sourcePaths
       };
     });
   }
 
-  function aggregateVoronoiValues(values, index, neighborIndices) {
-    const aggregated = { price: 0, pricePerSqm: 0, count: 0 };
-    const uniqueIndices = new Set([index]);
-    (neighborIndices || []).forEach(i => {
-      if (Number.isInteger(i)) uniqueIndices.add(i);
-    });
-
-    uniqueIndices.forEach(i => {
-      const entry = values[i];
-      if (!entry) return;
-      aggregated.price += entry.price;
-      aggregated.pricePerSqm += entry.pricePerSqm;
-      aggregated.count += 1;
-    });
-
-    if (!aggregated.count) {
-      return { price: 0, pricePerSqm: 0 };
+  function aggregateVoronoiValues(values, index) {
+    const entry = values[index];
+    if (entry?.hasPrice && entry.price > 0) {
+      return {
+        price: entry.price,
+        pricePerSqm: entry.pricePerSqm
+      };
     }
-
-    return {
-      price: aggregated.price / aggregated.count,
-      pricePerSqm: aggregated.pricePerSqm / aggregated.count
-    };
+    return { price: 0, pricePerSqm: 0 };
   }
 
   function ensureVoronoiLabelOverlay() {
@@ -1572,11 +2375,35 @@ window.showConfirmModal = showConfirmModal;
     return rounded.toLocaleString('pl-PL');
   }
 
-  function buildVoronoiLabelContent(stats) {
+  function buildVoronoiLabelContent(stats, options = {}) {
+    const isFallback = options.fallback === true;
     const ppm2 = `${formatPriceValue(stats.pricePerSqm)} zł/m²`;
+    const priceValue = Number.isFinite(stats.price) && stats.price > 0
+      ? `${formatPriceValue(stats.price)} zł`
+      : null;
+
+    const parts = [];
+    if (isFallback) {
+      parts.push('<span class="voronoi-label__badge" aria-hidden="true">szac.</span>');
+    }
+    const stackParts = [`<span class="voronoi-label__value">${ppm2}</span>`];
+    if (priceValue) {
+      stackParts.push(`<span class="voronoi-label__price">${priceValue}</span>`);
+    }
+    parts.push(`<span class="voronoi-label__stack">${stackParts.join('')}</span>`);
+
+    const plainParts = [ppm2];
+    if (priceValue) {
+      plainParts.push(priceValue);
+    }
+    if (isFallback) {
+      plainParts.push('szac.');
+    }
+
     return {
-      html: `<span class="voronoi-label__value">${ppm2}</span>`,
-      plain: ppm2
+      html: parts.join(''),
+      plain: plainParts.join(' · '),
+      fallback: isFallback
     };
   }
 
@@ -1714,13 +2541,21 @@ window.showConfirmModal = showConfirmModal;
     return first || fallback || null;
   }
 
-  function createVoronoiLabelNode(htmlContent, fallbackText, position) {
+  function createVoronoiLabelNode(htmlContent, fallbackText, position, options = {}) {
     if (!position) return null;
+    const isFallback = options.fallback === true;
+    const density = typeof options.density === 'string' ? options.density : 'default';
     try {
       if (google?.maps?.marker?.AdvancedMarkerElement) {
         const wrapper = document.createElement('div');
         wrapper.className = 'voronoi-label';
         wrapper.innerHTML = htmlContent;
+        if (isFallback) {
+          wrapper.dataset.fallback = 'true';
+        }
+        if (density && density !== 'default') {
+          wrapper.dataset.density = density;
+        }
         return new google.maps.marker.AdvancedMarkerElement({
           position,
           map: voronoiLayerState.enabled ? map : null,
@@ -1746,13 +2581,26 @@ window.showConfirmModal = showConfirmModal;
     });
   }
 
-  function clearVoronoiLayer() {
+  function clearVoronoiLayer(options = {}) {
+    const {
+      resetHighlight = true,
+      preserveResolvedData = false
+    } = options || {};
+    clearVoronoiHighlights({ resetSelection: resetHighlight });
+
     voronoiLayerState.polygons.forEach(poly => {
       if (poly && typeof poly.setMap === 'function') {
         poly.setMap(null);
       }
     });
     voronoiLayerState.polygons = [];
+
+    voronoiLayerState.connectors.forEach(connector => {
+      if (connector && typeof connector.setMap === 'function') {
+        connector.setMap(null);
+      }
+    });
+    voronoiLayerState.connectors = [];
 
     voronoiLayerState.labels.forEach(label => {
       if (!label) return;
@@ -1765,6 +2613,12 @@ window.showConfirmModal = showConfirmModal;
     voronoiLayerState.labels = [];
     voronoiLayerState.labelLayout.boxes = [];
     voronoiLayerState.labelLayout.projectionPending = false;
+    if (!preserveResolvedData) {
+      voronoiLayerState.connectorIndexMap = new Map();
+      voronoiLayerState.resolvedValues = [];
+      voronoiLayerState.datasetSnapshot = [];
+      voronoiLayerState.cells = [];
+    }
   }
 
   function getVoronoiSourceOffers() {
@@ -1778,6 +2632,16 @@ window.showConfirmModal = showConfirmModal;
     return allOffers.slice();
   }
 
+  function getFrozenVoronoiOffers() {
+    const cached = voronoiLayerState.cachedDataset;
+    if (!cached || !Array.isArray(cached.dataset)) {
+      return [];
+    }
+    return cached.dataset
+      .map(entry => entry?.offer)
+      .filter(Boolean);
+  }
+
   function rebuildVoronoiLayer() {
     if (!voronoiLayerState.enabled || !map) return;
     if (!window.d3 || !window.d3.Delaunay) {
@@ -1785,90 +2649,272 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
 
-    const offers = getVoronoiSourceOffers();
-    const dataset = offers
-      .map(offer => {
-        const source = offer?.voronoiPoint || null;
-        let lat = Number(source?.lat);
-        let lng = Number(source?.lng);
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          lat = Number(offer?.plot?.lat);
-          lng = Number(offer?.plot?.lng);
-        }
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-        return { offer, position: { lat, lng } };
-      })
-      .filter(Boolean);
-
-    clearVoronoiLayer();
-
-    if (!dataset.length) return;
-
-    const bounds = map.getBounds();
-    if (!bounds) return;
-
-    const sw = bounds.getSouthWest();
-    const ne = bounds.getNorthEast();
-    const extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
-
-    let delaunay;
-    try {
-      const points = dataset.map(({ position }) => [position.lng, position.lat]);
-      delaunay = window.d3.Delaunay.from(points);
-    } catch (error) {
-      console.warn('Nie udało się zbudować diagramu Voronoi.', error);
+    if (shouldHideVoronoiLayer()) {
+      clearVoronoiLayer({ resetHighlight: false, preserveResolvedData: true });
       return;
     }
 
-    const voronoi = delaunay.voronoi(extent);
-    const adjacencyList = dataset.map((_, index) => {
-      const iterator = delaunay.neighbors(index);
-      if (!iterator) return [];
-      const neighbors = [];
-      for (const neighbor of iterator) {
-        if (Number.isInteger(neighbor)) {
-          neighbors.push(neighbor);
+    const freezeActive = shouldFreezeVoronoiLayout();
+    const hasFrozenCache = freezeActive
+      && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
+      && voronoiLayerState.cachedDataset.dataset.length;
+
+    let usingFrozenCache = false;
+    let usedFullFilteredOffers = false;
+
+    let offers;
+    if (hasFrozenCache) {
+      offers = getFrozenVoronoiOffers();
+      usingFrozenCache = true;
+    } else if (freezeActive) {
+      offers = getVoronoiSourceOffers();
+      if (!offers.length) {
+        offers = getOffersMatchingFilters();
+        if (offers.length) {
+          usedFullFilteredOffers = true;
         }
       }
-      return neighbors;
-    });
-    const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
-    const resolvedValues = resolveVoronoiValues(baseValues, adjacencyList);
+    } else {
+      offers = getVoronoiSourceOffers();
+    }
 
+    const sourceSignature = usingFrozenCache && voronoiLayerState.cacheSignature
+      ? voronoiLayerState.cacheSignature
+      : offers.map(offer => (offer?.key || offer?.id || '')).join('|');
+    const cached = usingFrozenCache
+      ? voronoiLayerState.cachedDataset
+      : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
+        ? voronoiLayerState.cachedDataset
+        : null;
+
+    let dataset = [];
+    let adjacencyList = [];
+    let resolvedValues = [];
+    let extent = null;
+    let delaunay;
+    let voronoi;
+    let shouldUpdateCache = false;
+
+    if (cached && Array.isArray(cached.dataset) && cached.dataset.length) {
+      dataset = cached.dataset;
+      adjacencyList = Array.isArray(cached.adjacencyList) ? cached.adjacencyList : [];
+      resolvedValues = Array.isArray(cached.resolvedValues) ? cached.resolvedValues : [];
+      extent = Array.isArray(cached.extent) ? cached.extent.slice() : null;
+      if (!Array.isArray(extent) || extent.length !== 4) {
+        const bounds = map.getBounds();
+        if (bounds) {
+          const sw = bounds.getSouthWest();
+          const ne = bounds.getNorthEast();
+          extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+        }
+      }
+      try {
+        const points = dataset.map(({ position }) => [position.lng, position.lat]);
+        delaunay = window.d3.Delaunay.from(points);
+        voronoi = delaunay.voronoi(extent);
+      } catch (error) {
+        console.warn('Nie udało się zbudować zamrożonego diagramu Voronoi.', error);
+        return;
+      }
+    } else {
+      dataset = offers
+        .map(offer => {
+          const source = offer?.voronoiPoint || null;
+          let lat = Number(source?.lat);
+          let lng = Number(source?.lng);
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            lat = Number(offer?.plot?.lat);
+            lng = Number(offer?.plot?.lng);
+          }
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+          return { offer, position: { lat, lng } };
+        })
+        .filter(Boolean);
+
+      if (!dataset.length) {
+        clearVoronoiLayer();
+        voronoiLayerState.cachedDataset = null;
+        voronoiLayerState.cacheSignature = null;
+        return;
+      }
+
+      const bounds = map.getBounds();
+      if (!bounds) return;
+
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+
+      try {
+        const points = dataset.map(({ position }) => [position.lng, position.lat]);
+        delaunay = window.d3.Delaunay.from(points);
+      } catch (error) {
+        console.warn('Nie udało się zbudować diagramu Voronoi.', error);
+        return;
+      }
+
+      try {
+        voronoi = delaunay.voronoi(extent);
+      } catch (error) {
+        console.warn('Nie udało się utworzyć diagramu Voronoi dla bieżącego widoku.', error);
+        return;
+      }
+      adjacencyList = dataset.map((_, index) => {
+        const iterator = delaunay.neighbors(index);
+        if (!iterator) return [];
+        const neighbors = [];
+        for (const neighbor of iterator) {
+          if (Number.isInteger(neighbor)) {
+            neighbors.push(neighbor);
+          }
+        }
+        return neighbors;
+      });
+      const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
+      resolvedValues = resolveVoronoiValues(baseValues, adjacencyList, dataset);
+      shouldUpdateCache = true;
+    }
+
+    const allowCacheRefresh = !freezeActive || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
+    if (shouldUpdateCache && allowCacheRefresh) {
+      voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
+      voronoiLayerState.cacheSignature = sourceSignature;
+    }
+
+    const preservedSelectionKey = voronoiLayerState.highlight.selectedOfferKey;
+    const preservedIndexHint = voronoiLayerState.highlight.selectedIndexHint;
+    clearVoronoiLayer({ resetHighlight: false });
     resetVoronoiLabelLayout();
 
-    dataset.forEach(({ position }, index) => {
+    const shouldRenderLabels = shouldRenderVoronoiLabelsForDatasetSize(dataset.length);
+    const labelDensity = determineVoronoiLabelDensity(dataset.length);
+    const cells = dataset.map(({ position }, index) => {
+      if (!voronoi) return null;
       const polygonCoords = voronoi.cellPolygon(index);
-      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return;
-
+      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return null;
       const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
-      const neighborIndices = adjacencyList[index] || [];
-      const stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
-      const content = buildVoronoiLabelContent(stats);
+      const centroid = calculatePolygonCentroid(path) || position;
+      return { path, centroid, position };
+    });
+
+    voronoiLayerState.resolvedValues = resolvedValues;
+    voronoiLayerState.datasetSnapshot = dataset;
+    voronoiLayerState.cells = cells;
+    voronoiLayerState.connectorIndexMap = new Map();
+
+    cells.forEach((cell, index) => {
+      if (!cell) return;
+      let stats = aggregateVoronoiValues(resolvedValues, index);
+      const resolvedEntry = resolvedValues[index];
+      const resolvedPricePerSqm = Number(resolvedEntry?.pricePerSqm);
+      const resolvedPriceValue = Number(resolvedEntry?.price);
+      const hasFallbackSources = Array.isArray(resolvedEntry?.fallbackSources) && resolvedEntry.fallbackSources.length > 0;
+
+      if (
+        (!stats || stats.pricePerSqm <= 0 || stats.price <= 0)
+        && resolvedEntry
+        && ((Number.isFinite(resolvedPricePerSqm) && resolvedPricePerSqm > 0) || (Number.isFinite(resolvedPriceValue) && resolvedPriceValue > 0))
+      ) {
+        stats = {
+          price: Number.isFinite(resolvedPriceValue) && resolvedPriceValue > 0 ? resolvedPriceValue : 0,
+          pricePerSqm: Number.isFinite(resolvedPricePerSqm) && resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0
+        };
+      }
+
+      if (!stats) {
+        stats = { price: 0, pricePerSqm: 0 };
+      }
+      const fallbackSources = Array.isArray(resolvedEntry?.fallbackSources)
+        ? resolvedEntry.fallbackSources
+        : [];
+      const isFallback = hasFallbackSources;
+      const content = buildVoronoiLabelContent(stats, { fallback: isFallback });
 
       const polygon = new google.maps.Polygon({
-        paths: path,
+        paths: cell.path,
         map: voronoiLayerState.enabled ? map : null,
-        strokeColor: '#D1D5DB',
-        strokeOpacity: 0.8,
-        strokeWeight: 1.2,
-        fillColor: '#FFFFFF',
-        fillOpacity: 0.28,
-        clickable: false,
+        ...getVoronoiPolygonStyle('default'),
+        clickable: true,
         zIndex: 40
+      });
+      polygon.__voronoiIndex = index;
+      polygon.addListener('click', () => {
+        if (!voronoiLayerState.enabled) return;
+        voronoiLayerState.highlight.ignoreNextMapClear = true;
+        highlightVoronoiPolygon(index);
+        window.setTimeout(() => {
+          voronoiLayerState.highlight.ignoreNextMapClear = false;
+        }, 0);
       });
       voronoiLayerState.polygons.push(polygon);
 
-      const centroid = calculatePolygonCentroid(path) || position;
-      const labelPosition = findNonOverlappingLabelPosition(centroid || position);
-      const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
-      if (label) {
-        voronoiLayerState.labels.push(label);
+      if (!voronoiLayerState.connectorIndexMap.has(index)) {
+        voronoiLayerState.connectorIndexMap.set(index, []);
       }
+
+      if (shouldRenderLabels) {
+        const labelPosition = findNonOverlappingLabelPosition(cell.centroid || cell.position);
+        const label = createVoronoiLabelNode(content.html, content.plain, labelPosition, {
+          fallback: isFallback,
+          density: labelDensity
+        });
+        if (label) {
+          voronoiLayerState.labels.push(label);
+        }
+      }
+
+      fallbackSources.forEach(pathIndices => {
+        const connectorPath = Array.isArray(pathIndices)
+          ? pathIndices
+              .map(i => {
+                const targetCell = cells[i];
+                if (targetCell?.centroid) return targetCell.centroid;
+                const targetDataset = dataset[i];
+                return targetDataset?.position || null;
+              })
+              .filter(Boolean)
+          : [];
+        if (connectorPath.length < 2) return;
+
+        const connector = new google.maps.Polyline({
+          path: connectorPath,
+          map: voronoiLayerState.enabled ? map : null,
+          clickable: false,
+          ...buildVoronoiConnectorStyle('default')
+        });
+        connector.__voronoiBaseIndex = index;
+        connector.__voronoiSourceIndex = pathIndices[pathIndices.length - 1];
+        voronoiLayerState.connectors.push(connector);
+        const connectorsForBase = voronoiLayerState.connectorIndexMap.get(index) || [];
+        connectorsForBase.push(connector);
+        voronoiLayerState.connectorIndexMap.set(index, connectorsForBase);
+      });
     });
+
+    if (preservedSelectionKey || Number.isInteger(preservedIndexHint)) {
+      let rehighlightIndex = -1;
+      if (preservedSelectionKey) {
+        rehighlightIndex = voronoiLayerState.datasetSnapshot.findIndex(entry => {
+          const entryKey = getVoronoiDatasetOfferKey(entry);
+          return entryKey && entryKey === preservedSelectionKey;
+        });
+      }
+      if (rehighlightIndex < 0 && Number.isInteger(preservedIndexHint)) {
+        if (preservedIndexHint >= 0 && preservedIndexHint < voronoiLayerState.datasetSnapshot.length) {
+          rehighlightIndex = preservedIndexHint;
+        }
+      }
+      if (rehighlightIndex >= 0) {
+        highlightVoronoiPolygon(rehighlightIndex);
+      } else {
+        voronoiLayerState.highlight.selectedOfferKey = null;
+        voronoiLayerState.highlight.selectedIndexHint = null;
+        hideVoronoiTagInspector();
+      }
+    }
   }
 
   function updateVoronoiLayer(forceRebuild = false) {
@@ -2321,6 +3367,13 @@ window.showConfirmModal = showConfirmModal;
       keepMapFlat();
       updatePolygonVisibility();
     });
+    google.maps.event.addListener(map, "click", () => {
+      if (voronoiLayerState.highlight.ignoreNextMapClear) {
+        voronoiLayerState.highlight.ignoreNextMapClear = false;
+        return;
+      }
+      clearVoronoiHighlights({ resetSelection: true });
+    });
     await loadOffers();
     focusOfferFromMapState();
 
@@ -2373,7 +3426,17 @@ window.showConfirmModal = showConfirmModal;
     if (!sortedOffers.length) {
       listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
       if (voronoiLayerState.enabled) {
-        clearVoronoiLayer();
+        const freezeActive = shouldFreezeVoronoiLayout();
+        const hasFrozenCache = freezeActive && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
+          && voronoiLayerState.cachedDataset.dataset.length;
+
+        if (hasFrozenCache) {
+          updateVoronoiLayer(true);
+        } else {
+          clearVoronoiLayer();
+          voronoiLayerState.cachedDataset = null;
+          voronoiLayerState.cacheSignature = null;
+        }
       }
       return;
     }
