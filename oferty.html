@@ -474,7 +474,14 @@ window.showConfirmModal = showConfirmModal;
     height: 34
   };
 
-  const VORONOI_FREEZE_ZOOM_LEVEL = 17;
+  const VORONOI_FREEZE_ZOOM_LEVEL = 16;
+  const VORONOI_LABEL_BASE_MIN_ZOOM = 10;
+  const VORONOI_LABEL_VISIBILITY_RULES = [
+    { minCount: 220, minZoom: 14 },
+    { minCount: 160, minZoom: 13 },
+    { minCount: 110, minZoom: 12 },
+    { minCount: 70, minZoom: 11 }
+  ];
 
   function getMapZoomLevel() {
     if (!map || typeof map.getZoom !== 'function') return null;
@@ -513,6 +520,28 @@ window.showConfirmModal = showConfirmModal;
         : [],
       extent: Array.isArray(extent) ? extent.slice() : null
     };
+  }
+
+  function shouldRenderVoronoiLabelsForDatasetSize(count) {
+    if (!Number.isFinite(count) || count <= 0) {
+      return false;
+    }
+    if (count <= 20) {
+      return true;
+    }
+    const zoom = getMapZoomLevel();
+    if (!Number.isFinite(zoom)) {
+      return false;
+    }
+    if (zoom < VORONOI_LABEL_BASE_MIN_ZOOM) {
+      return false;
+    }
+    for (const rule of VORONOI_LABEL_VISIBILITY_RULES) {
+      if (count >= rule.minCount && zoom < rule.minZoom) {
+        return false;
+      }
+    }
+    return true;
   }
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
@@ -1893,16 +1922,32 @@ window.showConfirmModal = showConfirmModal;
     }
 
     const freezeActive = shouldFreezeVoronoiLayout();
-    const canUseFrozenCache = freezeActive
-      && voronoiLayerState.cacheSignature
+    const hasFrozenCache = freezeActive
       && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
       && voronoiLayerState.cachedDataset.dataset.length;
 
-    const offers = (canUseFrozenCache ? getFrozenVoronoiOffers() : getVoronoiSourceOffers());
-    const sourceSignature = canUseFrozenCache && voronoiLayerState.cacheSignature
+    let usingFrozenCache = false;
+    let usedFullFilteredOffers = false;
+
+    let offers;
+    if (hasFrozenCache) {
+      offers = getFrozenVoronoiOffers();
+      usingFrozenCache = true;
+    } else if (freezeActive) {
+      offers = getOffersMatchingFilters();
+      if (offers.length) {
+        usedFullFilteredOffers = true;
+      } else {
+        offers = getVoronoiSourceOffers();
+      }
+    } else {
+      offers = getVoronoiSourceOffers();
+    }
+
+    const sourceSignature = usingFrozenCache && voronoiLayerState.cacheSignature
       ? voronoiLayerState.cacheSignature
       : offers.map(offer => (offer?.key || offer?.id || '')).join('|');
-    const cached = canUseFrozenCache
+    const cached = usingFrozenCache
       ? voronoiLayerState.cachedDataset
       : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
         ? voronoiLayerState.cachedDataset
@@ -1999,7 +2044,8 @@ window.showConfirmModal = showConfirmModal;
       shouldUpdateCache = true;
     }
 
-    if (shouldUpdateCache || !freezeActive) {
+    const allowCacheRefresh = !freezeActive || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
+    if (shouldUpdateCache && allowCacheRefresh) {
       voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
       voronoiLayerState.cacheSignature = sourceSignature;
     }
@@ -2007,6 +2053,7 @@ window.showConfirmModal = showConfirmModal;
     clearVoronoiLayer();
     resetVoronoiLabelLayout();
 
+    const shouldRenderLabels = shouldRenderVoronoiLabelsForDatasetSize(dataset.length);
     const cells = dataset.map(({ position }, index) => {
       if (!voronoi) return null;
       const polygonCoords = voronoi.cellPolygon(index);
@@ -2035,10 +2082,12 @@ window.showConfirmModal = showConfirmModal;
       });
       voronoiLayerState.polygons.push(polygon);
 
-      const labelPosition = findNonOverlappingLabelPosition(cell.centroid || cell.position);
-      const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
-      if (label) {
-        voronoiLayerState.labels.push(label);
+      if (shouldRenderLabels) {
+        const labelPosition = findNonOverlappingLabelPosition(cell.centroid || cell.position);
+        const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
+        if (label) {
+          voronoiLayerState.labels.push(label);
+        }
       }
 
       const fallbackSources = Array.isArray(resolvedValues[index]?.fallbackSources)
