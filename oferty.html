@@ -225,7 +225,23 @@ window.showConfirmModal = showConfirmModal;
       <div id="map-controls">
         <div class="voronoi-toggle-control">
           <input type="checkbox" id="toggleVoronoiLayer" />
-          <label for="toggleVoronoiLayer">Wycena nieruchomości</label>
+          <label for="toggleVoronoiLayer">Wycena nieruchomości (beta)</label>
+        </div>
+        <div
+          class="voronoi-inspector"
+          id="voronoiInspector"
+          aria-hidden="true"
+          hidden
+        >
+          <div class="voronoi-inspector__title">Tagi i wagi</div>
+          <p
+            class="voronoi-inspector__empty"
+            id="voronoiInspectorEmpty"
+            data-default-message="Kliknij poligon, aby zobaczyć tagi i ich wagi."
+          >
+            Kliknij poligon, aby zobaczyć tagi i ich wagi.
+          </p>
+          <ul class="voronoi-inspector__list" id="voronoiInspectorList"></ul>
         </div>
       </div>
     </div>
@@ -555,6 +571,100 @@ window.showConfirmModal = showConfirmModal;
     return rawKey != null ? String(rawKey) : null;
   }
 
+  function getVoronoiInspectorElements() {
+    const container = document.getElementById('voronoiInspector');
+    const list = document.getElementById('voronoiInspectorList');
+    const emptyState = document.getElementById('voronoiInspectorEmpty');
+    if (!container || !list || !emptyState) {
+      return null;
+    }
+    return { container, list, emptyState };
+  }
+
+  function hideVoronoiTagInspector() {
+    const elements = getVoronoiInspectorElements();
+    if (!elements) return;
+    const { container, list, emptyState } = elements;
+    list.innerHTML = '';
+    const defaultMessage = emptyState.dataset.defaultMessage || emptyState.textContent || '';
+    emptyState.textContent = defaultMessage;
+    emptyState.hidden = false;
+    container.setAttribute('hidden', 'true');
+    container.setAttribute('aria-hidden', 'true');
+  }
+
+  function updateVoronoiTagInspector(index) {
+    const elements = getVoronoiInspectorElements();
+    if (!elements) return;
+    const { container, list, emptyState } = elements;
+
+    if (!Number.isInteger(index) || index < 0) {
+      hideVoronoiTagInspector();
+      return;
+    }
+
+    const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
+      ? voronoiLayerState.datasetSnapshot[index]
+      : null;
+    const offerTags = Array.isArray(datasetEntry?.offer?.tags)
+      ? datasetEntry.offer.tags.filter(tag => typeof tag === 'string' && tag.trim().length)
+      : [];
+
+    container.removeAttribute('hidden');
+    container.setAttribute('aria-hidden', 'false');
+    list.innerHTML = '';
+
+    if (!offerTags.length) {
+      emptyState.textContent = 'Brak tagów dla tej działki.';
+      emptyState.hidden = false;
+      return;
+    }
+
+    emptyState.hidden = true;
+
+    const uniqueTags = Array.from(new Set(offerTags));
+    uniqueTags.sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
+
+    const weightMap = voronoiLayerState.tagWeights instanceof Map
+      ? voronoiLayerState.tagWeights
+      : new Map();
+    const maxValue = Math.max(Number(voronoiLayerState.maxTagValue) || 1, 1);
+
+    uniqueTags.forEach(tag => {
+      const weight = Number(weightMap.get(tag)) || 1;
+      const rawPercent = Math.round((weight / maxValue) * 100);
+      const normalized = Math.max(6, Math.min(100, rawPercent));
+
+      const item = document.createElement('li');
+      item.className = 'voronoi-inspector__item';
+
+      const header = document.createElement('div');
+      header.className = 'voronoi-inspector__item-header';
+
+      const tagLabel = document.createElement('span');
+      tagLabel.className = 'voronoi-inspector__tag';
+      tagLabel.textContent = formatTagLabel(tag);
+
+      const value = document.createElement('span');
+      value.className = 'voronoi-inspector__value';
+      value.textContent = `${weight}/${maxValue} (${rawPercent}%)`;
+
+      const meter = document.createElement('div');
+      meter.className = 'voronoi-inspector__meter';
+
+      const meterFill = document.createElement('span');
+      meterFill.className = 'voronoi-inspector__meter-fill';
+      meterFill.style.width = `${normalized}%`;
+
+      header.appendChild(tagLabel);
+      header.appendChild(value);
+      meter.appendChild(meterFill);
+      item.appendChild(header);
+      item.appendChild(meter);
+      list.appendChild(item);
+    });
+  }
+
   function clearVoronoiHighlights(options = {}) {
     const { resetSelection = true } = options || {};
     const highlight = voronoiLayerState.highlight;
@@ -571,6 +681,7 @@ window.showConfirmModal = showConfirmModal;
       highlight.selectedOfferKey = null;
       highlight.selectedIndexHint = null;
       highlight.ignoreNextMapClear = false;
+      hideVoronoiTagInspector();
     }
   }
 
@@ -629,6 +740,8 @@ window.showConfirmModal = showConfirmModal;
         highlight.connectors.add(connector);
       });
     }
+
+    updateVoronoiTagInspector(index);
   }
 
   const VORONOI_FREEZE_ZOOM_LEVEL = 14;
@@ -1679,26 +1792,38 @@ window.showConfirmModal = showConfirmModal;
       .map(neighbor => ({ index: neighbor, metrics: buildPriceMetrics(baseValues[neighbor]) }))
       .filter(entry => !!entry.metrics);
 
-    if (pricedNeighbors.length) {
-      const validPerSqm = pricedNeighbors
-        .map(entry => entry.metrics.pricePerSqm)
-        .filter(value => Number.isFinite(value) && value > 0);
-      const avgPerSqm = validPerSqm.length
-        ? validPerSqm.reduce((sum, value) => sum + value, 0) / validPerSqm.length
-        : 0;
+    const buildFallbackFromSource = (sourceIndex, path, metrics) => {
+      if (!Number.isInteger(sourceIndex) || !metrics) {
+        return null;
+      }
 
-      const validPrices = pricedNeighbors
-        .map(entry => entry.metrics.price)
-        .filter(value => Number.isFinite(value) && value > 0);
+      const normalizedPath = Array.isArray(path) && path.length >= 2
+        ? path.slice()
+        : [index, sourceIndex];
+      if (normalizedPath[0] !== index) {
+        normalizedPath.unshift(index);
+      }
+      if (normalizedPath[normalizedPath.length - 1] !== sourceIndex) {
+        normalizedPath.push(sourceIndex);
+      }
+
+      const sourceArea = Number(baseValues[sourceIndex]?.area);
+      const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
+        ? baseArea
+        : (Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0);
+
+      let resolvedPricePerSqm = metrics.pricePerSqm > 0 ? metrics.pricePerSqm : 0;
+      if (!(resolvedPricePerSqm > 0) && metrics.price > 0 && fallbackArea > 0) {
+        resolvedPricePerSqm = metrics.price / fallbackArea;
+      }
+
       let resolvedPrice = 0;
-      let resolvedPricePerSqm = avgPerSqm > 0 ? avgPerSqm : 0;
-
       if (resolvedPricePerSqm > 0 && Number.isFinite(baseArea) && baseArea > 0) {
         resolvedPrice = resolvedPricePerSqm * baseArea;
-      } else if (validPrices.length) {
-        resolvedPrice = validPrices.reduce((sum, value) => sum + value, 0) / validPrices.length;
-        if (!(resolvedPricePerSqm > 0) && Number.isFinite(baseArea) && baseArea > 0) {
-          resolvedPricePerSqm = resolvedPrice / baseArea;
+      } else if (metrics.price > 0) {
+        resolvedPrice = metrics.price;
+        if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
+          resolvedPricePerSqm = metrics.price / fallbackArea;
         }
       }
 
@@ -1706,16 +1831,39 @@ window.showConfirmModal = showConfirmModal;
         return null;
       }
 
-      const sources = pricedNeighbors.map(entry => ({
-        sourceIndex: entry.index,
-        directPath: [index, entry.index]
-      }));
-
       return {
         price: resolvedPrice > 0 ? resolvedPrice : 0,
         pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-        sources
+        sources: [{
+          sourceIndex,
+          directPath: [index, sourceIndex],
+          fullPath: normalizedPath
+        }]
       };
+    };
+
+    if (pricedNeighbors.length) {
+      let bestDirect = null;
+      pricedNeighbors.forEach(entry => {
+        const path = [index, entry.index];
+        const distance = computePathDistance(path, dataset);
+        const normalizedDistance = Number.isFinite(distance) ? distance : Infinity;
+        if (!bestDirect || normalizedDistance < bestDirect.distance) {
+          bestDirect = {
+            sourceIndex: entry.index,
+            metrics: entry.metrics,
+            path,
+            distance: normalizedDistance
+          };
+        }
+      });
+
+      if (bestDirect) {
+        const fallback = buildFallbackFromSource(bestDirect.sourceIndex, bestDirect.path, bestDirect.metrics);
+        if (fallback) {
+          return fallback;
+        }
+      }
     }
 
     const reconstructPath = (targetIndex, parentsMap) => {
@@ -1802,49 +1950,7 @@ window.showConfirmModal = showConfirmModal;
       return null;
     }
 
-    const path = Array.isArray(bestSource.path) && bestSource.path.length
-      ? bestSource.path.slice()
-      : [index, bestSource.sourceIndex];
-    if (path[0] !== index) {
-      path.unshift(index);
-    }
-    if (path[path.length - 1] !== bestSource.sourceIndex) {
-      path.push(bestSource.sourceIndex);
-    }
-
-    const sourceArea = Number(baseValues[bestSource.sourceIndex]?.area);
-    const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
-      ? baseArea
-      : (Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0);
-
-    let resolvedPricePerSqm = metrics.pricePerSqm > 0 ? metrics.pricePerSqm : 0;
-    if (!(resolvedPricePerSqm > 0) && metrics.price > 0 && fallbackArea > 0) {
-      resolvedPricePerSqm = metrics.price / fallbackArea;
-    }
-
-    let resolvedPrice = 0;
-    if (resolvedPricePerSqm > 0 && Number.isFinite(baseArea) && baseArea > 0) {
-      resolvedPrice = resolvedPricePerSqm * baseArea;
-    } else if (metrics.price > 0) {
-      resolvedPrice = metrics.price;
-      if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
-        resolvedPricePerSqm = metrics.price / fallbackArea;
-      }
-    }
-
-    if (!(resolvedPrice > 0) && !(resolvedPricePerSqm > 0)) {
-      return null;
-    }
-
-    return {
-      price: resolvedPrice > 0 ? resolvedPrice : 0,
-      pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-      sources: [{
-        sourceIndex: bestSource.sourceIndex,
-        directPath: [index, bestSource.sourceIndex],
-        fullPath: path
-      }]
-    };
+    return buildFallbackFromSource(bestSource.sourceIndex, bestSource.path, metrics);
   }
 
   function resolveVoronoiValues(baseValues, adjacencyList, dataset) {
@@ -2336,11 +2442,12 @@ window.showConfirmModal = showConfirmModal;
       offers = getFrozenVoronoiOffers();
       usingFrozenCache = true;
     } else if (freezeActive) {
-      offers = getOffersMatchingFilters();
-      if (offers.length) {
-        usedFullFilteredOffers = true;
-      } else {
-        offers = getVoronoiSourceOffers();
+      offers = getVoronoiSourceOffers();
+      if (!offers.length) {
+        offers = getOffersMatchingFilters();
+        if (offers.length) {
+          usedFullFilteredOffers = true;
+        }
       }
     } else {
       offers = getVoronoiSourceOffers();
@@ -2580,6 +2687,7 @@ window.showConfirmModal = showConfirmModal;
       } else {
         voronoiLayerState.highlight.selectedOfferKey = null;
         voronoiLayerState.highlight.selectedIndexHint = null;
+        hideVoronoiTagInspector();
       }
     }
   }
