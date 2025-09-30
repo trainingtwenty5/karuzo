@@ -456,6 +456,7 @@ window.showConfirmModal = showConfirmModal;
   const voronoiLayerState = {
     enabled: false,
     polygons: [],
+    connectors: [],
     labels: [],
     tagWeights: new Map(),
     maxTagValue: 1,
@@ -463,13 +464,56 @@ window.showConfirmModal = showConfirmModal;
       overlay: null,
       boxes: [],
       projectionPending: false
-    }
+    },
+    cachedDataset: null,
+    cacheSignature: null
   };
 
   const VORONOI_LABEL_SIZE = {
     width: 132,
     height: 34
   };
+
+  const VORONOI_FREEZE_ZOOM_LEVEL = 17;
+
+  function getMapZoomLevel() {
+    if (!map || typeof map.getZoom !== 'function') return null;
+    const zoom = map.getZoom();
+    return typeof zoom === 'number' ? zoom : null;
+  }
+
+  function shouldFreezeVoronoiLayout() {
+    const zoom = getMapZoomLevel();
+    return Number.isFinite(zoom) && zoom >= VORONOI_FREEZE_ZOOM_LEVEL;
+  }
+
+  function cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent) {
+    return {
+      dataset: Array.isArray(dataset)
+        ? dataset.map(entry => ({
+            offer: entry.offer,
+            position: entry?.position
+              ? { lat: entry.position.lat, lng: entry.position.lng }
+              : null
+          }))
+        : [],
+      adjacencyList: Array.isArray(adjacencyList)
+        ? adjacencyList.map(neighbors => Array.isArray(neighbors) ? neighbors.slice() : [])
+        : [],
+      resolvedValues: Array.isArray(resolvedValues)
+        ? resolvedValues.map(value => {
+            if (!value) return value;
+            return {
+              ...value,
+              fallbackSources: Array.isArray(value.fallbackSources)
+                ? value.fallbackSources.map(path => Array.isArray(path) ? path.slice() : [])
+                : []
+            };
+          })
+        : [],
+      extent: Array.isArray(extent) ? extent.slice() : null
+    };
+  }
 
   const MAP_STATE_STORAGE_KEY = 'grunteo::offers::mapState';
   const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
@@ -961,6 +1005,8 @@ window.showConfirmModal = showConfirmModal;
     availableTags = [];
     tagMetrics = new Map();
     currentVisibleOffers = [];
+    voronoiLayerState.cachedDataset = null;
+    voronoiLayerState.cacheSignature = null;
 
     if (!Array.isArray(documents)) {
       renderTagFilters();
@@ -1349,9 +1395,17 @@ window.showConfirmModal = showConfirmModal;
 
   function computeFallbackFromNeighbors(index, baseValues, adjacencyList) {
     const visited = new Set([index]);
+    const parents = new Map();
     let frontier = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
 
+    frontier.forEach(neighborIndex => {
+      if (Number.isInteger(neighborIndex)) {
+        parents.set(neighborIndex, index);
+      }
+    });
+
     while (frontier.length) {
+      const pricedIndices = [];
       const pricedValues = [];
       const nextSet = new Set();
 
@@ -1361,11 +1415,15 @@ window.showConfirmModal = showConfirmModal;
 
         const value = baseValues[neighborIndex];
         if (value?.hasPrice && value.price > 0) {
+          pricedIndices.push(neighborIndex);
           pricedValues.push(value);
         }
 
         (adjacencyList[neighborIndex] || []).forEach(nextIndex => {
           if (!visited.has(nextIndex) && Number.isInteger(nextIndex)) {
+            if (!parents.has(nextIndex)) {
+              parents.set(nextIndex, neighborIndex);
+            }
             nextSet.add(nextIndex);
           }
         });
@@ -1374,9 +1432,32 @@ window.showConfirmModal = showConfirmModal;
       if (pricedValues.length) {
         const priceSum = pricedValues.reduce((sum, value) => sum + value.price, 0);
         const ppm2Sum = pricedValues.reduce((sum, value) => sum + value.pricePerSqm, 0);
+        const paths = pricedIndices.map(targetIndex => {
+          const path = [];
+          let current = targetIndex;
+          let guard = 0;
+          const guardLimit = Math.max(baseValues.length * 4, 16);
+          while (Number.isInteger(current) && guard < guardLimit) {
+            path.push(current);
+            if (current === index) {
+              break;
+            }
+            current = parents.get(current);
+            guard += 1;
+            if (!Number.isInteger(current)) {
+              break;
+            }
+          }
+          if (path[path.length - 1] !== index) {
+            path.push(index);
+          }
+          return path.reverse();
+        });
+
         return {
           price: priceSum / pricedValues.length,
-          pricePerSqm: ppm2Sum / pricedValues.length
+          pricePerSqm: ppm2Sum / pricedValues.length,
+          paths
         };
       }
 
@@ -1390,19 +1471,28 @@ window.showConfirmModal = showConfirmModal;
     return baseValues.map((entry, index) => {
       if (!entry) return entry;
       if (entry.hasPrice && entry.price > 0) {
-        return entry;
+        return {
+          ...entry,
+          fallbackSources: Array.isArray(entry.fallbackSources) ? entry.fallbackSources.slice() : []
+        };
       }
 
       const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList);
       if (!fallback) {
-        return entry;
+        return {
+          ...entry,
+          fallbackSources: []
+        };
       }
 
       return {
         ...entry,
         price: fallback.price,
         pricePerSqm: fallback.pricePerSqm,
-        hasPrice: true
+        hasPrice: true,
+        fallbackSources: Array.isArray(fallback.paths)
+          ? fallback.paths.filter(path => Array.isArray(path) && path.length >= 2)
+          : []
       };
     });
   }
@@ -1754,6 +1844,13 @@ window.showConfirmModal = showConfirmModal;
     });
     voronoiLayerState.polygons = [];
 
+    voronoiLayerState.connectors.forEach(connector => {
+      if (connector && typeof connector.setMap === 'function') {
+        connector.setMap(null);
+      }
+    });
+    voronoiLayerState.connectors = [];
+
     voronoiLayerState.labels.forEach(label => {
       if (!label) return;
       if (typeof label.setMap === 'function') {
@@ -1785,72 +1882,130 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
 
+    const freezeActive = shouldFreezeVoronoiLayout();
     const offers = getVoronoiSourceOffers();
-    const dataset = offers
-      .map(offer => {
-        const source = offer?.voronoiPoint || null;
-        let lat = Number(source?.lat);
-        let lng = Number(source?.lng);
+    const sourceSignature = offers
+      .map(offer => (offer?.key || offer?.id || '')).join('|');
+    const cached = (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
+      ? voronoiLayerState.cachedDataset
+      : null;
 
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          lat = Number(offer?.plot?.lat);
-          lng = Number(offer?.plot?.lng);
-        }
-
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-        return { offer, position: { lat, lng } };
-      })
-      .filter(Boolean);
-
-    clearVoronoiLayer();
-
-    if (!dataset.length) return;
-
-    const bounds = map.getBounds();
-    if (!bounds) return;
-
-    const sw = bounds.getSouthWest();
-    const ne = bounds.getNorthEast();
-    const extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
-
+    let dataset = [];
+    let adjacencyList = [];
+    let resolvedValues = [];
+    let extent = null;
     let delaunay;
-    try {
-      const points = dataset.map(({ position }) => [position.lng, position.lat]);
-      delaunay = window.d3.Delaunay.from(points);
-    } catch (error) {
-      console.warn('Nie udało się zbudować diagramu Voronoi.', error);
-      return;
-    }
+    let voronoi;
+    let shouldUpdateCache = false;
 
-    const voronoi = delaunay.voronoi(extent);
-    const adjacencyList = dataset.map((_, index) => {
-      const iterator = delaunay.neighbors(index);
-      if (!iterator) return [];
-      const neighbors = [];
-      for (const neighbor of iterator) {
-        if (Number.isInteger(neighbor)) {
-          neighbors.push(neighbor);
+    if (cached && Array.isArray(cached.dataset) && cached.dataset.length) {
+      dataset = cached.dataset;
+      adjacencyList = Array.isArray(cached.adjacencyList) ? cached.adjacencyList : [];
+      resolvedValues = Array.isArray(cached.resolvedValues) ? cached.resolvedValues : [];
+      extent = Array.isArray(cached.extent) ? cached.extent.slice() : null;
+      if (!Array.isArray(extent) || extent.length !== 4) {
+        const bounds = map.getBounds();
+        if (bounds) {
+          const sw = bounds.getSouthWest();
+          const ne = bounds.getNorthEast();
+          extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
         }
       }
-      return neighbors;
-    });
-    const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
-    const resolvedValues = resolveVoronoiValues(baseValues, adjacencyList);
+      try {
+        const points = dataset.map(({ position }) => [position.lng, position.lat]);
+        delaunay = window.d3.Delaunay.from(points);
+        voronoi = delaunay.voronoi(extent);
+      } catch (error) {
+        console.warn('Nie udało się zbudować zamrożonego diagramu Voronoi.', error);
+        return;
+      }
+    } else {
+      dataset = offers
+        .map(offer => {
+          const source = offer?.voronoiPoint || null;
+          let lat = Number(source?.lat);
+          let lng = Number(source?.lng);
 
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+            lat = Number(offer?.plot?.lat);
+            lng = Number(offer?.plot?.lng);
+          }
+
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+          return { offer, position: { lat, lng } };
+        })
+        .filter(Boolean);
+
+      if (!dataset.length) {
+        clearVoronoiLayer();
+        voronoiLayerState.cachedDataset = null;
+        voronoiLayerState.cacheSignature = null;
+        return;
+      }
+
+      const bounds = map.getBounds();
+      if (!bounds) return;
+
+      const sw = bounds.getSouthWest();
+      const ne = bounds.getNorthEast();
+      extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+
+      try {
+        const points = dataset.map(({ position }) => [position.lng, position.lat]);
+        delaunay = window.d3.Delaunay.from(points);
+      } catch (error) {
+        console.warn('Nie udało się zbudować diagramu Voronoi.', error);
+        return;
+      }
+
+      try {
+        voronoi = delaunay.voronoi(extent);
+      } catch (error) {
+        console.warn('Nie udało się utworzyć diagramu Voronoi dla bieżącego widoku.', error);
+        return;
+      }
+      adjacencyList = dataset.map((_, index) => {
+        const iterator = delaunay.neighbors(index);
+        if (!iterator) return [];
+        const neighbors = [];
+        for (const neighbor of iterator) {
+          if (Number.isInteger(neighbor)) {
+            neighbors.push(neighbor);
+          }
+        }
+        return neighbors;
+      });
+      const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
+      resolvedValues = resolveVoronoiValues(baseValues, adjacencyList);
+      shouldUpdateCache = true;
+    }
+
+    if (shouldUpdateCache || !freezeActive) {
+      voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
+      voronoiLayerState.cacheSignature = sourceSignature;
+    }
+
+    clearVoronoiLayer();
     resetVoronoiLabelLayout();
 
-    dataset.forEach(({ position }, index) => {
+    const cells = dataset.map(({ position }, index) => {
+      if (!voronoi) return null;
       const polygonCoords = voronoi.cellPolygon(index);
-      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return;
-
+      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return null;
       const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
+      const centroid = calculatePolygonCentroid(path) || position;
+      return { path, centroid, position };
+    });
+
+    cells.forEach((cell, index) => {
+      if (!cell) return;
       const neighborIndices = adjacencyList[index] || [];
       const stats = aggregateVoronoiValues(resolvedValues, index, neighborIndices);
       const content = buildVoronoiLabelContent(stats);
 
       const polygon = new google.maps.Polygon({
-        paths: path,
+        paths: cell.path,
         map: voronoiLayerState.enabled ? map : null,
         strokeColor: '#D1D5DB',
         strokeOpacity: 0.8,
@@ -1862,12 +2017,45 @@ window.showConfirmModal = showConfirmModal;
       });
       voronoiLayerState.polygons.push(polygon);
 
-      const centroid = calculatePolygonCentroid(path) || position;
-      const labelPosition = findNonOverlappingLabelPosition(centroid || position);
+      const labelPosition = findNonOverlappingLabelPosition(cell.centroid || cell.position);
       const label = createVoronoiLabelNode(content.html, content.plain, labelPosition);
       if (label) {
         voronoiLayerState.labels.push(label);
       }
+
+      const fallbackSources = Array.isArray(resolvedValues[index]?.fallbackSources)
+        ? resolvedValues[index].fallbackSources
+        : [];
+      fallbackSources.forEach(pathIndices => {
+        const connectorPath = Array.isArray(pathIndices)
+          ? pathIndices
+              .map(i => {
+                const targetCell = cells[i];
+                if (targetCell?.centroid) return targetCell.centroid;
+                const targetDataset = dataset[i];
+                return targetDataset?.position || null;
+              })
+              .filter(Boolean)
+          : [];
+        if (connectorPath.length < 2) return;
+
+        const connector = new google.maps.Polyline({
+          path: connectorPath,
+          map: voronoiLayerState.enabled ? map : null,
+          strokeColor: '#DC2626',
+          strokeOpacity: 0.65,
+          strokeWeight: 1.1,
+          geodesic: true,
+          clickable: false,
+          icons: [{
+            icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 },
+            offset: '0',
+            repeat: '12px'
+          }],
+          zIndex: 38
+        });
+        voronoiLayerState.connectors.push(connector);
+      });
     });
   }
 
@@ -2374,6 +2562,8 @@ window.showConfirmModal = showConfirmModal;
       listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
       if (voronoiLayerState.enabled) {
         clearVoronoiLayer();
+        voronoiLayerState.cachedDataset = null;
+        voronoiLayerState.cacheSignature = null;
       }
       return;
     }
