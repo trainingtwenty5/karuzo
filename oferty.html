@@ -1997,9 +1997,13 @@ window.showConfirmModal = showConfirmModal;
     return total;
   }
 
+  const MAX_FALLBACK_DISTANCE_METERS = 30000;
+
   function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset, graphHasPrice) {
     const baseEntry = baseValues[index] || {};
     const baseArea = Number(baseEntry.area);
+    const baseDatasetEntry = Array.isArray(dataset) ? dataset[index] : null;
+    const basePosition = baseDatasetEntry?.position || null;
     const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i) && i !== index);
 
     if (!directNeighbors.length) {
@@ -2034,18 +2038,25 @@ window.showConfirmModal = showConfirmModal;
         return null;
       }
 
+      const neighborPosition = dataset?.[neighborIndex]?.position || null;
+      const initialDistance = computeDistanceBetweenPoints(basePosition, neighborPosition);
+      if (!Number.isFinite(initialDistance) || initialDistance > MAX_FALLBACK_DISTANCE_METERS) {
+        return null;
+      }
+
       const initialMetrics = buildPriceMetrics(baseValues[neighborIndex]);
       if (initialMetrics) {
         return {
           sourceIndex: neighborIndex,
           path: [index, neighborIndex],
-          metrics: initialMetrics
+          metrics: initialMetrics,
+          distance: initialDistance
         };
       }
 
-      const visited = new Set([index, neighborIndex]);
-      const queue = [{ node: neighborIndex, path: [index, neighborIndex] }];
       const guardLimit = Math.max(baseValues.length * 4, 16);
+      const queue = [{ node: neighborIndex, path: [index, neighborIndex], distance: initialDistance }];
+      const bestDistance = new Map([[neighborIndex, initialDistance]]);
       let guard = 0;
 
       while (queue.length && guard < guardLimit) {
@@ -2054,21 +2065,38 @@ window.showConfirmModal = showConfirmModal;
 
         const neighborsOfCurrent = adjacencyList[current.node] || [];
         for (const next of neighborsOfCurrent) {
-          if (!Number.isInteger(next) || visited.has(next)) {
+          if (!Number.isInteger(next) || next === index) {
             continue;
           }
+          const currentPosition = dataset?.[current.node]?.position || null;
+          const nextPosition = dataset?.[next]?.position || null;
+          const segmentDistance = computeDistanceBetweenPoints(currentPosition, nextPosition);
+          if (!Number.isFinite(segmentDistance)) {
+            continue;
+          }
+          const totalDistance = current.distance + segmentDistance;
+          if (totalDistance > MAX_FALLBACK_DISTANCE_METERS) {
+            continue;
+          }
+
+          const previousBest = bestDistance.get(next);
+          if (typeof previousBest === 'number' && previousBest <= totalDistance) {
+            continue;
+          }
+          bestDistance.set(next, totalDistance);
+
           const nextPath = current.path.concat(next);
           const metrics = buildPriceMetrics(baseValues[next]);
           if (metrics) {
             return {
               sourceIndex: next,
               path: nextPath,
-              metrics
+              metrics,
+              distance: totalDistance
             };
           }
 
-          visited.add(next);
-          queue.push({ node: next, path: nextPath });
+          queue.push({ node: next, path: nextPath, distance: totalDistance });
         }
       }
 
@@ -2093,6 +2121,13 @@ window.showConfirmModal = showConfirmModal;
         normalizedPath.push(contribution.sourceIndex);
       }
 
+      const pathDistance = Number.isFinite(contribution.distance)
+        ? contribution.distance
+        : computePathDistance(normalizedPath, dataset);
+      if (!Number.isFinite(pathDistance) || pathDistance > MAX_FALLBACK_DISTANCE_METERS) {
+        return;
+      }
+
       const pathKey = normalizedPath.join('>');
       if (contributionsByPath.has(pathKey)) {
         const existing = contributionsByPath.get(pathKey);
@@ -2102,7 +2137,8 @@ window.showConfirmModal = showConfirmModal;
           sourceIndex: contribution.sourceIndex,
           path: normalizedPath,
           metrics: contribution.metrics,
-          weight: 1
+          weight: 1,
+          distance: pathDistance
         });
       }
     });
@@ -2119,7 +2155,7 @@ window.showConfirmModal = showConfirmModal;
     const fallbackSources = [];
 
     contributionsByPath.forEach(entry => {
-      const { metrics, weight, sourceIndex, path } = entry;
+      const { metrics, weight, sourceIndex, path, distance } = entry;
       const pricePerSqm = Number(metrics.pricePerSqm);
       const price = Number(metrics.price);
       const area = Number(metrics.area);
@@ -2141,7 +2177,8 @@ window.showConfirmModal = showConfirmModal;
       fallbackSources.push({
         sourceIndex,
         directPath: [index, sourceIndex],
-        fullPath: path
+        fullPath: path,
+        distanceMeters: Number.isFinite(distance) ? distance : computePathDistance(path, dataset)
       });
     });
 
