@@ -549,6 +549,7 @@ window.showConfirmModal = showConfirmModal;
       selectedIndexHint: null,
       polygons: new Set(),
       connectors: new Set(),
+      hiddenPolygons: new Map(),
       ignoreNextMapClear: false
     }
   };
@@ -617,6 +618,77 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
     connector.setOptions(buildVoronoiConnectorStyle(mode));
+  }
+
+  function getVoronoiLabelMap(label) {
+    if (!label) return null;
+    if (typeof label.getMap === 'function') {
+      try {
+        return label.getMap();
+      } catch (_) {
+        return null;
+      }
+    }
+    if ('map' in label) {
+      return label.map || null;
+    }
+    return null;
+  }
+
+  function setVoronoiLabelMap(label, targetMap) {
+    if (!label) return;
+    if (typeof label.setMap === 'function') {
+      label.setMap(targetMap || null);
+    } else if ('map' in label) {
+      label.map = targetMap || null;
+    }
+  }
+
+  function hasVoronoiValuation(entry) {
+    if (!entry) return false;
+    const price = Number(entry.price);
+    const pricePerSqm = Number(entry.pricePerSqm);
+    const hasPrice = (Number.isFinite(price) && price > 0) || (Number.isFinite(pricePerSqm) && pricePerSqm > 0);
+    if (hasPrice) {
+      return true;
+    }
+    if (entry.hasPrice) {
+      return hasPrice;
+    }
+    if (Array.isArray(entry.fallbackSources) && entry.fallbackSources.length) {
+      return hasPrice;
+    }
+    return false;
+  }
+
+  function shouldDisplayVoronoiPolygon(index) {
+    const values = Array.isArray(voronoiLayerState.resolvedValues)
+      ? voronoiLayerState.resolvedValues
+      : [];
+    const entry = values[index];
+    return hasVoronoiValuation(entry);
+  }
+
+  function applyVoronoiBaseVisibility() {
+    if (!map) return;
+    const isEnabled = voronoiLayerState.enabled;
+    voronoiLayerState.polygons.forEach((polygon, index) => {
+      if (!polygon) return;
+      const shouldShow = isEnabled && shouldDisplayVoronoiPolygon(index);
+      if (typeof polygon.setMap === 'function') {
+        polygon.setMap(shouldShow ? map : null);
+      }
+      if (typeof polygon.setVisible === 'function') {
+        polygon.setVisible(!!shouldShow);
+      }
+      if (shouldShow) {
+        applyVoronoiPolygonStyle(polygon, 'default');
+      }
+      const label = polygon.__voronoiLabel;
+      if (label) {
+        setVoronoiLabelMap(label, shouldShow && isEnabled ? map : null);
+      }
+    });
   }
 
   function extractLatLngFromGooglePosition(position) {
@@ -874,7 +946,34 @@ window.showConfirmModal = showConfirmModal;
       highlight.polygons.forEach(polygon => applyVoronoiPolygonStyle(polygon, 'default'));
     }
     if (highlight.connectors.size) {
-      highlight.connectors.forEach(connector => applyVoronoiConnectorStyle(connector, 'default'));
+      highlight.connectors.forEach(connector => {
+        applyVoronoiConnectorStyle(connector, 'default');
+        if (connector && typeof connector.setMap === 'function') {
+          connector.setMap(null);
+        }
+        if (connector && typeof connector.setVisible === 'function') {
+          connector.setVisible(false);
+        }
+      });
+    }
+    if (highlight.hiddenPolygons instanceof Map && highlight.hiddenPolygons.size) {
+      highlight.hiddenPolygons.forEach((state, polygon) => {
+        if (!polygon) return;
+        const label = state?.label || null;
+        if (typeof polygon.setMap === 'function') {
+          const targetMap = state?.map && voronoiLayerState.enabled ? state.map : null;
+          polygon.setMap(targetMap);
+        }
+        if (typeof polygon.setVisible === 'function') {
+          polygon.setVisible(state?.visible !== false);
+        }
+        applyVoronoiPolygonStyle(polygon, 'default');
+        if (label) {
+          const labelTargetMap = state?.labelMap && voronoiLayerState.enabled ? state.labelMap : null;
+          setVoronoiLabelMap(label, labelTargetMap);
+        }
+      });
+      highlight.hiddenPolygons.clear();
     }
     highlight.polygons.clear();
     highlight.connectors.clear();
@@ -884,6 +983,9 @@ window.showConfirmModal = showConfirmModal;
       highlight.selectedIndexHint = null;
       highlight.ignoreNextMapClear = false;
       hideVoronoiTagInspector();
+    }
+    if (voronoiLayerState.enabled) {
+      applyVoronoiBaseVisibility();
     }
   }
 
@@ -899,7 +1001,17 @@ window.showConfirmModal = showConfirmModal;
     clearVoronoiHighlights({ resetSelection: false });
 
     const highlight = voronoiLayerState.highlight;
+    const activeIndices = new Set([index]);
     applyVoronoiPolygonStyle(polygon, 'baseHighlight');
+    if (map && typeof polygon.setMap === 'function') {
+      polygon.setMap(map);
+    }
+    if (typeof polygon.setVisible === 'function') {
+      polygon.setVisible(true);
+    }
+    if (polygon.__voronoiLabel) {
+      setVoronoiLabelMap(polygon.__voronoiLabel, map);
+    }
     highlight.polygons.add(polygon);
     highlight.baseIndex = index;
     highlight.selectedIndexHint = index;
@@ -930,7 +1042,17 @@ window.showConfirmModal = showConfirmModal;
       const sourcePolygon = voronoiLayerState.polygons[sourceIndex];
       if (!sourcePolygon) return;
       applyVoronoiPolygonStyle(sourcePolygon, 'sourceHighlight');
+      if (map && typeof sourcePolygon.setMap === 'function') {
+        sourcePolygon.setMap(map);
+      }
+      if (typeof sourcePolygon.setVisible === 'function') {
+        sourcePolygon.setVisible(true);
+      }
+      if (sourcePolygon.__voronoiLabel) {
+        setVoronoiLabelMap(sourcePolygon.__voronoiLabel, map);
+      }
       highlight.polygons.add(sourcePolygon);
+      activeIndices.add(sourceIndex);
     });
 
     const connectorList = voronoiLayerState.connectorIndexMap instanceof Map
@@ -939,7 +1061,43 @@ window.showConfirmModal = showConfirmModal;
     if (Array.isArray(connectorList)) {
       connectorList.forEach(connector => {
         applyVoronoiConnectorStyle(connector, 'highlight');
+        if (connector && typeof connector.setMap === 'function' && voronoiLayerState.enabled && map) {
+          connector.setMap(map);
+        }
+        if (connector && typeof connector.setVisible === 'function') {
+          connector.setVisible(true);
+        }
         highlight.connectors.add(connector);
+      });
+    }
+
+    if (highlight.hiddenPolygons instanceof Map) {
+      voronoiLayerState.polygons.forEach((poly, polyIndex) => {
+        if (!poly || activeIndices.has(polyIndex)) {
+          return;
+        }
+        if (!highlight.hiddenPolygons.has(poly)) {
+          const currentMap = typeof poly.getMap === 'function' ? poly.getMap() : null;
+          const currentVisible = typeof poly.getVisible === 'function' ? poly.getVisible() : true;
+          const label = poly.__voronoiLabel || null;
+          const labelMap = label ? getVoronoiLabelMap(label) : null;
+          highlight.hiddenPolygons.set(poly, {
+            map: currentMap,
+            visible: currentVisible,
+            label,
+            labelMap
+          });
+        }
+        if (typeof poly.setVisible === 'function') {
+          poly.setVisible(false);
+        }
+        if (typeof poly.setMap === 'function') {
+          poly.setMap(null);
+        }
+        const label = poly.__voronoiLabel;
+        if (label) {
+          setVoronoiLabelMap(label, null);
+        }
       });
     }
 
@@ -2900,6 +3058,7 @@ window.showConfirmModal = showConfirmModal;
         zIndex: 40
       });
       polygon.__voronoiIndex = index;
+      polygon.__voronoiLabel = null;
       polygon.addListener('click', () => {
         if (!voronoiLayerState.enabled) return;
         const highlightState = voronoiLayerState.highlight;
@@ -2927,6 +3086,7 @@ window.showConfirmModal = showConfirmModal;
           density: labelDensity
         });
         if (label) {
+          polygon.__voronoiLabel = label;
           voronoiLayerState.labels.push(label);
         }
       }
@@ -2961,8 +3121,9 @@ window.showConfirmModal = showConfirmModal;
 
         const connector = new google.maps.Polyline({
           path: connectorPath,
-          map: voronoiLayerState.enabled ? map : null,
+          map: null,
           clickable: false,
+          visible: false,
           ...buildVoronoiConnectorStyle('default')
         });
         connector.__voronoiBaseIndex = index;
@@ -2973,6 +3134,8 @@ window.showConfirmModal = showConfirmModal;
         voronoiLayerState.connectorIndexMap.set(index, connectorsForBase);
       });
     });
+
+    applyVoronoiBaseVisibility();
 
     if (preservedSelectionKey || Number.isInteger(preservedIndexHint)) {
       let rehighlightIndex = -1;
