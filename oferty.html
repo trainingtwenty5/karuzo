@@ -1997,12 +1997,16 @@ window.showConfirmModal = showConfirmModal;
     return total;
   }
 
-  function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset) {
+  function computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset, graphHasPrice) {
     const baseEntry = baseValues[index] || {};
     const baseArea = Number(baseEntry.area);
-    const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i));
+    const directNeighbors = (adjacencyList[index] || []).filter(i => Number.isInteger(i) && i !== index);
 
     if (!directNeighbors.length) {
+      return null;
+    }
+
+    if (!graphHasPrice) {
       return null;
     }
 
@@ -2025,215 +2029,159 @@ window.showConfirmModal = showConfirmModal;
       };
     };
 
-    const pricedNeighbors = directNeighbors
-      .map(neighbor => ({ index: neighbor, metrics: buildPriceMetrics(baseValues[neighbor]) }))
-      .filter(entry => !!entry.metrics);
-
-    const buildFallbackFromSource = (sourceIndex, path, metrics) => {
-      if (!Number.isInteger(sourceIndex) || !metrics) {
+    const findFirstPricedFromNeighbor = (neighborIndex) => {
+      if (!Number.isInteger(neighborIndex)) {
         return null;
       }
 
-      const normalizedPath = Array.isArray(path) && path.length >= 2
-        ? path.slice()
-        : [index, sourceIndex];
+      const initialMetrics = buildPriceMetrics(baseValues[neighborIndex]);
+      if (initialMetrics) {
+        return {
+          sourceIndex: neighborIndex,
+          path: [index, neighborIndex],
+          metrics: initialMetrics
+        };
+      }
+
+      const visited = new Set([index, neighborIndex]);
+      const queue = [{ node: neighborIndex, path: [index, neighborIndex] }];
+      const guardLimit = Math.max(baseValues.length * 4, 16);
+      let guard = 0;
+
+      while (queue.length && guard < guardLimit) {
+        const current = queue.shift();
+        guard += 1;
+
+        const neighborsOfCurrent = adjacencyList[current.node] || [];
+        for (const next of neighborsOfCurrent) {
+          if (!Number.isInteger(next) || visited.has(next)) {
+            continue;
+          }
+          const nextPath = current.path.concat(next);
+          const metrics = buildPriceMetrics(baseValues[next]);
+          if (metrics) {
+            return {
+              sourceIndex: next,
+              path: nextPath,
+              metrics
+            };
+          }
+
+          visited.add(next);
+          queue.push({ node: next, path: nextPath });
+        }
+      }
+
+      return null;
+    };
+
+    const contributionsByPath = new Map();
+
+    directNeighbors.forEach(neighborIndex => {
+      const contribution = findFirstPricedFromNeighbor(neighborIndex);
+      if (!contribution) {
+        return;
+      }
+
+      const normalizedPath = Array.isArray(contribution.path) && contribution.path.length >= 2
+        ? contribution.path.slice()
+        : [index, contribution.sourceIndex];
       if (normalizedPath[0] !== index) {
         normalizedPath.unshift(index);
       }
-      if (normalizedPath[normalizedPath.length - 1] !== sourceIndex) {
-        normalizedPath.push(sourceIndex);
+      if (normalizedPath[normalizedPath.length - 1] !== contribution.sourceIndex) {
+        normalizedPath.push(contribution.sourceIndex);
       }
 
-      const sourceArea = Number(baseValues[sourceIndex]?.area);
-      const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
-        ? baseArea
-        : (Number.isFinite(sourceArea) && sourceArea > 0 ? sourceArea : 0);
-
-      let resolvedPricePerSqm = metrics.pricePerSqm > 0 ? metrics.pricePerSqm : 0;
-      if (!(resolvedPricePerSqm > 0) && metrics.price > 0 && fallbackArea > 0) {
-        resolvedPricePerSqm = metrics.price / fallbackArea;
-      }
-
-      let resolvedPrice = 0;
-      if (resolvedPricePerSqm > 0 && Number.isFinite(baseArea) && baseArea > 0) {
-        resolvedPrice = resolvedPricePerSqm * baseArea;
-      } else if (metrics.price > 0) {
-        resolvedPrice = metrics.price;
-        if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
-          resolvedPricePerSqm = metrics.price / fallbackArea;
-        }
-      }
-
-      if (!(resolvedPrice > 0) && !(resolvedPricePerSqm > 0)) {
-        return null;
-      }
-
-      return {
-        price: resolvedPrice > 0 ? resolvedPrice : 0,
-        pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-        sources: [{
-          sourceIndex,
-          directPath: [index, sourceIndex],
-          fullPath: normalizedPath
-        }]
-      };
-    };
-
-    if (pricedNeighbors.length) {
-      const fallbackSources = [];
-      const seenNeighborSources = new Set();
-      let weightedPerSqmSum = 0;
-      let weightSum = 0;
-      let totalPrice = 0;
-      let totalArea = 0;
-
-      pricedNeighbors.forEach(entry => {
-        const neighborIndex = entry.index;
-        if (seenNeighborSources.has(neighborIndex)) {
-          return;
-        }
-        seenNeighborSources.add(neighborIndex);
-        const { price, pricePerSqm, area } = entry.metrics;
-        fallbackSources.push({
-          sourceIndex: neighborIndex,
-          directPath: [index, neighborIndex],
-          fullPath: [index, neighborIndex]
-        });
-
-        if (pricePerSqm > 0) {
-          const weight = area > 0 ? area : 1;
-          weightedPerSqmSum += pricePerSqm * weight;
-          weightSum += weight;
-        }
-
-        if (price > 0) {
-          totalPrice += price;
-        }
-
-        if (area > 0) {
-          totalArea += area;
-        }
-      });
-
-      const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
-        ? baseArea
-        : (totalArea > 0 ? totalArea / pricedNeighbors.length : 0);
-
-      let resolvedPricePerSqm = weightSum > 0 ? weightedPerSqmSum / weightSum : 0;
-      if (!(resolvedPricePerSqm > 0) && totalArea > 0 && totalPrice > 0) {
-        resolvedPricePerSqm = totalPrice / totalArea;
-      }
-      if (!(resolvedPricePerSqm > 0) && fallbackArea > 0 && totalPrice > 0 && pricedNeighbors.length) {
-        resolvedPricePerSqm = (totalPrice / pricedNeighbors.length) / fallbackArea;
-      }
-
-      let resolvedPrice = 0;
-      if (resolvedPricePerSqm > 0 && fallbackArea > 0) {
-        resolvedPrice = resolvedPricePerSqm * fallbackArea;
-      } else if (totalPrice > 0 && pricedNeighbors.length) {
-        resolvedPrice = totalPrice / pricedNeighbors.length;
-        if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
-          resolvedPricePerSqm = resolvedPrice / fallbackArea;
-        }
-      }
-
-      if (resolvedPrice > 0 || resolvedPricePerSqm > 0) {
-        return {
-          price: resolvedPrice > 0 ? resolvedPrice : 0,
-          pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
-          sources: fallbackSources
-        };
-      }
-    }
-
-    const reconstructPath = (targetIndex, parentsMap) => {
-      const path = [targetIndex];
-      let current = targetIndex;
-      const guardLimit = Math.max(baseValues.length * 4, 16);
-      let guard = 0;
-      while (current !== index && guard < guardLimit) {
-        current = parentsMap.get(current);
-        if (!Number.isInteger(current)) {
-          break;
-        }
-        path.push(current);
-        guard += 1;
-      }
-      if (path[path.length - 1] !== index) {
-        path.push(index);
-      }
-      return path.reverse();
-    };
-
-    const findNearestPricedPolygon = () => {
-      const visited = new Set([index]);
-      const parents = new Map();
-      const queue = [];
-
-      directNeighbors.forEach(neighbor => {
-        if (!Number.isInteger(neighbor) || visited.has(neighbor)) {
-          return;
-        }
-        visited.add(neighbor);
-        parents.set(neighbor, index);
-        queue.push({ node: neighbor, depth: 1 });
-      });
-
-      let best = null;
-
-      while (queue.length) {
-        const { node, depth } = queue.shift();
-        if (best && depth > best.depth) {
-          break;
-        }
-
-        const value = baseValues[node];
-        if (value?.hasPrice && value.price > 0) {
-          const path = reconstructPath(node, parents);
-          const distance = computePathDistance(path, dataset);
-          const normalizedDistance = Number.isFinite(distance) ? distance : Infinity;
-          if (!best || depth < best.depth || (depth === best.depth && normalizedDistance < best.distance)) {
-            best = {
-              sourceIndex: node,
-              path,
-              depth,
-              distance: normalizedDistance
-            };
-          }
-          continue;
-        }
-
-        if (best && depth >= best.depth) {
-          continue;
-        }
-
-        (adjacencyList[node] || []).forEach(nextIndex => {
-          if (!Number.isInteger(nextIndex) || visited.has(nextIndex)) {
-            return;
-          }
-          visited.add(nextIndex);
-          parents.set(nextIndex, node);
-          queue.push({ node: nextIndex, depth: depth + 1 });
+      const pathKey = normalizedPath.join('>');
+      if (contributionsByPath.has(pathKey)) {
+        const existing = contributionsByPath.get(pathKey);
+        existing.weight += 1;
+      } else {
+        contributionsByPath.set(pathKey, {
+          sourceIndex: contribution.sourceIndex,
+          path: normalizedPath,
+          metrics: contribution.metrics,
+          weight: 1
         });
       }
+    });
 
-      return best;
-    };
-
-    const bestSource = findNearestPricedPolygon();
-    if (!bestSource) {
+    if (!contributionsByPath.size) {
       return null;
     }
 
-    const metrics = buildPriceMetrics(baseValues[bestSource.sourceIndex]);
-    if (!metrics) {
+    let weightedPerSqmSum = 0;
+    let perSqmWeight = 0;
+    let totalPrice = 0;
+    let priceWeight = 0;
+    let totalArea = 0;
+    const fallbackSources = [];
+
+    contributionsByPath.forEach(entry => {
+      const { metrics, weight, sourceIndex, path } = entry;
+      const pricePerSqm = Number(metrics.pricePerSqm);
+      const price = Number(metrics.price);
+      const area = Number(metrics.area);
+
+      if (pricePerSqm > 0) {
+        weightedPerSqmSum += pricePerSqm * weight;
+        perSqmWeight += weight;
+      }
+
+      if (price > 0) {
+        totalPrice += price * weight;
+        priceWeight += weight;
+      }
+
+      if (area > 0) {
+        totalArea += area * weight;
+      }
+
+      fallbackSources.push({
+        sourceIndex,
+        directPath: [index, sourceIndex],
+        fullPath: path
+      });
+    });
+
+    if (!perSqmWeight && !priceWeight) {
       return null;
     }
 
-    return buildFallbackFromSource(bestSource.sourceIndex, bestSource.path, metrics);
+    const fallbackArea = Number.isFinite(baseArea) && baseArea > 0
+      ? baseArea
+      : (totalArea > 0 ? totalArea / (perSqmWeight || priceWeight || 1) : 0);
+
+    let resolvedPricePerSqm = perSqmWeight > 0 ? (weightedPerSqmSum / perSqmWeight) : 0;
+    if (!(resolvedPricePerSqm > 0) && totalArea > 0 && totalPrice > 0) {
+      resolvedPricePerSqm = totalPrice / totalArea;
+    }
+
+    let resolvedPrice = 0;
+    if (resolvedPricePerSqm > 0 && fallbackArea > 0) {
+      resolvedPrice = resolvedPricePerSqm * fallbackArea;
+    } else if (priceWeight > 0) {
+      resolvedPrice = totalPrice / priceWeight;
+      if (!(resolvedPricePerSqm > 0) && fallbackArea > 0) {
+        resolvedPricePerSqm = resolvedPrice / fallbackArea;
+      }
+    }
+
+    if (!(resolvedPrice > 0) && !(resolvedPricePerSqm > 0)) {
+      return null;
+    }
+
+    return {
+      price: resolvedPrice > 0 ? resolvedPrice : 0,
+      pricePerSqm: resolvedPricePerSqm > 0 ? resolvedPricePerSqm : 0,
+      sources: fallbackSources
+    };
   }
 
   function resolveVoronoiValues(baseValues, adjacencyList, dataset) {
+    const graphHasPrice = baseValues.some(value => value?.hasPrice && value.price > 0);
+
     return baseValues.map((entry, index) => {
       if (!entry) return entry;
       if (entry.hasPrice && entry.price > 0) {
@@ -2243,7 +2191,7 @@ window.showConfirmModal = showConfirmModal;
         };
       }
 
-      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset);
+      const fallback = computeFallbackFromNeighbors(index, baseValues, adjacencyList, dataset, graphHasPrice);
       if (!fallback) {
         return {
           ...entry,
