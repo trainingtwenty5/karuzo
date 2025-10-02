@@ -1155,7 +1155,38 @@ window.showConfirmModal = showConfirmModal;
     return Number.isFinite(zoom) && zoom >= VORONOI_HIDE_ZOOM_LEVEL;
   }
 
-  function cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent) {
+  function cloneVoronoiPoint(point) {
+    if (!point) return null;
+    const lat = Number(point.lat);
+    const lng = Number(point.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return null;
+    }
+    return { lat, lng };
+  }
+
+  function cloneVoronoiPath(path) {
+    if (!Array.isArray(path)) {
+      return [];
+    }
+    return path
+      .map(point => cloneVoronoiPoint(point))
+      .filter(Boolean);
+  }
+
+  function cloneVoronoiCell(cell) {
+    if (!cell) return null;
+    const clonedPath = cloneVoronoiPath(cell.path);
+    const centroid = cloneVoronoiPoint(cell.centroid);
+    const position = cloneVoronoiPoint(cell.position);
+    return {
+      path: clonedPath,
+      centroid: centroid || null,
+      position: position || null
+    };
+  }
+
+  function cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent, cells) {
     return {
       dataset: Array.isArray(dataset)
         ? dataset.map(entry => ({
@@ -1179,12 +1210,15 @@ window.showConfirmModal = showConfirmModal;
             };
           })
         : [],
-      extent: Array.isArray(extent) ? extent.slice() : null
+      extent: Array.isArray(extent) ? extent.slice() : null,
+      cells: Array.isArray(cells)
+        ? cells.map(cell => cloneVoronoiCell(cell))
+        : []
     };
   }
 
-  function cloneFrozenVoronoiLayout(dataset, adjacencyList, resolvedValues, extent, offers, signature) {
-    const cache = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
+  function cloneFrozenVoronoiLayout(dataset, adjacencyList, resolvedValues, extent, offers, signature, cells) {
+    const cache = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent, cells);
     return {
       ...cache,
       offers: Array.isArray(offers) ? offers.slice() : [],
@@ -2366,7 +2400,28 @@ window.showConfirmModal = showConfirmModal;
     let totalArea = 0;
     const fallbackSources = [];
 
-    contributionsByPath.forEach(entry => {
+    let contributions = Array.from(contributionsByPath.values());
+    if (!contributions.length) {
+      return null;
+    }
+
+    contributions.sort((a, b) => {
+      const distA = Number.isFinite(a.distance) ? a.distance : Infinity;
+      const distB = Number.isFinite(b.distance) ? b.distance : Infinity;
+      if (distA !== distB) {
+        return distA - distB;
+      }
+      const idxA = Number.isInteger(a.sourceIndex) ? a.sourceIndex : Infinity;
+      const idxB = Number.isInteger(b.sourceIndex) ? b.sourceIndex : Infinity;
+      return idxA - idxB;
+    });
+
+    const maxSources = directNeighbors.length > 0 ? directNeighbors.length : contributions.length;
+    if (maxSources > 0 && contributions.length > maxSources) {
+      contributions = contributions.slice(0, maxSources);
+    }
+
+    contributions.forEach(entry => {
       const { metrics, weight, sourceIndex, path, distance } = entry;
       const pricePerSqm = Number(metrics.pricePerSqm);
       const price = Number(metrics.price);
@@ -2949,7 +3004,8 @@ window.showConfirmModal = showConfirmModal;
             preservedFrozenLayout.dataset,
             preservedFrozenLayout.adjacencyList,
             preservedFrozenLayout.resolvedValues,
-            preservedFrozenLayout.extent
+            preservedFrozenLayout.extent,
+            preservedFrozenLayout.cells
           )
         }
       : null;
@@ -3026,6 +3082,9 @@ window.showConfirmModal = showConfirmModal;
         : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
           ? voronoiLayerState.cachedDataset
           : null;
+    const cachedCells = Array.isArray(cached?.cells) && cached.cells.length
+      ? cached.cells.map(cell => cloneVoronoiCell(cell))
+      : null;
 
     let dataset = [];
     let adjacencyList = [];
@@ -3048,13 +3107,15 @@ window.showConfirmModal = showConfirmModal;
           extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
         }
       }
-      try {
-        const points = dataset.map(({ position }) => [position.lng, position.lat]);
-        delaunay = window.d3.Delaunay.from(points);
-        voronoi = delaunay.voronoi(extent);
-      } catch (error) {
-        console.warn('Nie udało się zbudować zamrożonego diagramu Voronoi.', error);
-        return;
+      if (!cachedCells) {
+        try {
+          const points = dataset.map(({ position }) => [position.lng, position.lat]);
+          delaunay = window.d3.Delaunay.from(points);
+          voronoi = delaunay.voronoi(extent);
+        } catch (error) {
+          console.warn('Nie udało się zbudować zamrożonego diagramu Voronoi.', error);
+          return;
+        }
       }
     } else {
       dataset = normalizedOffers
@@ -3132,6 +3193,28 @@ window.showConfirmModal = showConfirmModal;
       normalizedOffers = dataset.map(entry => entry?.offer).filter(Boolean);
     }
 
+    let cells = Array.isArray(cachedCells) ? cachedCells : [];
+    if (!cells.length) {
+      if (!voronoi) {
+        try {
+          const points = dataset.map(({ position }) => [position.lng, position.lat]);
+          delaunay = window.d3.Delaunay.from(points);
+          voronoi = delaunay.voronoi(extent);
+        } catch (error) {
+          console.warn('Nie udało się odtworzyć diagramu Voronoi z pamięci podręcznej.', error);
+          return;
+        }
+      }
+      cells = dataset.map(({ position }, index) => {
+        if (!voronoi) return null;
+        const polygonCoords = voronoi.cellPolygon(index);
+        if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return null;
+        const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
+        const centroid = calculatePolygonCentroid(path) || position;
+        return { path, centroid, position };
+      });
+    }
+
     const extentSnapshot = Array.isArray(extent) ? extent.slice() : null;
     const hasOffersToStore = normalizedOffers.length > 0;
 
@@ -3155,7 +3238,7 @@ window.showConfirmModal = showConfirmModal;
 
     const allowCacheRefresh = !freezeActive || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
     if (!usingFrozenLayout && shouldUpdateCache && allowCacheRefresh) {
-      voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
+      voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent, cells);
       voronoiLayerState.cacheSignature = sourceSignature;
     }
 
@@ -3167,7 +3250,8 @@ window.showConfirmModal = showConfirmModal;
           resolvedValues,
           extent,
           normalizedOffers,
-          sourceSignature
+          sourceSignature,
+          cells
         );
       } else if (
         preservedFrozenLayout
@@ -3188,14 +3272,6 @@ window.showConfirmModal = showConfirmModal;
 
     const shouldRenderLabels = shouldRenderVoronoiLabelsForDatasetSize(dataset.length);
     const labelDensity = determineVoronoiLabelDensity(dataset.length);
-    const cells = dataset.map(({ position }, index) => {
-      if (!voronoi) return null;
-      const polygonCoords = voronoi.cellPolygon(index);
-      if (!Array.isArray(polygonCoords) || polygonCoords.length < 3) return null;
-      const path = polygonCoords.map(([lng, lat]) => ({ lat, lng }));
-      const centroid = calculatePolygonCentroid(path) || position;
-      return { path, centroid, position };
-    });
 
     voronoiLayerState.resolvedValues = resolvedValues;
     voronoiLayerState.datasetSnapshot = dataset;
