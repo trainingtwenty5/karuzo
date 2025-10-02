@@ -539,6 +539,7 @@ window.showConfirmModal = showConfirmModal;
     },
     cachedDataset: null,
     cacheSignature: null,
+    frozenLayout: null,
     lastNonFrozenSource: {
       offers: [],
       signature: null,
@@ -1182,6 +1183,15 @@ window.showConfirmModal = showConfirmModal;
     };
   }
 
+  function cloneFrozenVoronoiLayout(dataset, adjacencyList, resolvedValues, extent, offers, signature) {
+    const cache = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
+    return {
+      ...cache,
+      offers: Array.isArray(offers) ? offers.slice() : [],
+      signature: typeof signature === 'string' ? signature : null
+    };
+  }
+
   function shouldRenderVoronoiLabelsForDatasetSize(count) {
     if (!Number.isFinite(count) || count <= 0) {
       return false;
@@ -1727,6 +1737,7 @@ window.showConfirmModal = showConfirmModal;
     currentVisibleOffers = [];
     voronoiLayerState.cachedDataset = null;
     voronoiLayerState.cacheSignature = null;
+    voronoiLayerState.frozenLayout = null;
     voronoiLayerState.lastNonFrozenSource = {
       offers: [],
       signature: null,
@@ -2829,7 +2840,8 @@ window.showConfirmModal = showConfirmModal;
   function clearVoronoiLayer(options = {}) {
     const {
       resetHighlight = true,
-      preserveResolvedData = false
+      preserveResolvedData = false,
+      preserveFrozenLayout = false
     } = options || {};
     clearVoronoiHighlights({ resetSelection: resetHighlight });
 
@@ -2864,6 +2876,9 @@ window.showConfirmModal = showConfirmModal;
       voronoiLayerState.datasetSnapshot = [];
       voronoiLayerState.cells = [];
     }
+    if (!preserveFrozenLayout) {
+      voronoiLayerState.frozenLayout = null;
+    }
   }
 
   function getVoronoiSourceOffers() {
@@ -2895,15 +2910,40 @@ window.showConfirmModal = showConfirmModal;
     }
 
     if (shouldHideVoronoiLayer()) {
-      clearVoronoiLayer({ resetHighlight: false, preserveResolvedData: true });
+      clearVoronoiLayer({ resetHighlight: false, preserveResolvedData: true, preserveFrozenLayout: true });
       return;
     }
 
     const freezeActive = shouldFreezeVoronoiLayout();
-    const hasFrozenCache = freezeActive
+    if (!freezeActive && voronoiLayerState.frozenLayout) {
+      voronoiLayerState.frozenLayout = null;
+    }
+
+    const preservedFrozenLayout = freezeActive && voronoiLayerState.frozenLayout
+      ? voronoiLayerState.frozenLayout
+      : null;
+    const frozenLayout = preservedFrozenLayout
+      ? {
+          offers: Array.isArray(preservedFrozenLayout.offers)
+            ? preservedFrozenLayout.offers.slice()
+            : [],
+          signature: typeof preservedFrozenLayout.signature === 'string'
+            ? preservedFrozenLayout.signature
+            : null,
+          cache: cloneVoronoiCache(
+            preservedFrozenLayout.dataset,
+            preservedFrozenLayout.adjacencyList,
+            preservedFrozenLayout.resolvedValues,
+            preservedFrozenLayout.extent
+          )
+        }
+      : null;
+
+    const hasFrozenCache = !frozenLayout && freezeActive
       && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
       && voronoiLayerState.cachedDataset.dataset.length;
 
+    let usingFrozenLayout = !!frozenLayout;
     let usingFrozenCache = false;
     let usedFullFilteredOffers = false;
 
@@ -2920,7 +2960,9 @@ window.showConfirmModal = showConfirmModal;
     let usingPreservedSource = false;
 
     let offers;
-    if (hasFrozenCache) {
+    if (usingFrozenLayout) {
+      offers = frozenLayout.offers.slice();
+    } else if (hasFrozenCache) {
       offers = getFrozenVoronoiOffers();
       usingFrozenCache = true;
     } else if (freezeActive) {
@@ -2944,20 +2986,31 @@ window.showConfirmModal = showConfirmModal;
     const computedSignature = offersForSignature
       .map(offer => (offer?.key || offer?.id || ''))
       .join('|');
-    const sourceSignature = usingFrozenCache && voronoiLayerState.cacheSignature
-      ? voronoiLayerState.cacheSignature
-      : usingPreservedSource && preservedSignature
-        ? preservedSignature
-        : computedSignature;
+    const sourceSignature = usingFrozenLayout && frozenLayout?.signature
+      ? frozenLayout.signature
+      : usingFrozenCache && voronoiLayerState.cacheSignature
+        ? voronoiLayerState.cacheSignature
+        : usingPreservedSource && preservedSignature
+          ? preservedSignature
+          : computedSignature;
 
-    const normalizedOffers = Array.isArray(offers)
-      ? offers.filter(Boolean)
-      : [];
-    const cached = usingFrozenCache
-      ? voronoiLayerState.cachedDataset
-      : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
+    let normalizedOffers;
+    if (usingFrozenLayout && Array.isArray(frozenLayout?.cache?.dataset)) {
+      normalizedOffers = frozenLayout.cache.dataset
+        .map(entry => entry?.offer)
+        .filter(Boolean);
+    } else {
+      normalizedOffers = Array.isArray(offers)
+        ? offers.filter(Boolean)
+        : [];
+    }
+    const cached = usingFrozenLayout
+      ? frozenLayout?.cache
+      : usingFrozenCache
         ? voronoiLayerState.cachedDataset
-        : null;
+        : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
+          ? voronoiLayerState.cachedDataset
+          : null;
 
     let dataset = [];
     let adjacencyList = [];
@@ -2989,7 +3042,7 @@ window.showConfirmModal = showConfirmModal;
         return;
       }
     } else {
-      dataset = offers
+      dataset = normalizedOffers
         .map(offer => {
           const source = offer?.voronoiPoint || null;
           let lat = Number(source?.lat);
@@ -3010,6 +3063,7 @@ window.showConfirmModal = showConfirmModal;
         clearVoronoiLayer();
         voronoiLayerState.cachedDataset = null;
         voronoiLayerState.cacheSignature = null;
+        voronoiLayerState.frozenLayout = null;
         voronoiLayerState.lastNonFrozenSource = {
           offers: [],
           signature: null,
@@ -3059,6 +3113,10 @@ window.showConfirmModal = showConfirmModal;
       shouldUpdateCache = true;
     }
 
+    if ((!normalizedOffers || !normalizedOffers.length) && Array.isArray(dataset)) {
+      normalizedOffers = dataset.map(entry => entry?.offer).filter(Boolean);
+    }
+
     const extentSnapshot = Array.isArray(extent) ? extent.slice() : null;
     const hasOffersToStore = normalizedOffers.length > 0;
 
@@ -3068,7 +3126,7 @@ window.showConfirmModal = showConfirmModal;
         signature: hasOffersToStore ? sourceSignature : null,
         extent: hasOffersToStore ? extentSnapshot : null
       };
-    } else if (usingPreservedSource && hasOffersToStore) {
+    } else if (!usingFrozenLayout && usingPreservedSource && hasOffersToStore) {
       const signature = preservedSignature || sourceSignature || null;
       const nextExtent = preservedExtent && preservedExtent.length === 4
         ? preservedExtent.slice()
@@ -3081,14 +3139,36 @@ window.showConfirmModal = showConfirmModal;
     }
 
     const allowCacheRefresh = !freezeActive || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
-    if (shouldUpdateCache && allowCacheRefresh) {
+    if (!usingFrozenLayout && shouldUpdateCache && allowCacheRefresh) {
       voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent);
       voronoiLayerState.cacheSignature = sourceSignature;
     }
 
+    if (freezeActive) {
+      if (!usingFrozenLayout) {
+        voronoiLayerState.frozenLayout = cloneFrozenVoronoiLayout(
+          dataset,
+          adjacencyList,
+          resolvedValues,
+          extent,
+          normalizedOffers,
+          sourceSignature
+        );
+      } else if (
+        preservedFrozenLayout
+        && typeof sourceSignature === 'string'
+        && preservedFrozenLayout.signature !== sourceSignature
+      ) {
+        voronoiLayerState.frozenLayout = {
+          ...preservedFrozenLayout,
+          signature: sourceSignature
+        };
+      }
+    }
+
     const preservedSelectionKey = voronoiLayerState.highlight.selectedOfferKey;
     const preservedIndexHint = voronoiLayerState.highlight.selectedIndexHint;
-    clearVoronoiLayer({ resetHighlight: false });
+    clearVoronoiLayer({ resetHighlight: false, preserveFrozenLayout: true });
     resetVoronoiLabelLayout();
 
     const shouldRenderLabels = shouldRenderVoronoiLabelsForDatasetSize(dataset.length);
@@ -3799,6 +3879,7 @@ window.showConfirmModal = showConfirmModal;
           clearVoronoiLayer();
           voronoiLayerState.cachedDataset = null;
           voronoiLayerState.cacheSignature = null;
+          voronoiLayerState.frozenLayout = null;
           voronoiLayerState.lastNonFrozenSource = {
             offers: [],
             signature: null,
