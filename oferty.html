@@ -539,6 +539,10 @@ window.showConfirmModal = showConfirmModal;
     },
     cachedDataset: null,
     cacheSignature: null,
+    lastNonFrozenSource: {
+      offers: [],
+      signature: null
+    },
     connectorIndexMap: new Map(),
     resolvedValues: [],
     datasetSnapshot: [],
@@ -1722,6 +1726,10 @@ window.showConfirmModal = showConfirmModal;
     currentVisibleOffers = [];
     voronoiLayerState.cachedDataset = null;
     voronoiLayerState.cacheSignature = null;
+    voronoiLayerState.lastNonFrozenSource = {
+      offers: [],
+      signature: null
+    };
 
     if (!Array.isArray(documents)) {
       renderTagFilters();
@@ -2897,25 +2905,60 @@ window.showConfirmModal = showConfirmModal;
     let usingFrozenCache = false;
     let usedFullFilteredOffers = false;
 
+    const preservedSource = voronoiLayerState.lastNonFrozenSource || {};
+    const preservedOffers = Array.isArray(preservedSource.offers)
+      ? preservedSource.offers.filter(Boolean)
+      : [];
+    const preservedSignature = typeof preservedSource.signature === 'string'
+      ? preservedSource.signature
+      : null;
+    let usingPreservedSource = false;
+
     let offers;
     if (hasFrozenCache) {
       offers = getFrozenVoronoiOffers();
       usingFrozenCache = true;
     } else if (freezeActive) {
-      offers = getVoronoiSourceOffers();
-      if (!offers.length) {
-        offers = getOffersMatchingFilters();
-        if (offers.length) {
-          usedFullFilteredOffers = true;
+      if (preservedOffers.length) {
+        offers = preservedOffers.slice();
+        usingPreservedSource = true;
+      } else {
+        offers = getVoronoiSourceOffers();
+        if (!offers.length) {
+          offers = getOffersMatchingFilters();
+          if (offers.length) {
+            usedFullFilteredOffers = true;
+          }
         }
       }
     } else {
       offers = getVoronoiSourceOffers();
     }
 
+    const offersForSignature = Array.isArray(offers) ? offers : [];
+    const computedSignature = offersForSignature
+      .map(offer => (offer?.key || offer?.id || ''))
+      .join('|');
     const sourceSignature = usingFrozenCache && voronoiLayerState.cacheSignature
       ? voronoiLayerState.cacheSignature
-      : offers.map(offer => (offer?.key || offer?.id || '')).join('|');
+      : usingPreservedSource && preservedSignature
+        ? preservedSignature
+        : computedSignature;
+
+    const normalizedOffers = Array.isArray(offers)
+      ? offers.filter(Boolean)
+      : [];
+    if (!freezeActive) {
+      voronoiLayerState.lastNonFrozenSource = {
+        offers: normalizedOffers.slice(),
+        signature: normalizedOffers.length ? sourceSignature : null
+      };
+    } else if (usingPreservedSource && normalizedOffers.length && !preservedSignature) {
+      voronoiLayerState.lastNonFrozenSource = {
+        offers: normalizedOffers.slice(),
+        signature: sourceSignature
+      };
+    }
     const cached = usingFrozenCache
       ? voronoiLayerState.cachedDataset
       : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
@@ -2973,6 +3016,10 @@ window.showConfirmModal = showConfirmModal;
         clearVoronoiLayer();
         voronoiLayerState.cachedDataset = null;
         voronoiLayerState.cacheSignature = null;
+        voronoiLayerState.lastNonFrozenSource = {
+          offers: [],
+          signature: null
+        };
         return;
       }
 
@@ -3732,6 +3779,10 @@ window.showConfirmModal = showConfirmModal;
           clearVoronoiLayer();
           voronoiLayerState.cachedDataset = null;
           voronoiLayerState.cacheSignature = null;
+          voronoiLayerState.lastNonFrozenSource = {
+            offers: [],
+            signature: null
+          };
         }
       }
       return;
