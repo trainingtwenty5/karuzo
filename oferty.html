@@ -541,7 +541,8 @@ window.showConfirmModal = showConfirmModal;
     cacheSignature: null,
     lastNonFrozenSource: {
       offers: [],
-      signature: null
+      signature: null,
+      extent: null
     },
     connectorIndexMap: new Map(),
     resolvedValues: [],
@@ -1728,7 +1729,8 @@ window.showConfirmModal = showConfirmModal;
     voronoiLayerState.cacheSignature = null;
     voronoiLayerState.lastNonFrozenSource = {
       offers: [],
-      signature: null
+      signature: null,
+      extent: null
     };
 
     if (!Array.isArray(documents)) {
@@ -2912,6 +2914,9 @@ window.showConfirmModal = showConfirmModal;
     const preservedSignature = typeof preservedSource.signature === 'string'
       ? preservedSource.signature
       : null;
+    const preservedExtent = Array.isArray(preservedSource.extent) && preservedSource.extent.length === 4
+      ? preservedSource.extent.slice()
+      : null;
     let usingPreservedSource = false;
 
     let offers;
@@ -2948,17 +2953,6 @@ window.showConfirmModal = showConfirmModal;
     const normalizedOffers = Array.isArray(offers)
       ? offers.filter(Boolean)
       : [];
-    if (!freezeActive) {
-      voronoiLayerState.lastNonFrozenSource = {
-        offers: normalizedOffers.slice(),
-        signature: normalizedOffers.length ? sourceSignature : null
-      };
-    } else if (usingPreservedSource && normalizedOffers.length && !preservedSignature) {
-      voronoiLayerState.lastNonFrozenSource = {
-        offers: normalizedOffers.slice(),
-        signature: sourceSignature
-      };
-    }
     const cached = usingFrozenCache
       ? voronoiLayerState.cachedDataset
       : (freezeActive && voronoiLayerState.cacheSignature === sourceSignature)
@@ -3018,17 +3012,22 @@ window.showConfirmModal = showConfirmModal;
         voronoiLayerState.cacheSignature = null;
         voronoiLayerState.lastNonFrozenSource = {
           offers: [],
-          signature: null
+          signature: null,
+          extent: null
         };
         return;
       }
 
-      const bounds = map.getBounds();
-      if (!bounds) return;
+      if (freezeActive && usingPreservedSource && preservedExtent) {
+        extent = preservedExtent.slice();
+      } else {
+        const bounds = map.getBounds();
+        if (!bounds) return;
 
-      const sw = bounds.getSouthWest();
-      const ne = bounds.getNorthEast();
-      extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+        const sw = bounds.getSouthWest();
+        const ne = bounds.getNorthEast();
+        extent = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+      }
 
       try {
         const points = dataset.map(({ position }) => [position.lng, position.lat]);
@@ -3058,6 +3057,27 @@ window.showConfirmModal = showConfirmModal;
       const baseValues = dataset.map(({ offer }) => computeOfferValueWithTags(offer));
       resolvedValues = resolveVoronoiValues(baseValues, adjacencyList, dataset);
       shouldUpdateCache = true;
+    }
+
+    const extentSnapshot = Array.isArray(extent) ? extent.slice() : null;
+    const hasOffersToStore = normalizedOffers.length > 0;
+
+    if (!freezeActive) {
+      voronoiLayerState.lastNonFrozenSource = {
+        offers: hasOffersToStore ? normalizedOffers.slice() : [],
+        signature: hasOffersToStore ? sourceSignature : null,
+        extent: hasOffersToStore ? extentSnapshot : null
+      };
+    } else if (usingPreservedSource && hasOffersToStore) {
+      const signature = preservedSignature || sourceSignature || null;
+      const nextExtent = preservedExtent && preservedExtent.length === 4
+        ? preservedExtent.slice()
+        : extentSnapshot;
+      voronoiLayerState.lastNonFrozenSource = {
+        offers: normalizedOffers.slice(),
+        signature,
+        extent: nextExtent
+      };
     }
 
     const allowCacheRefresh = !freezeActive || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
@@ -3781,7 +3801,8 @@ window.showConfirmModal = showConfirmModal;
           voronoiLayerState.cacheSignature = null;
           voronoiLayerState.lastNonFrozenSource = {
             offers: [],
-            signature: null
+            signature: null,
+            extent: null
           };
         }
       }
