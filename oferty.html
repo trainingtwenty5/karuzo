@@ -2882,6 +2882,21 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function getVoronoiSourceOffers() {
+    const freezeActive = shouldFreezeVoronoiLayout();
+    if (freezeActive) {
+      const frozenOffers = Array.isArray(voronoiLayerState.frozenLayout?.offers)
+        ? voronoiLayerState.frozenLayout.offers.filter(Boolean)
+        : [];
+      if (frozenOffers.length) {
+        return frozenOffers.slice();
+      }
+      const preservedOffers = Array.isArray(voronoiLayerState.lastNonFrozenSource?.offers)
+        ? voronoiLayerState.lastNonFrozenSource.offers.filter(Boolean)
+        : [];
+      if (preservedOffers.length) {
+        return preservedOffers.slice();
+      }
+    }
     if (currentVisibleOffers.length) {
       return currentVisibleOffers.slice();
     }
@@ -3872,10 +3887,12 @@ window.showConfirmModal = showConfirmModal;
         const freezeActive = shouldFreezeVoronoiLayout();
         const hasFrozenCache = freezeActive && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
           && voronoiLayerState.cachedDataset.dataset.length;
+        const hasFrozenLayout = freezeActive && Array.isArray(voronoiLayerState.frozenLayout?.offers)
+          && voronoiLayerState.frozenLayout.offers.length > 0;
 
-        if (hasFrozenCache) {
+        if (hasFrozenCache || hasFrozenLayout) {
           updateVoronoiLayer(true);
-        } else {
+        } else if (!freezeActive) {
           clearVoronoiLayer();
           voronoiLayerState.cachedDataset = null;
           voronoiLayerState.cacheSignature = null;
