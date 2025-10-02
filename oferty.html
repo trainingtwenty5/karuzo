@@ -269,6 +269,10 @@ window.showConfirmModal = showConfirmModal;
               <span class="voronoi-legend__swatch voronoi-legend__swatch--source" aria-hidden="true"></span>
               <span class="voronoi-legend__label">Źródło wyceny</span>
             </div>
+            <div class="voronoi-legend__item">
+              <span class="voronoi-legend__swatch voronoi-legend__swatch--other" aria-hidden="true"></span>
+              <span class="voronoi-legend__label">Inne wyceny</span>
+            </div>
           </div>
           <div
             class="voronoi-inspector"
@@ -578,6 +582,15 @@ window.showConfirmModal = showConfirmModal;
         fillOpacity: 0.48
       };
     }
+    if (mode === 'otherHighlight') {
+      return {
+        strokeColor: '#7C3AED',
+        strokeOpacity: 0.9,
+        strokeWeight: 1.8,
+        fillColor: '#E9D5FF',
+        fillOpacity: 0.45
+      };
+    }
     return {
       strokeColor: '#1D4ED8',
       strokeOpacity: 0.72,
@@ -833,9 +846,10 @@ window.showConfirmModal = showConfirmModal;
     const datasetEntry = Array.isArray(voronoiLayerState.datasetSnapshot)
       ? voronoiLayerState.datasetSnapshot[index]
       : null;
-    const resolvedEntry = Array.isArray(voronoiLayerState.resolvedValues)
-      ? voronoiLayerState.resolvedValues[index]
-      : null;
+    const allResolvedValues = Array.isArray(voronoiLayerState.resolvedValues)
+      ? voronoiLayerState.resolvedValues
+      : [];
+    const resolvedEntry = allResolvedValues[index];
     const offerTags = Array.isArray(datasetEntry?.offer?.tags)
       ? datasetEntry.offer.tags.filter(tag => typeof tag === 'string' && tag.trim().length)
       : [];
@@ -1076,6 +1090,25 @@ window.showConfirmModal = showConfirmModal;
         if (!poly || activeIndices.has(polyIndex)) {
           return;
         }
+
+        const hasValuation = hasVoronoiValuation(allResolvedValues[polyIndex]);
+        if (hasValuation) {
+          applyVoronoiPolygonStyle(poly, 'otherHighlight');
+          if (typeof poly.setVisible === 'function') {
+            poly.setVisible(true);
+          }
+          const targetMap = voronoiLayerState.enabled && map ? map : null;
+          if (typeof poly.setMap === 'function') {
+            poly.setMap(targetMap);
+          }
+          const label = poly.__voronoiLabel;
+          if (label) {
+            setVoronoiLabelMap(label, targetMap);
+          }
+          highlight.polygons.add(poly);
+          return;
+        }
+
         if (!highlight.hiddenPolygons.has(poly)) {
           const currentMap = typeof poly.getMap === 'function' ? poly.getMap() : null;
           const currentVisible = typeof poly.getVisible === 'function' ? poly.getVisible() : true;
