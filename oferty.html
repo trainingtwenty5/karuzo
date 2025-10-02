@@ -594,6 +594,21 @@ window.showConfirmModal = showConfirmModal;
     polygon.setOptions(getVoronoiPolygonStyle(mode));
   }
 
+  function getVoronoiPolygonBaseMode(polygon) {
+    if (!polygon) {
+      return 'default';
+    }
+    if (typeof polygon.__voronoiBaseMode === 'string' && polygon.__voronoiBaseMode) {
+      return polygon.__voronoiBaseMode;
+    }
+    return polygon.__voronoiIsAssigned ? 'baseHighlight' : 'default';
+  }
+
+  function applyVoronoiBaseStyle(polygon) {
+    const baseMode = getVoronoiPolygonBaseMode(polygon);
+    applyVoronoiPolygonStyle(polygon, baseMode);
+  }
+
   function buildVoronoiConnectorStyle(mode = 'default') {
     const presets = mode === 'highlight'
       ? { strokeOpacity: 0.95, strokeWeight: 2, scale: 3, repeat: '10px', zIndex: 41 }
@@ -682,7 +697,7 @@ window.showConfirmModal = showConfirmModal;
         polygon.setVisible(!!shouldShow);
       }
       if (shouldShow) {
-        applyVoronoiPolygonStyle(polygon, 'default');
+        applyVoronoiBaseStyle(polygon);
       }
       const label = polygon.__voronoiLabel;
       if (label) {
@@ -943,7 +958,7 @@ window.showConfirmModal = showConfirmModal;
     const { resetSelection = true } = options || {};
     const highlight = voronoiLayerState.highlight;
     if (highlight.polygons.size) {
-      highlight.polygons.forEach(polygon => applyVoronoiPolygonStyle(polygon, 'default'));
+      highlight.polygons.forEach(polygon => applyVoronoiBaseStyle(polygon));
     }
     if (highlight.connectors.size) {
       highlight.connectors.forEach(connector => {
@@ -967,7 +982,7 @@ window.showConfirmModal = showConfirmModal;
         if (typeof polygon.setVisible === 'function') {
           polygon.setVisible(state?.visible !== false);
         }
-        applyVoronoiPolygonStyle(polygon, 'default');
+        applyVoronoiBaseStyle(polygon);
         if (label) {
           const labelTargetMap = state?.labelMap && voronoiLayerState.enabled ? state.labelMap : null;
           setVoronoiLabelMap(label, labelTargetMap);
@@ -995,6 +1010,9 @@ window.showConfirmModal = showConfirmModal;
     }
     const polygon = voronoiLayerState.polygons[index];
     if (!polygon) {
+      return;
+    }
+    if (!polygon.__voronoiIsAssigned) {
       return;
     }
 
@@ -3029,6 +3047,7 @@ window.showConfirmModal = showConfirmModal;
       const resolvedPricePerSqm = Number(resolvedEntry?.pricePerSqm);
       const resolvedPriceValue = Number(resolvedEntry?.price);
       const hasFallbackSources = Array.isArray(resolvedEntry?.fallbackSources) && resolvedEntry.fallbackSources.length > 0;
+      const hasAssignedValuation = hasFallbackSources;
 
       if (
         (!stats || stats.pricePerSqm <= 0 || stats.price <= 0)
@@ -3049,30 +3068,35 @@ window.showConfirmModal = showConfirmModal;
         : [];
       const isFallback = hasFallbackSources;
       const content = buildVoronoiLabelContent(stats, { fallback: isFallback });
+      const baseMode = hasAssignedValuation ? 'baseHighlight' : 'default';
 
       const polygon = new google.maps.Polygon({
         paths: cell.path,
         map: voronoiLayerState.enabled ? map : null,
-        ...getVoronoiPolygonStyle('default'),
-        clickable: true,
+        ...getVoronoiPolygonStyle(baseMode),
+        clickable: hasAssignedValuation,
         zIndex: 40
       });
       polygon.__voronoiIndex = index;
       polygon.__voronoiLabel = null;
-      polygon.addListener('click', () => {
-        if (!voronoiLayerState.enabled) return;
-        const highlightState = voronoiLayerState.highlight;
-        const isAlreadySelected = highlightState.baseIndex === index;
-        highlightState.ignoreNextMapClear = true;
-        if (isAlreadySelected) {
-          clearVoronoiHighlights({ resetSelection: true });
-        } else {
-          highlightVoronoiPolygon(index);
-        }
-        window.setTimeout(() => {
-          highlightState.ignoreNextMapClear = false;
-        }, 0);
-      });
+      polygon.__voronoiIsAssigned = hasAssignedValuation;
+      polygon.__voronoiBaseMode = baseMode;
+      if (hasAssignedValuation) {
+        polygon.addListener('click', () => {
+          if (!voronoiLayerState.enabled) return;
+          const highlightState = voronoiLayerState.highlight;
+          const isAlreadySelected = highlightState.baseIndex === index;
+          highlightState.ignoreNextMapClear = true;
+          if (isAlreadySelected) {
+            clearVoronoiHighlights({ resetSelection: true });
+          } else {
+            highlightVoronoiPolygon(index);
+          }
+          window.setTimeout(() => {
+            highlightState.ignoreNextMapClear = false;
+          }, 0);
+        });
+      }
       voronoiLayerState.polygons.push(polygon);
 
       if (!voronoiLayerState.connectorIndexMap.has(index)) {
@@ -3151,7 +3175,14 @@ window.showConfirmModal = showConfirmModal;
         }
       }
       if (rehighlightIndex >= 0) {
-        highlightVoronoiPolygon(rehighlightIndex);
+        const polygon = voronoiLayerState.polygons[rehighlightIndex];
+        if (polygon && polygon.__voronoiIsAssigned) {
+          highlightVoronoiPolygon(rehighlightIndex);
+        } else {
+          voronoiLayerState.highlight.selectedOfferKey = null;
+          voronoiLayerState.highlight.selectedIndexHint = null;
+          hideVoronoiTagInspector();
+        }
       } else {
         voronoiLayerState.highlight.selectedOfferKey = null;
         voronoiLayerState.highlight.selectedIndexHint = null;
