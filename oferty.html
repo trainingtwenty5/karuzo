@@ -549,6 +549,9 @@ window.showConfirmModal = showConfirmModal;
     resolvedValues: [],
     datasetSnapshot: [],
     cells: [],
+    adjacencyList: [],
+    currentExtent: null,
+    selectionLock: null,
     highlight: {
       baseIndex: null,
       selectedOfferKey: null,
@@ -1004,6 +1007,7 @@ window.showConfirmModal = showConfirmModal;
       highlight.selectedIndexHint = null;
       highlight.ignoreNextMapClear = false;
       hideVoronoiTagInspector();
+      voronoiLayerState.selectionLock = null;
     }
     if (voronoiLayerState.enabled) {
       applyVoronoiBaseVisibility();
@@ -1125,6 +1129,7 @@ window.showConfirmModal = showConfirmModal;
       });
     }
 
+    updateVoronoiSelectionLock(index);
     updateVoronoiTagInspector(index);
   }
 
@@ -1148,6 +1153,22 @@ window.showConfirmModal = showConfirmModal;
   function shouldFreezeVoronoiLayout() {
     const zoom = getMapZoomLevel();
     return Number.isFinite(zoom) && zoom >= VORONOI_FREEZE_ZOOM_LEVEL;
+  }
+
+  function getActiveVoronoiSelectionLock() {
+    const lock = voronoiLayerState.selectionLock;
+    if (!lock || !lock.layout) {
+      return null;
+    }
+    const highlightKey = voronoiLayerState.highlight.selectedOfferKey;
+    if (!highlightKey || lock.offerKey !== highlightKey) {
+      return null;
+    }
+    const offers = Array.isArray(lock.layout?.offers) ? lock.layout.offers : [];
+    if (!offers.length) {
+      return null;
+    }
+    return lock;
   }
 
   function shouldHideVoronoiLayer() {
@@ -1223,6 +1244,65 @@ window.showConfirmModal = showConfirmModal;
       ...cache,
       offers: Array.isArray(offers) ? offers.slice() : [],
       signature: typeof signature === 'string' ? signature : null
+    };
+  }
+
+  function updateVoronoiSelectionLock(baseIndex) {
+    if (!Number.isInteger(baseIndex) || baseIndex < 0) {
+      return;
+    }
+    const dataset = Array.isArray(voronoiLayerState.datasetSnapshot)
+      ? voronoiLayerState.datasetSnapshot
+      : [];
+    if (!dataset.length || baseIndex >= dataset.length) {
+      return;
+    }
+
+    const entry = dataset[baseIndex];
+    const offerKey = getVoronoiDatasetOfferKey(entry);
+    if (!offerKey) {
+      return;
+    }
+
+    const offers = dataset
+      .map(item => item?.offer)
+      .filter(Boolean);
+    if (!offers.length) {
+      return;
+    }
+
+    const signature = offers
+      .map(offer => {
+        const rawKey = offer?.key ?? offer?.id ?? offer?.plot?.id ?? '';
+        return rawKey != null ? String(rawKey) : '';
+      })
+      .join('|');
+
+    const extentSnapshot = Array.isArray(voronoiLayerState.currentExtent)
+      ? voronoiLayerState.currentExtent.slice()
+      : null;
+
+    const adjacencyList = Array.isArray(voronoiLayerState.adjacencyList)
+      ? voronoiLayerState.adjacencyList.map(neighbors => (
+          Array.isArray(neighbors) ? neighbors.slice() : []
+        ))
+      : [];
+
+    const layout = cloneFrozenVoronoiLayout(
+      dataset,
+      adjacencyList,
+      voronoiLayerState.resolvedValues,
+      extentSnapshot,
+      offers,
+      signature,
+      voronoiLayerState.cells
+    );
+
+    voronoiLayerState.selectionLock = {
+      baseIndex,
+      offerKey,
+      signature,
+      layout
     };
   }
 
@@ -1772,6 +1852,9 @@ window.showConfirmModal = showConfirmModal;
     voronoiLayerState.cachedDataset = null;
     voronoiLayerState.cacheSignature = null;
     voronoiLayerState.frozenLayout = null;
+    voronoiLayerState.selectionLock = null;
+    voronoiLayerState.adjacencyList = [];
+    voronoiLayerState.currentExtent = null;
     voronoiLayerState.lastNonFrozenSource = {
       offers: [],
       signature: null,
@@ -2930,6 +3013,8 @@ window.showConfirmModal = showConfirmModal;
       voronoiLayerState.resolvedValues = [];
       voronoiLayerState.datasetSnapshot = [];
       voronoiLayerState.cells = [];
+      voronoiLayerState.adjacencyList = [];
+      voronoiLayerState.currentExtent = null;
     }
     if (!preserveFrozenLayout) {
       voronoiLayerState.frozenLayout = null;
@@ -2937,6 +3022,16 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function getVoronoiSourceOffers() {
+    const selectionLock = getActiveVoronoiSelectionLock();
+    if (selectionLock) {
+      const lockedOffers = Array.isArray(selectionLock.layout?.offers)
+        ? selectionLock.layout.offers.filter(Boolean)
+        : [];
+      if (lockedOffers.length) {
+        return lockedOffers.slice();
+      }
+    }
+
     const freezeActive = shouldFreezeVoronoiLayout();
     if (freezeActive) {
       const frozenOffers = Array.isArray(voronoiLayerState.frozenLayout?.offers)
@@ -2984,14 +3079,19 @@ window.showConfirmModal = showConfirmModal;
       return;
     }
 
+    const selectionLock = getActiveVoronoiSelectionLock();
     const freezeActive = shouldFreezeVoronoiLayout();
-    if (!freezeActive && voronoiLayerState.frozenLayout) {
+    const lockActive = !!selectionLock;
+    const effectiveFreeze = freezeActive || lockActive;
+    if (!effectiveFreeze && voronoiLayerState.frozenLayout) {
       voronoiLayerState.frozenLayout = null;
     }
 
-    const preservedFrozenLayout = freezeActive && voronoiLayerState.frozenLayout
-      ? voronoiLayerState.frozenLayout
-      : null;
+    const preservedFrozenLayout = lockActive
+      ? selectionLock.layout
+      : (freezeActive && voronoiLayerState.frozenLayout
+          ? voronoiLayerState.frozenLayout
+          : null);
     const frozenLayout = preservedFrozenLayout
       ? {
           offers: Array.isArray(preservedFrozenLayout.offers)
@@ -3010,7 +3110,7 @@ window.showConfirmModal = showConfirmModal;
         }
       : null;
 
-    const hasFrozenCache = !frozenLayout && freezeActive
+    const hasFrozenCache = !frozenLayout && effectiveFreeze
       && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
       && voronoiLayerState.cachedDataset.dataset.length;
 
@@ -3218,7 +3318,12 @@ window.showConfirmModal = showConfirmModal;
     const extentSnapshot = Array.isArray(extent) ? extent.slice() : null;
     const hasOffersToStore = normalizedOffers.length > 0;
 
-    if (!freezeActive) {
+    voronoiLayerState.currentExtent = extentSnapshot;
+    voronoiLayerState.adjacencyList = Array.isArray(adjacencyList)
+      ? adjacencyList.map(neighbors => Array.isArray(neighbors) ? neighbors.slice() : [])
+      : [];
+
+    if (!effectiveFreeze) {
       voronoiLayerState.lastNonFrozenSource = {
         offers: hasOffersToStore ? normalizedOffers.slice() : [],
         signature: hasOffersToStore ? sourceSignature : null,
@@ -3236,7 +3341,7 @@ window.showConfirmModal = showConfirmModal;
       };
     }
 
-    const allowCacheRefresh = !freezeActive || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
+    const allowCacheRefresh = !effectiveFreeze || usedFullFilteredOffers || !voronoiLayerState.cachedDataset;
     if (!usingFrozenLayout && shouldUpdateCache && allowCacheRefresh) {
       voronoiLayerState.cachedDataset = cloneVoronoiCache(dataset, adjacencyList, resolvedValues, extent, cells);
       voronoiLayerState.cacheSignature = sourceSignature;
@@ -3961,18 +4066,24 @@ window.showConfirmModal = showConfirmModal;
       listContainer.innerHTML = '<p class="no-offers">Brak ofert w widocznym obszarze</p>';
       if (voronoiLayerState.enabled) {
         const freezeActive = shouldFreezeVoronoiLayout();
-        const hasFrozenCache = freezeActive && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
+        const selectionLock = getActiveVoronoiSelectionLock();
+        const lockActive = !!selectionLock;
+        const layoutFrozen = freezeActive || lockActive;
+        const hasFrozenCache = layoutFrozen && Array.isArray(voronoiLayerState.cachedDataset?.dataset)
           && voronoiLayerState.cachedDataset.dataset.length;
-        const hasFrozenLayout = freezeActive && Array.isArray(voronoiLayerState.frozenLayout?.offers)
-          && voronoiLayerState.frozenLayout.offers.length > 0;
+        const hasFrozenLayout = (freezeActive && Array.isArray(voronoiLayerState.frozenLayout?.offers)
+          && voronoiLayerState.frozenLayout.offers.length > 0)
+          || (lockActive && Array.isArray(selectionLock?.layout?.offers)
+            && selectionLock.layout.offers.length > 0);
 
         if (hasFrozenCache || hasFrozenLayout) {
           updateVoronoiLayer(true);
-        } else if (!freezeActive) {
+        } else if (!layoutFrozen) {
           clearVoronoiLayer();
           voronoiLayerState.cachedDataset = null;
           voronoiLayerState.cacheSignature = null;
           voronoiLayerState.frozenLayout = null;
+          voronoiLayerState.selectionLock = null;
           voronoiLayerState.lastNonFrozenSource = {
             offers: [],
             signature: null,
