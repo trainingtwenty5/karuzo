@@ -619,6 +619,65 @@ window.showConfirmModal = showConfirmModal;
     connector.setOptions(buildVoronoiConnectorStyle(mode));
   }
 
+  function extractLatLngFromGooglePosition(position) {
+    if (!position) return null;
+    try {
+      const lat = typeof position.lat === 'function' ? position.lat() : position.lat;
+      const lng = typeof position.lng === 'function' ? position.lng() : position.lng;
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return { lat, lng };
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function getMarkerPositionForOffer(offer) {
+    if (!offer || typeof offer !== 'object') {
+      return null;
+    }
+
+    const marker = offer.marker;
+    if (marker && typeof marker.getPosition === 'function') {
+      const markerPosition = extractLatLngFromGooglePosition(marker.getPosition());
+      if (markerPosition) {
+        return markerPosition;
+      }
+    }
+
+    const plotLat = Number(offer.plot?.lat);
+    const plotLng = Number(offer.plot?.lng);
+    if (Number.isFinite(plotLat) && Number.isFinite(plotLng)) {
+      return { lat: plotLat, lng: plotLng };
+    }
+
+    const voronoiPoint = offer.voronoiPoint;
+    if (voronoiPoint && Number.isFinite(voronoiPoint.lat) && Number.isFinite(voronoiPoint.lng)) {
+      return { lat: voronoiPoint.lat, lng: voronoiPoint.lng };
+    }
+
+    return null;
+  }
+
+  function getMarkerPositionForDatasetEntry(entry) {
+    if (!entry || typeof entry !== 'object') {
+      return null;
+    }
+
+    const offerPosition = getMarkerPositionForOffer(entry.offer);
+    if (offerPosition) {
+      return offerPosition;
+    }
+
+    const datasetPosition = entry.position;
+    if (datasetPosition && Number.isFinite(datasetPosition.lat) && Number.isFinite(datasetPosition.lng)) {
+      return { lat: datasetPosition.lat, lng: datasetPosition.lng };
+    }
+
+    return null;
+  }
+
   function getVoronoiDatasetOfferKey(entry) {
     if (!entry || !entry.offer) {
       return null;
@@ -2843,10 +2902,16 @@ window.showConfirmModal = showConfirmModal;
       polygon.__voronoiIndex = index;
       polygon.addListener('click', () => {
         if (!voronoiLayerState.enabled) return;
-        voronoiLayerState.highlight.ignoreNextMapClear = true;
-        highlightVoronoiPolygon(index);
+        const highlightState = voronoiLayerState.highlight;
+        const isAlreadySelected = highlightState.baseIndex === index;
+        highlightState.ignoreNextMapClear = true;
+        if (isAlreadySelected) {
+          clearVoronoiHighlights({ resetSelection: true });
+        } else {
+          highlightVoronoiPolygon(index);
+        }
         window.setTimeout(() => {
-          voronoiLayerState.highlight.ignoreNextMapClear = false;
+          highlightState.ignoreNextMapClear = false;
         }, 0);
       });
       voronoiLayerState.polygons.push(polygon);
@@ -2867,16 +2932,31 @@ window.showConfirmModal = showConfirmModal;
       }
 
       fallbackSources.forEach(pathIndices => {
-        const connectorPath = Array.isArray(pathIndices)
+        let connectorPath = Array.isArray(pathIndices)
           ? pathIndices
               .map(i => {
+                const datasetEntry = dataset[i];
+                const markerPosition = getMarkerPositionForDatasetEntry(datasetEntry);
+                if (markerPosition) return markerPosition;
                 const targetCell = cells[i];
                 if (targetCell?.centroid) return targetCell.centroid;
-                const targetDataset = dataset[i];
-                return targetDataset?.position || null;
+                return datasetEntry?.position || null;
               })
-              .filter(Boolean)
+              .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng))
           : [];
+
+        if (connectorPath.length < 2) {
+          const basePosition = getMarkerPositionForDatasetEntry(dataset[index]);
+          const sourceIndex = Array.isArray(pathIndices)
+            ? pathIndices[pathIndices.length - 1]
+            : null;
+          const sourcePosition = Number.isInteger(sourceIndex)
+            ? getMarkerPositionForDatasetEntry(dataset[sourceIndex])
+            : null;
+          connectorPath = [basePosition, sourcePosition]
+            .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
+        }
+
         if (connectorPath.length < 2) return;
 
         const connector = new google.maps.Polyline({
