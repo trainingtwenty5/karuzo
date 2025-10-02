@@ -1088,11 +1088,16 @@ window.showConfirmModal = showConfirmModal;
     const lng = center && typeof center.lng === 'function' ? center.lng() : null;
     const zoom = typeof map.getZoom === 'function' ? map.getZoom() : null;
 
-    const focusOfferId = typeof extra.focusOfferId === 'string' && extra.focusOfferId.trim()
-      ? extra.focusOfferId.trim()
+    const hasFocusOfferId = Object.prototype.hasOwnProperty.call(extra, 'focusOfferId');
+    const hasFocusPlotIndex = Object.prototype.hasOwnProperty.call(extra, 'focusPlotIndex');
+
+    const focusOfferId = hasFocusOfferId
+      ? (typeof extra.focusOfferId === 'string' && extra.focusOfferId.trim()
+        ? extra.focusOfferId.trim()
+        : null)
       : (typeof pendingMapState?.focusOfferId === 'string' ? pendingMapState.focusOfferId : null);
-    const focusPlotIndex = Number.isInteger(extra.focusPlotIndex)
-      ? extra.focusPlotIndex
+    const focusPlotIndex = hasFocusPlotIndex
+      ? (Number.isInteger(extra.focusPlotIndex) ? extra.focusPlotIndex : null)
       : (Number.isInteger(pendingMapState?.focusPlotIndex) ? pendingMapState.focusPlotIndex : null);
 
     const payload = {
@@ -1164,7 +1169,11 @@ window.showConfirmModal = showConfirmModal;
       const anchor = match.marker && typeof match.marker.getPosition === 'function'
         ? match.marker
         : focusPosition;
-      openInfo(anchor, infoHTML(match.plot, match.data, match.id, match.index));
+      openInfo(anchor, infoHTML(match.plot, match.data, match.id, match.index), {
+        offerId: typeof match.id === 'string' ? match.id : null,
+        plotIndex: Number.isInteger(match.index) ? match.index : null,
+        skipMapStateUpdate: true
+      });
       document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
@@ -1579,7 +1588,10 @@ window.showConfirmModal = showConfirmModal;
           if (map && typeof marker.getPosition === 'function') {
             panMapTo(marker.getPosition(), 17);
           }
-          openInfo(marker, infoHTML(plot, data, offerId, originalIndex));
+          openInfo(marker, infoHTML(plot, data, offerId, originalIndex), {
+            offerId: typeof offerId === 'string' ? offerId : null,
+            plotIndex: Number.isInteger(originalIndex) ? originalIndex : null
+          });
         });
 
         let polygon = null;
@@ -1604,7 +1616,10 @@ window.showConfirmModal = showConfirmModal;
               if (map && position) {
                 panMapTo(position, 17);
               }
-              openInfo(position, infoHTML(plot, data, offerId, originalIndex));
+              openInfo(position, infoHTML(plot, data, offerId, originalIndex), {
+                offerId: typeof offerId === 'string' ? offerId : null,
+                plotIndex: Number.isInteger(originalIndex) ? originalIndex : null
+              });
             });
 
             const interiorPoint = getPolygonInteriorPoint(coords, baseVoronoiPoint);
@@ -3352,12 +3367,34 @@ window.showConfirmModal = showConfirmModal;
     updatePolygonVisibility(filtered);
   }
 
-  function openInfo(anchorOrPosition, html) {
+  function openInfo(anchorOrPosition, html, options = {}) {
     if (!window.infoWin) window.infoWin = new google.maps.InfoWindow();
     const infoWin = window.infoWin;
 
     infoWin.close();
     infoWin.setContent(html);
+
+    if (!options?.skipMapStateUpdate) {
+      const hasOfferKey = Object.prototype.hasOwnProperty.call(options, 'offerId');
+      const hasPlotKey = Object.prototype.hasOwnProperty.call(options, 'plotIndex');
+      const offerId = hasOfferKey && typeof options.offerId === 'string' && options.offerId.trim()
+        ? options.offerId.trim()
+        : null;
+      const plotIndex = hasPlotKey && Number.isInteger(options.plotIndex)
+        ? options.plotIndex
+        : null;
+      const hasValidOffer = Boolean(offerId);
+      const hasValidPlotIndex = plotIndex !== null;
+
+      if (hasValidOffer || hasValidPlotIndex) {
+        saveMapState({
+          focusOfferId: offerId,
+          focusPlotIndex: plotIndex
+        });
+      } else if (hasOfferKey || hasPlotKey) {
+        saveMapState({ focusOfferId: null, focusPlotIndex: null });
+      }
+    }
 
     if (!map) return;
 
@@ -3542,7 +3579,10 @@ window.showConfirmModal = showConfirmModal;
       card.addEventListener("click", (e) => {
         if (e.target.closest('a')) return;
         panMapTo(o.marker.getPosition());
-        openInfo(o.marker, infoHTML(o.plot, o.data, o.id, o.index));
+        openInfo(o.marker, infoHTML(o.plot, o.data, o.id, o.index), {
+          offerId: typeof o.id === 'string' ? o.id : null,
+          plotIndex: Number.isInteger(o.index) ? o.index : null
+        });
       });
 
       listContainer.appendChild(card);
@@ -3575,7 +3615,10 @@ window.showConfirmModal = showConfirmModal;
     const match = allOffers.find(o => o.id === offerId && o.index === plotIndex);
     if (!match || !map) return;
     panMapTo(match.marker.getPosition(), 17);
-    openInfo(match.marker, infoHTML(match.plot, match.data, match.id, match.index));
+    openInfo(match.marker, infoHTML(match.plot, match.data, match.id, match.index), {
+      offerId: typeof match.id === 'string' ? match.id : null,
+      plotIndex: Number.isInteger(match.index) ? match.index : null
+    });
     document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
