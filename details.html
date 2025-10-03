@@ -481,26 +481,28 @@
         <i class="fas fa-xmark" aria-hidden="true"></i>
       </button>
     </div>
-    <button
-      type="button"
-      class="image-lightbox__control image-lightbox__nav image-lightbox__nav--prev"
-      id="mapImageLightboxPrev"
-      aria-label="Poprzednie zdjęcie"
-      title="Poprzednie"
-    >
-      <i class="fas fa-chevron-left" aria-hidden="true"></i>
-    </button>
-    <button
-      type="button"
-      class="image-lightbox__control image-lightbox__nav image-lightbox__nav--next"
-      id="mapImageLightboxNext"
-      aria-label="Następne zdjęcie"
-      title="Następne"
-    >
-      <i class="fas fa-chevron-right" aria-hidden="true"></i>
-    </button>
     <div class="image-lightbox__viewport">
-      <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+      <div class="image-lightbox__stage">
+        <button
+          type="button"
+          class="image-lightbox__control image-lightbox__nav image-lightbox__nav--prev"
+          id="mapImageLightboxPrev"
+          aria-label="Poprzednie zdjęcie"
+          title="Poprzednie"
+        >
+          <i class="fas fa-chevron-left" aria-hidden="true"></i>
+        </button>
+        <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+        <button
+          type="button"
+          class="image-lightbox__control image-lightbox__nav image-lightbox__nav--next"
+          id="mapImageLightboxNext"
+          aria-label="Następne zdjęcie"
+          title="Następne"
+        >
+          <i class="fas fa-chevron-right" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
   </div>
 
