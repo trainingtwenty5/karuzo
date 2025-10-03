@@ -112,6 +112,7 @@ const elements = {
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
   mapImageLightbox: document.getElementById('mapImageLightbox'),
+  mapImageLightboxStage: document.getElementById('mapImageLightboxStage'),
   mapImageLightboxPicture: document.getElementById('mapImageLightboxPicture'),
   mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
   mapImageLightboxPrev: document.getElementById('mapImageLightboxPrev'),
@@ -774,6 +775,10 @@ function resetLightboxZoomState() {
     elements.mapImageLightboxPicture.style.height = '';
     elements.mapImageLightboxPicture.style.maxWidth = '';
     elements.mapImageLightboxPicture.style.maxHeight = '';
+  }
+  if (elements.mapImageLightboxStage) {
+    elements.mapImageLightboxStage.scrollTop = 0;
+    elements.mapImageLightboxStage.scrollLeft = 0;
   }
   updateZoomButtonsState();
 }
