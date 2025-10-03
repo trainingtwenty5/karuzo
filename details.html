@@ -452,7 +452,16 @@
     aria-label="Powiększony podgląd mapy"
     tabindex="-1"
   >
-    <div class="image-lightbox__controls" role="toolbar" aria-label="Sterowanie powiększeniem">
+    <div class="image-lightbox__controls" role="toolbar" aria-label="Sterowanie podglądem obrazu">
+      <button
+        type="button"
+        class="image-lightbox__control"
+        id="mapImageLightboxPrev"
+        aria-label="Poprzednie zdjęcie"
+        title="Poprzednie"
+      >
+        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+      </button>
       <button
         type="button"
         class="image-lightbox__control"
@@ -470,6 +479,15 @@
         title="Oddal"
       >
         <i class="fas fa-minus" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        class="image-lightbox__control"
+        id="mapImageLightboxNext"
+        aria-label="Następne zdjęcie"
+        title="Następne"
+      >
+        <i class="fas fa-chevron-right" aria-hidden="true"></i>
       </button>
       <button
         type="button"
