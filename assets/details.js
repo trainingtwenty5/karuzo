@@ -61,7 +61,9 @@ const state = {
   lightboxReturnFocus: null,
   lightboxZoom: 1,
   lightboxBaseWidth: 0,
-  lightboxBaseHeight: 0
+  lightboxBaseHeight: 0,
+  lightboxImageModes: [],
+  lightboxActiveMode: ''
 };
 
 const elements = {
@@ -110,8 +112,11 @@ const elements = {
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
   mapImageLightbox: document.getElementById('mapImageLightbox'),
+  mapImageLightboxStage: document.getElementById('mapImageLightboxStage'),
   mapImageLightboxPicture: document.getElementById('mapImageLightboxPicture'),
   mapImageLightboxClose: document.getElementById('mapImageLightboxClose'),
+  mapImageLightboxPrev: document.getElementById('mapImageLightboxPrev'),
+  mapImageLightboxNext: document.getElementById('mapImageLightboxNext'),
   mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
   mapImageLightboxZoomOut: document.getElementById('mapImageLightboxZoomOut'),
   backToOffersBtn: document.getElementById('backToOffersBtn'),
@@ -206,6 +211,8 @@ elements.mapImageElement?.addEventListener('click', handleMapImageClick);
 elements.mapImageElement?.addEventListener('keydown', handleMapImageKeydown);
 elements.mapImageLightboxClose?.addEventListener('click', closeMapImageLightbox);
 elements.mapImageLightbox?.addEventListener('click', handleLightboxBackdropClick);
+elements.mapImageLightboxPrev?.addEventListener('click', handleLightboxPrevClick);
+elements.mapImageLightboxNext?.addEventListener('click', handleLightboxNextClick);
 elements.mapImageLightboxZoomIn?.addEventListener('click', handleLightboxZoomIn);
 elements.mapImageLightboxZoomOut?.addEventListener('click', handleLightboxZoomOut);
 document.addEventListener('keydown', handleLightboxKeydown);
@@ -689,7 +696,7 @@ function applyLightboxZoom() {
   updateZoomButtonsState();
 }
 
-function initializeLightboxZoom() {
+function initializeLightboxZoom(preserveZoom = false) {
   state.lightboxBaseWidth = 0;
   state.lightboxBaseHeight = 0;
   if (!elements.mapImageLightboxPicture) {
@@ -708,18 +715,21 @@ function initializeLightboxZoom() {
     state.lightboxBaseHeight = fallbackHeight;
   }
 
-  state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+  const nextZoom = preserveZoom
+    ? clamp(state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX)
+    : LIGHTBOX_ZOOM_DEFAULT;
+  state.lightboxZoom = nextZoom;
   applyLightboxZoom();
 }
 
-function prepareLightboxZoom() {
+function prepareLightboxZoom(preserveZoom = false) {
   if (!elements.mapImageLightboxPicture) {
     updateZoomButtonsState();
     return;
   }
 
   const apply = () => {
-    initializeLightboxZoom();
+    initializeLightboxZoom(preserveZoom);
   };
 
   if (elements.mapImageLightboxPicture.complete && elements.mapImageLightboxPicture.naturalWidth) {
@@ -759,6 +769,12 @@ function handleLightboxZoomOut(event) {
   adjustLightboxZoom(-LIGHTBOX_ZOOM_STEP);
 }
 
+function resetLightboxStageScroll() {
+  if (!elements.mapImageLightboxStage) return;
+  elements.mapImageLightboxStage.scrollTop = 0;
+  elements.mapImageLightboxStage.scrollLeft = 0;
+}
+
 function resetLightboxZoomState() {
   state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
   state.lightboxBaseWidth = 0;
@@ -769,6 +785,7 @@ function resetLightboxZoomState() {
     elements.mapImageLightboxPicture.style.maxWidth = '';
     elements.mapImageLightboxPicture.style.maxHeight = '';
   }
+  resetLightboxStageScroll();
   updateZoomButtonsState();
 }
 
@@ -789,31 +806,135 @@ function updateZoomButtonsState() {
   zoomOut.classList.toggle('is-disabled', !canZoomOut);
 }
 
+function applyLightboxTheme(mode) {
+  if (!elements.mapImageLightbox) return;
+  const useLightTheme = mode === 'uzytkigruntowe';
+  elements.mapImageLightbox.classList.toggle('image-lightbox--light', useLightTheme);
+}
+
+function getAvailableLightboxModes() {
+  return (elements.mapModeButtons || [])
+    .map(btn => btn?.dataset?.mode)
+    .filter(mode => {
+      if (!mode) return false;
+      const config = MAP_MODES[mode];
+      if (!config || config.type !== 'image') return false;
+      const url = state.mapImages[config.key];
+      return Boolean(url);
+    });
+}
+
+function setLightboxNavigationState() {
+  const prevBtn = elements.mapImageLightboxPrev;
+  const nextBtn = elements.mapImageLightboxNext;
+  if (!prevBtn || !nextBtn) return;
+
+  const modes = Array.isArray(state.lightboxImageModes) ? state.lightboxImageModes : [];
+  const index = modes.indexOf(state.lightboxActiveMode);
+  const hasPrev = index > 0;
+  const hasNext = index >= 0 && index < modes.length - 1;
+
+  prevBtn.disabled = !hasPrev;
+  nextBtn.disabled = !hasNext;
+  prevBtn.setAttribute('aria-disabled', (!hasPrev).toString());
+  nextBtn.setAttribute('aria-disabled', (!hasNext).toString());
+  prevBtn.classList.toggle('is-disabled', !hasPrev);
+  nextBtn.classList.toggle('is-disabled', !hasNext);
+}
+
+function showLightboxImage(mode, options = {}) {
+  const { preserveZoom = false } = options;
+  if (!elements.mapImageLightboxPicture) return false;
+  const config = MAP_MODES[mode];
+  if (!config || config.type !== 'image') return false;
+  const url = state.mapImages[config.key];
+  if (!url) return false;
+
+  const label = getMapModeLabel(mode);
+  const accessibleLabel = label
+    ? `Powiększony widok warstwy „${label}”`
+    : 'Powiększony podgląd warstwy mapy';
+
+  state.lightboxActiveMode = mode;
+  if (!preserveZoom) {
+    resetLightboxZoomState();
+  } else {
+    state.lightboxBaseWidth = 0;
+    state.lightboxBaseHeight = 0;
+    resetLightboxStageScroll();
+  }
+
+  elements.mapImageLightboxPicture.src = url;
+  elements.mapImageLightboxPicture.alt = accessibleLabel;
+
+  applyLightboxTheme(mode);
+  setLightboxNavigationState();
+  prepareLightboxZoom(preserveZoom);
+  updateZoomButtonsState();
+  return true;
+}
+
+function navigateLightbox(delta) {
+  if (!state.isLightboxOpen || !Number.isFinite(delta)) return;
+  const modes = Array.isArray(state.lightboxImageModes) ? state.lightboxImageModes : [];
+  if (!modes.length) return;
+  const currentIndex = modes.indexOf(state.lightboxActiveMode);
+  if (currentIndex === -1) return;
+  const nextIndex = currentIndex + delta;
+  if (nextIndex < 0 || nextIndex >= modes.length) return;
+  const nextMode = modes[nextIndex];
+  if (showLightboxImage(nextMode, { preserveZoom: true })) {
+    setLightboxNavigationState();
+  }
+}
+
+function handleLightboxPrevClick(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  navigateLightbox(-1);
+}
+
+function handleLightboxNextClick(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  navigateLightbox(1);
+}
+
 function openMapImageLightbox() {
   if (!canOpenMapImageLightbox() || !elements.mapImageLightbox || !elements.mapImageLightboxPicture) {
     return;
   }
 
-  const src = elements.mapImageElement.getAttribute('src');
-  const baseAlt = elements.mapImageElement.getAttribute('alt') || '';
-  const label = elements.mapImageElement.dataset?.layerLabel;
-  const accessibleLabel = label
-    ? `Powiększony widok warstwy „${label}”`
-    : baseAlt || 'Powiększony podgląd warstwy mapy';
+  const availableModes = getAvailableLightboxModes();
+  if (!availableModes.length) {
+    return;
+  }
+
+  const currentMode = MAP_MODES[state.currentMapMode]?.type === 'image'
+    && availableModes.includes(state.currentMapMode)
+      ? state.currentMapMode
+      : availableModes[0];
 
   state.lightboxReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  elements.mapImageLightboxPicture.src = src;
-  elements.mapImageLightboxPicture.alt = accessibleLabel;
+  state.lightboxImageModes = availableModes;
   state.isLightboxOpen = true;
-  prepareLightboxZoom();
-  if (elements.mapImageLightbox) {
-    const useLightTheme = state.currentMapMode === 'uzytkigruntowe';
-    elements.mapImageLightbox.classList.toggle('image-lightbox--light', useLightTheme);
+
+  if (!showLightboxImage(currentMode)) {
+    state.isLightboxOpen = false;
+    state.lightboxImageModes = [];
+    state.lightboxActiveMode = '';
+    updateZoomButtonsState();
+    setLightboxNavigationState();
+    return;
   }
+
   elements.mapImageLightbox.classList.remove('hidden');
   elements.mapImageLightbox.setAttribute('aria-hidden', 'false');
   document.body.classList.add('lightbox-open');
-  updateZoomButtonsState();
   requestAnimationFrame(() => {
     elements.mapImageLightbox?.focus();
   });
@@ -831,6 +952,9 @@ function closeMapImageLightbox() {
   }
   document.body.classList.remove('lightbox-open');
   state.isLightboxOpen = false;
+  state.lightboxImageModes = [];
+  state.lightboxActiveMode = '';
+  setLightboxNavigationState();
   resetLightboxZoomState();
   if (state.lightboxReturnFocus instanceof HTMLElement) {
     state.lightboxReturnFocus.focus();
@@ -873,6 +997,16 @@ function handleLightboxKeydown(event) {
     adjustLightboxZoom(-LIGHTBOX_ZOOM_STEP);
     return;
   }
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    navigateLightbox(-1);
+    return;
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    navigateLightbox(1);
+    return;
+  }
   if (event.key === 'Escape' || event.key === 'Esc') {
     event.preventDefault();
     closeMapImageLightbox();
@@ -904,6 +1038,16 @@ function updateMapImages(images) {
     state.currentMapMode = MAP_MODE_DEFAULT;
   }
   setMapMode(state.currentMapMode);
+  if (state.isLightboxOpen) {
+    state.lightboxImageModes = getAvailableLightboxModes();
+    if (!state.lightboxImageModes.length) {
+      closeMapImageLightbox();
+    } else if (!state.lightboxImageModes.includes(state.lightboxActiveMode)) {
+      showLightboxImage(state.lightboxImageModes[0], { preserveZoom: true });
+    } else {
+      setLightboxNavigationState();
+    }
+  }
 }
 
 function formatPhoneNumber(phone) {

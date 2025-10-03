@@ -452,7 +452,7 @@
     aria-label="Powiększony podgląd mapy"
     tabindex="-1"
   >
-    <div class="image-lightbox__controls" role="toolbar" aria-label="Sterowanie powiększeniem">
+    <div class="image-lightbox__controls" role="toolbar" aria-label="Sterowanie podglądem obrazu">
       <button
         type="button"
         class="image-lightbox__control"
@@ -482,7 +482,27 @@
       </button>
     </div>
     <div class="image-lightbox__viewport">
-      <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+      <button
+        type="button"
+        class="image-lightbox__control image-lightbox__nav image-lightbox__nav--prev"
+        id="mapImageLightboxPrev"
+        aria-label="Poprzednie zdjęcie"
+        title="Poprzednie"
+      >
+        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+      </button>
+      <div id="mapImageLightboxStage" class="image-lightbox__stage">
+        <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
+      </div>
+      <button
+        type="button"
+        class="image-lightbox__control image-lightbox__nav image-lightbox__nav--next"
+        id="mapImageLightboxNext"
+        aria-label="Następne zdjęcie"
+        title="Następne"
+      >
+        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+      </button>
     </div>
   </div>
 
