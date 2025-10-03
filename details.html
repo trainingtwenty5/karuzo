@@ -456,15 +456,6 @@
       <button
         type="button"
         class="image-lightbox__control"
-        id="mapImageLightboxPrev"
-        aria-label="Poprzednie zdjęcie"
-        title="Poprzednie"
-      >
-        <i class="fas fa-chevron-left" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
-        class="image-lightbox__control"
         id="mapImageLightboxZoomIn"
         aria-label="Przybliż obraz"
         title="Przybliż"
@@ -482,15 +473,6 @@
       </button>
       <button
         type="button"
-        class="image-lightbox__control"
-        id="mapImageLightboxNext"
-        aria-label="Następne zdjęcie"
-        title="Następne"
-      >
-        <i class="fas fa-chevron-right" aria-hidden="true"></i>
-      </button>
-      <button
-        type="button"
         class="image-lightbox__control image-lightbox__close"
         id="mapImageLightboxClose"
         aria-label="Zamknij podgląd"
@@ -499,6 +481,24 @@
         <i class="fas fa-xmark" aria-hidden="true"></i>
       </button>
     </div>
+    <button
+      type="button"
+      class="image-lightbox__control image-lightbox__nav image-lightbox__nav--prev"
+      id="mapImageLightboxPrev"
+      aria-label="Poprzednie zdjęcie"
+      title="Poprzednie"
+    >
+      <i class="fas fa-chevron-left" aria-hidden="true"></i>
+    </button>
+    <button
+      type="button"
+      class="image-lightbox__control image-lightbox__nav image-lightbox__nav--next"
+      id="mapImageLightboxNext"
+      aria-label="Następne zdjęcie"
+      title="Następne"
+    >
+      <i class="fas fa-chevron-right" aria-hidden="true"></i>
+    </button>
     <div class="image-lightbox__viewport">
       <img id="mapImageLightboxPicture" class="image-lightbox__picture" alt="" loading="lazy" />
     </div>

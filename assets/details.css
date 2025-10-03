@@ -319,6 +319,26 @@ main.property-wrapper {
   z-index: 10;
 }
 
+.image-lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 15;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .35);
+}
+
+.image-lightbox__nav--prev {
+  left: max(1rem, calc((100% - min(1200px, 90vw)) / 2 + 1rem));
+}
+
+.image-lightbox__nav--next {
+  right: max(1rem, calc((100% - min(1200px, 90vw)) / 2 + 1rem));
+}
+
+.image-lightbox--light .image-lightbox__nav {
+  box-shadow: 0 12px 30px rgba(12, 13, 17, .18);
+}
+
 .image-lightbox__control {
   width: 44px;
   height: 44px;
