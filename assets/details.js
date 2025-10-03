@@ -696,7 +696,7 @@ function applyLightboxZoom() {
   updateZoomButtonsState();
 }
 
-function initializeLightboxZoom() {
+function initializeLightboxZoom(preserveZoom = false) {
   state.lightboxBaseWidth = 0;
   state.lightboxBaseHeight = 0;
   if (!elements.mapImageLightboxPicture) {
@@ -715,18 +715,21 @@ function initializeLightboxZoom() {
     state.lightboxBaseHeight = fallbackHeight;
   }
 
-  state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+  const nextZoom = preserveZoom
+    ? clamp(state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX)
+    : LIGHTBOX_ZOOM_DEFAULT;
+  state.lightboxZoom = nextZoom;
   applyLightboxZoom();
 }
 
-function prepareLightboxZoom() {
+function prepareLightboxZoom(preserveZoom = false) {
   if (!elements.mapImageLightboxPicture) {
     updateZoomButtonsState();
     return;
   }
 
   const apply = () => {
-    initializeLightboxZoom();
+    initializeLightboxZoom(preserveZoom);
   };
 
   if (elements.mapImageLightboxPicture.complete && elements.mapImageLightboxPicture.naturalWidth) {
@@ -766,6 +769,12 @@ function handleLightboxZoomOut(event) {
   adjustLightboxZoom(-LIGHTBOX_ZOOM_STEP);
 }
 
+function resetLightboxStageScroll() {
+  if (!elements.mapImageLightboxStage) return;
+  elements.mapImageLightboxStage.scrollTop = 0;
+  elements.mapImageLightboxStage.scrollLeft = 0;
+}
+
 function resetLightboxZoomState() {
   state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
   state.lightboxBaseWidth = 0;
@@ -776,10 +785,7 @@ function resetLightboxZoomState() {
     elements.mapImageLightboxPicture.style.maxWidth = '';
     elements.mapImageLightboxPicture.style.maxHeight = '';
   }
-  if (elements.mapImageLightboxStage) {
-    elements.mapImageLightboxStage.scrollTop = 0;
-    elements.mapImageLightboxStage.scrollLeft = 0;
-  }
+  resetLightboxStageScroll();
   updateZoomButtonsState();
 }
 
@@ -836,7 +842,8 @@ function setLightboxNavigationState() {
   nextBtn.classList.toggle('is-disabled', !hasNext);
 }
 
-function showLightboxImage(mode) {
+function showLightboxImage(mode, options = {}) {
+  const { preserveZoom = false } = options;
   if (!elements.mapImageLightboxPicture) return false;
   const config = MAP_MODES[mode];
   if (!config || config.type !== 'image') return false;
@@ -849,14 +856,20 @@ function showLightboxImage(mode) {
     : 'Powiększony podgląd warstwy mapy';
 
   state.lightboxActiveMode = mode;
-  resetLightboxZoomState();
+  if (!preserveZoom) {
+    resetLightboxZoomState();
+  } else {
+    state.lightboxBaseWidth = 0;
+    state.lightboxBaseHeight = 0;
+    resetLightboxStageScroll();
+  }
 
   elements.mapImageLightboxPicture.src = url;
   elements.mapImageLightboxPicture.alt = accessibleLabel;
 
   applyLightboxTheme(mode);
   setLightboxNavigationState();
-  prepareLightboxZoom();
+  prepareLightboxZoom(preserveZoom);
   updateZoomButtonsState();
   return true;
 }
@@ -870,7 +883,7 @@ function navigateLightbox(delta) {
   const nextIndex = currentIndex + delta;
   if (nextIndex < 0 || nextIndex >= modes.length) return;
   const nextMode = modes[nextIndex];
-  if (showLightboxImage(nextMode)) {
+  if (showLightboxImage(nextMode, { preserveZoom: true })) {
     setLightboxNavigationState();
   }
 }
@@ -1030,7 +1043,7 @@ function updateMapImages(images) {
     if (!state.lightboxImageModes.length) {
       closeMapImageLightbox();
     } else if (!state.lightboxImageModes.includes(state.lightboxActiveMode)) {
-      showLightboxImage(state.lightboxImageModes[0]);
+      showLightboxImage(state.lightboxImageModes[0], { preserveZoom: true });
     } else {
       setLightboxNavigationState();
     }
