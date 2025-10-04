@@ -3208,37 +3208,64 @@ window.showConfirmModal = showConfirmModal;
     const isFallback = options.fallback === true;
     const density = options.density === 'compact' ? 'compact' : 'default';
 
-    const baseBg = '#ffffff';
-    const baseColor = '#111111';
-    const baseBorder = '#111111';
-    const fallbackBg = '#fef2f2';
-    const fallbackBorder = '#dc2626';
-    const fallbackColor = '#7f1d1d';
+    const baseColor = isFallback ? '#7f1d1d' : '#111111';
+    const accentColor = isFallback ? '#991b1b' : '#111111';
+    const haloColor = 'rgba(255, 255, 255, 0.95)';
+    const haloShadow = [
+      `0 0 1px ${haloColor}`,
+      `0 0 2px ${haloColor}`,
+      `0 0 3px ${haloColor}`,
+      `0 0 4px ${haloColor}`,
+      `0 0 6px ${haloColor}`,
+      `0 0 10px ${haloColor}`
+    ].join(', ');
+    const outerShadow = '0 6px 12px rgba(15, 23, 42, 0.35)';
+    const strokeWidth = isFallback ? 2.6 : 2.4;
 
-    wrapper.style.background = isFallback ? fallbackBg : baseBg;
-    wrapper.style.color = isFallback ? fallbackColor : baseColor;
-    wrapper.style.border = `1px solid ${isFallback ? fallbackBorder : baseBorder}`;
-    wrapper.style.borderRadius = '9999px';
-    wrapper.style.boxShadow = isFallback
-      ? '0 1px 2px rgba(220, 38, 38, 0.18)'
-      : '0 1px 2px rgba(0, 0, 0, 0.08)';
-    wrapper.style.display = 'inline-flex';
+    const applyHalo = (element, options = {}) => {
+      if (!element) return;
+      const fill = options.color || baseColor;
+      const weight = options.fontWeight || element.style.fontWeight || '700';
+      const size = options.fontSize || element.style.fontSize || '';
+      const spacing = options.letterSpacing || element.style.letterSpacing || '';
+      const lineHeight = options.lineHeight || element.style.lineHeight || '';
+      const elementStrokeWidth = options.strokeWidth || strokeWidth;
+
+      element.style.color = fill;
+      element.style.webkitTextFillColor = fill;
+      element.style.webkitTextStroke = `${elementStrokeWidth}px ${haloColor}`;
+      element.style.paintOrder = 'stroke fill';
+      element.style.textShadow = `${haloShadow}, ${outerShadow}`;
+      element.style.fontWeight = weight;
+      if (size) element.style.fontSize = size;
+      if (spacing) element.style.letterSpacing = spacing;
+      if (lineHeight) element.style.lineHeight = lineHeight;
+    };
+
+    wrapper.style.background = 'transparent';
+    wrapper.style.border = 'none';
+    wrapper.style.borderRadius = '0';
+    wrapper.style.boxShadow = 'none';
+    wrapper.style.display = 'flex';
     wrapper.style.flexDirection = 'column';
     wrapper.style.alignItems = 'center';
     wrapper.style.justifyContent = 'center';
     wrapper.style.textAlign = 'center';
-    wrapper.style.gap = density === 'compact' ? '0.18rem' : '0.22rem';
-    wrapper.style.padding = density === 'compact' ? '0.5rem 0.75rem' : '0.65rem 0.9rem';
-    wrapper.style.fontSize = density === 'compact' ? '0.82rem' : '0.88rem';
-    wrapper.style.fontWeight = '600';
+    wrapper.style.gap = density === 'compact' ? '0.1rem' : '0.14rem';
+    wrapper.style.padding = '0';
+    wrapper.style.fontSize = density === 'compact' ? '0.86rem' : '0.92rem';
+    wrapper.style.fontWeight = '700';
     wrapper.style.lineHeight = '1.18';
-    wrapper.style.letterSpacing = '0.01em';
+    wrapper.style.letterSpacing = '0.012em';
     wrapper.style.fontVariantNumeric = 'tabular-nums';
     wrapper.style.minWidth = 'auto';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.whiteSpace = 'normal';
-    wrapper.style.backdropFilter = 'blur(0px)';
+    wrapper.style.backdropFilter = 'none';
     wrapper.style.transform = 'translateZ(0)';
+    wrapper.style.filter = 'drop-shadow(0 6px 12px rgba(15, 23, 42, 0.28))';
+
+    applyHalo(wrapper, { fontWeight: '700' });
 
     const stack = wrapper.querySelector('.voronoi-label__stack');
     if (stack) {
@@ -3247,26 +3274,30 @@ window.showConfirmModal = showConfirmModal;
       stack.style.alignItems = 'center';
       stack.style.justifyContent = 'center';
       stack.style.textAlign = 'center';
-      stack.style.gap = density === 'compact' ? '0.12rem' : '0.18rem';
+      stack.style.gap = density === 'compact' ? '0.08rem' : '0.12rem';
       stack.style.width = '100%';
+      applyHalo(stack, { fontWeight: '700' });
     }
 
     const value = wrapper.querySelector('.voronoi-label__value');
     if (value) {
-      value.style.color = 'inherit';
-      value.style.fontWeight = '700';
-      value.style.fontSize = density === 'compact' ? '0.9rem' : '1rem';
-      value.style.lineHeight = '1.12';
-      value.style.letterSpacing = '0.014em';
+      applyHalo(value, {
+        fontWeight: '800',
+        fontSize: density === 'compact' ? '0.98rem' : '1.05rem',
+        letterSpacing: '0.016em',
+        lineHeight: '1.12'
+      });
     }
 
     const price = wrapper.querySelector('.voronoi-label__price');
     if (price) {
-      price.style.fontSize = density === 'compact' ? '0.72rem' : '0.78rem';
-      price.style.fontWeight = '600';
-      price.style.opacity = '0.92';
-      price.style.letterSpacing = '0.01em';
-      price.style.lineHeight = '1.1';
+      applyHalo(price, {
+        fontWeight: '700',
+        fontSize: density === 'compact' ? '0.76rem' : '0.82rem',
+        letterSpacing: '0.012em',
+        lineHeight: '1.12'
+      });
+      price.style.opacity = '0.96';
     }
 
     const badge = wrapper.querySelector('.voronoi-label__badge');
@@ -3274,42 +3305,56 @@ window.showConfirmModal = showConfirmModal;
       badge.style.display = 'inline-flex';
       badge.style.alignItems = 'center';
       badge.style.justifyContent = 'center';
-      badge.style.padding = density === 'compact' ? '0.2rem 0.55rem' : '0.25rem 0.7rem';
-      badge.style.borderRadius = '9999px';
-      badge.style.background = '#111111';
-      badge.style.color = '#ffffff';
-      badge.style.fontSize = density === 'compact' ? '0.62rem' : '0.7rem';
-      badge.style.fontWeight = '700';
-      badge.style.letterSpacing = '0.02em';
+      badge.style.padding = density === 'compact' ? '0.06rem 0.2rem' : '0.08rem 0.24rem';
+      badge.style.borderRadius = '0.25rem';
       badge.style.textTransform = 'uppercase';
-      badge.style.lineHeight = '1';
       badge.style.alignSelf = 'center';
-      if (isFallback) {
-        badge.style.background = '#dc2626';
-      }
+      applyHalo(badge, {
+        fontWeight: '800',
+        fontSize: density === 'compact' ? '0.6rem' : '0.68rem',
+        letterSpacing: '0.06em',
+        color: accentColor,
+        strokeWidth: 2.2
+      });
     }
   }
 
   function applyVoronoiConnectorStyles(wrapper) {
     if (!wrapper) return;
 
-    wrapper.style.background = '#ffffff';
+    const haloColor = 'rgba(255, 255, 255, 0.95)';
+    const haloShadow = [
+      `0 0 1px ${haloColor}`,
+      `0 0 2px ${haloColor}`,
+      `0 0 3px ${haloColor}`,
+      `0 0 4px ${haloColor}`,
+      `0 0 6px ${haloColor}`,
+      `0 0 10px ${haloColor}`
+    ].join(', ');
+    const outerShadow = '0 6px 12px rgba(15, 23, 42, 0.35)';
+
+    wrapper.style.background = 'transparent';
     wrapper.style.color = '#111111';
-    wrapper.style.border = '1px solid #111111';
-    wrapper.style.borderRadius = '9999px';
-    wrapper.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.08)';
+    wrapper.style.webkitTextFillColor = '#111111';
+    wrapper.style.webkitTextStroke = '2.3px rgba(255, 255, 255, 0.95)';
+    wrapper.style.paintOrder = 'stroke fill';
+    wrapper.style.border = 'none';
+    wrapper.style.borderRadius = '0';
+    wrapper.style.boxShadow = 'none';
     wrapper.style.display = 'inline-flex';
     wrapper.style.alignItems = 'center';
     wrapper.style.justifyContent = 'center';
-    wrapper.style.padding = '0.45rem 0.7rem';
-    wrapper.style.fontSize = '0.8rem';
-    wrapper.style.fontWeight = '600';
-    wrapper.style.lineHeight = '1';
+    wrapper.style.padding = '0';
+    wrapper.style.fontSize = '0.9rem';
+    wrapper.style.fontWeight = '700';
+    wrapper.style.lineHeight = '1.08';
     wrapper.style.fontVariantNumeric = 'tabular-nums';
     wrapper.style.letterSpacing = '0.012em';
     wrapper.style.whiteSpace = 'nowrap';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.transform = 'translateZ(0)';
+    wrapper.style.textShadow = `${haloShadow}, ${outerShadow}`;
+    wrapper.style.filter = 'drop-shadow(0 6px 12px rgba(15, 23, 42, 0.28))';
   }
 
   function calculatePolygonCentroid(path) {
