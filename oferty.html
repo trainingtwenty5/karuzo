@@ -3202,6 +3202,99 @@ window.showConfirmModal = showConfirmModal;
     };
   }
 
+  function applyVoronoiLabelStyles(wrapper, options = {}) {
+    if (!wrapper) return;
+
+    const isFallback = options.fallback === true;
+    const density = options.density === 'compact' ? 'compact' : 'default';
+
+    wrapper.style.background = isFallback ? '#fff4f4' : '#ffffff';
+    wrapper.style.color = isFallback ? '#7f1d1d' : '#111111';
+    wrapper.style.border = isFallback ? '1px solid #dc2626' : '1px solid #111111';
+    wrapper.style.borderRadius = '9999px';
+    wrapper.style.boxShadow = isFallback
+      ? '0 6px 18px rgba(220, 38, 38, 0.16)'
+      : '0 1px 2px rgba(0, 0, 0, 0.08)';
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.alignItems = 'flex-start';
+    wrapper.style.justifyContent = 'flex-start';
+    wrapper.style.gap = density === 'compact' ? '0.25rem' : '0.35rem';
+    wrapper.style.padding = density === 'compact' ? '0.5rem 0.75rem' : '0.65rem 0.95rem';
+    wrapper.style.fontSize = density === 'compact' ? '0.74rem' : '0.82rem';
+    wrapper.style.fontWeight = '600';
+    wrapper.style.lineHeight = '1.2';
+    wrapper.style.fontVariantNumeric = 'tabular-nums';
+    wrapper.style.minWidth = 'auto';
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.whiteSpace = 'normal';
+
+    const stack = wrapper.querySelector('.voronoi-label__stack');
+    if (stack) {
+      stack.style.display = 'flex';
+      stack.style.flexDirection = 'column';
+      stack.style.alignItems = 'flex-start';
+      stack.style.gap = '0.2rem';
+      stack.style.width = '100%';
+    }
+
+    const value = wrapper.querySelector('.voronoi-label__value');
+    if (value) {
+      value.style.color = 'inherit';
+      value.style.fontWeight = '600';
+      value.style.letterSpacing = '0.01em';
+    }
+
+    const price = wrapper.querySelector('.voronoi-label__price');
+    if (price) {
+      price.style.fontSize = density === 'compact' ? '0.64rem' : '0.7rem';
+      price.style.fontWeight = '500';
+      price.style.opacity = '0.85';
+      price.style.letterSpacing = '0.015em';
+    }
+
+    const badge = wrapper.querySelector('.voronoi-label__badge');
+    if (badge) {
+      badge.style.display = 'inline-flex';
+      badge.style.alignItems = 'center';
+      badge.style.justifyContent = 'center';
+      badge.style.padding = density === 'compact' ? '0.15rem 0.45rem' : '0.2rem 0.55rem';
+      badge.style.borderRadius = '9999px';
+      badge.style.background = '#111111';
+      badge.style.color = '#ffffff';
+      badge.style.fontSize = density === 'compact' ? '0.56rem' : '0.62rem';
+      badge.style.fontWeight = '600';
+      badge.style.letterSpacing = '0.08em';
+      badge.style.textTransform = 'uppercase';
+      badge.style.lineHeight = '1';
+      badge.style.alignSelf = 'flex-start';
+      if (isFallback) {
+        badge.style.background = '#dc2626';
+      }
+    }
+  }
+
+  function applyVoronoiConnectorStyles(wrapper) {
+    if (!wrapper) return;
+
+    wrapper.style.background = '#ffffff';
+    wrapper.style.color = '#111111';
+    wrapper.style.border = '1px solid #111111';
+    wrapper.style.borderRadius = '9999px';
+    wrapper.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.18)';
+    wrapper.style.display = 'inline-flex';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.justifyContent = 'center';
+    wrapper.style.gap = '0.5rem';
+    wrapper.style.padding = '0.5rem 0.75rem';
+    wrapper.style.fontSize = '0.82rem';
+    wrapper.style.fontWeight = '500';
+    wrapper.style.lineHeight = '1';
+    wrapper.style.fontVariantNumeric = 'tabular-nums';
+    wrapper.style.whiteSpace = 'nowrap';
+    wrapper.style.pointerEvents = 'none';
+  }
+
   function calculatePolygonCentroid(path) {
     if (!Array.isArray(path) || path.length === 0) return null;
     let signedArea = 0;
@@ -3351,6 +3444,7 @@ window.showConfirmModal = showConfirmModal;
         if (density && density !== 'default') {
           wrapper.dataset.density = density;
         }
+        applyVoronoiLabelStyles(wrapper, { fallback: isFallback, density });
         return new google.maps.marker.AdvancedMarkerElement({
           position,
           map: voronoiLayerState.enabled ? map : null,
@@ -3386,6 +3480,7 @@ window.showConfirmModal = showConfirmModal;
         const wrapper = document.createElement('div');
         wrapper.className = 'voronoi-connector-label voronoi-pill voronoi-pill--compact';
         wrapper.textContent = text;
+        applyVoronoiConnectorStyles(wrapper);
         return new google.maps.marker.AdvancedMarkerElement({
           position,
           map: null,
