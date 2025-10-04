@@ -4864,7 +4864,12 @@ window.showConfirmModal = showConfirmModal;
   function loadGoogleMaps() {
     const apiKey = localStorage.getItem('googleMapsApiKey') || 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+    const params = new URLSearchParams({
+      key: apiKey,
+      callback: 'initMap',
+      libraries: 'marker'
+    });
+    script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
     script.async = true; script.defer = true;
     document.head.appendChild(script);
   }
