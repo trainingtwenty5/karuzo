@@ -3209,9 +3209,9 @@ window.showConfirmModal = showConfirmModal;
     const density = options.density === 'compact' ? 'compact' : 'default';
 
     const baseBg = '#ffffff';
-    const baseColor = '#0f172a';
-    const baseBorder = '#0f172a';
-    const fallbackBg = '#fee2e2';
+    const baseColor = '#111111';
+    const baseBorder = '#111111';
+    const fallbackBg = '#fef2f2';
     const fallbackBorder = '#dc2626';
     const fallbackColor = '#7f1d1d';
 
@@ -3220,16 +3220,16 @@ window.showConfirmModal = showConfirmModal;
     wrapper.style.border = `1px solid ${isFallback ? fallbackBorder : baseBorder}`;
     wrapper.style.borderRadius = '9999px';
     wrapper.style.boxShadow = isFallback
-      ? '0 12px 28px rgba(220, 38, 38, 0.24)'
-      : '0 14px 32px rgba(15, 23, 42, 0.22)';
+      ? '0 1px 2px rgba(220, 38, 38, 0.18)'
+      : '0 1px 2px rgba(0, 0, 0, 0.08)';
     wrapper.style.display = 'inline-flex';
     wrapper.style.flexDirection = 'column';
     wrapper.style.alignItems = 'center';
     wrapper.style.justifyContent = 'center';
     wrapper.style.textAlign = 'center';
-    wrapper.style.gap = density === 'compact' ? '0.18rem' : '0.28rem';
-    wrapper.style.padding = density === 'compact' ? '0.55rem 0.85rem' : '0.8rem 1.05rem';
-    wrapper.style.fontSize = density === 'compact' ? '0.8rem' : '0.92rem';
+    wrapper.style.gap = density === 'compact' ? '0.18rem' : '0.22rem';
+    wrapper.style.padding = density === 'compact' ? '0.5rem 0.75rem' : '0.65rem 0.9rem';
+    wrapper.style.fontSize = density === 'compact' ? '0.82rem' : '0.88rem';
     wrapper.style.fontWeight = '600';
     wrapper.style.lineHeight = '1.18';
     wrapper.style.letterSpacing = '0.01em';
@@ -3247,7 +3247,7 @@ window.showConfirmModal = showConfirmModal;
       stack.style.alignItems = 'center';
       stack.style.justifyContent = 'center';
       stack.style.textAlign = 'center';
-      stack.style.gap = density === 'compact' ? '0.1rem' : '0.16rem';
+      stack.style.gap = density === 'compact' ? '0.12rem' : '0.18rem';
       stack.style.width = '100%';
     }
 
@@ -3255,14 +3255,14 @@ window.showConfirmModal = showConfirmModal;
     if (value) {
       value.style.color = 'inherit';
       value.style.fontWeight = '700';
-      value.style.fontSize = density === 'compact' ? '0.88rem' : '1rem';
+      value.style.fontSize = density === 'compact' ? '0.9rem' : '1rem';
       value.style.lineHeight = '1.12';
-      value.style.letterSpacing = '0.012em';
+      value.style.letterSpacing = '0.014em';
     }
 
     const price = wrapper.querySelector('.voronoi-label__price');
     if (price) {
-      price.style.fontSize = density === 'compact' ? '0.72rem' : '0.8rem';
+      price.style.fontSize = density === 'compact' ? '0.72rem' : '0.78rem';
       price.style.fontWeight = '600';
       price.style.opacity = '0.92';
       price.style.letterSpacing = '0.01em';
@@ -3294,17 +3294,17 @@ window.showConfirmModal = showConfirmModal;
     if (!wrapper) return;
 
     wrapper.style.background = '#ffffff';
-    wrapper.style.color = '#0f172a';
-    wrapper.style.border = '1px solid #0f172a';
+    wrapper.style.color = '#111111';
+    wrapper.style.border = '1px solid #111111';
     wrapper.style.borderRadius = '9999px';
-    wrapper.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.22)';
+    wrapper.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.08)';
     wrapper.style.display = 'inline-flex';
     wrapper.style.alignItems = 'center';
     wrapper.style.justifyContent = 'center';
-    wrapper.style.padding = '0.45rem 0.85rem';
-    wrapper.style.fontSize = '0.85rem';
+    wrapper.style.padding = '0.45rem 0.7rem';
+    wrapper.style.fontSize = '0.8rem';
     wrapper.style.fontWeight = '600';
-    wrapper.style.lineHeight = '1.12';
+    wrapper.style.lineHeight = '1';
     wrapper.style.fontVariantNumeric = 'tabular-nums';
     wrapper.style.letterSpacing = '0.012em';
     wrapper.style.whiteSpace = 'nowrap';
