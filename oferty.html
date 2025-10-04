@@ -3208,49 +3208,65 @@ window.showConfirmModal = showConfirmModal;
     const isFallback = options.fallback === true;
     const density = options.density === 'compact' ? 'compact' : 'default';
 
-    wrapper.style.background = isFallback ? '#fff4f4' : '#ffffff';
-    wrapper.style.color = isFallback ? '#7f1d1d' : '#111111';
-    wrapper.style.border = isFallback ? '1px solid #dc2626' : '1px solid #111111';
+    const baseBg = '#ffffff';
+    const baseColor = '#0f172a';
+    const baseBorder = '#0f172a';
+    const fallbackBg = '#fee2e2';
+    const fallbackBorder = '#dc2626';
+    const fallbackColor = '#7f1d1d';
+
+    wrapper.style.background = isFallback ? fallbackBg : baseBg;
+    wrapper.style.color = isFallback ? fallbackColor : baseColor;
+    wrapper.style.border = `1px solid ${isFallback ? fallbackBorder : baseBorder}`;
     wrapper.style.borderRadius = '9999px';
     wrapper.style.boxShadow = isFallback
-      ? '0 6px 18px rgba(220, 38, 38, 0.16)'
-      : '0 1px 2px rgba(0, 0, 0, 0.08)';
-    wrapper.style.display = 'flex';
+      ? '0 12px 28px rgba(220, 38, 38, 0.24)'
+      : '0 14px 32px rgba(15, 23, 42, 0.22)';
+    wrapper.style.display = 'inline-flex';
     wrapper.style.flexDirection = 'column';
-    wrapper.style.alignItems = 'flex-start';
-    wrapper.style.justifyContent = 'flex-start';
-    wrapper.style.gap = density === 'compact' ? '0.25rem' : '0.35rem';
-    wrapper.style.padding = density === 'compact' ? '0.5rem 0.75rem' : '0.65rem 0.95rem';
-    wrapper.style.fontSize = density === 'compact' ? '0.74rem' : '0.82rem';
+    wrapper.style.alignItems = 'center';
+    wrapper.style.justifyContent = 'center';
+    wrapper.style.textAlign = 'center';
+    wrapper.style.gap = density === 'compact' ? '0.18rem' : '0.28rem';
+    wrapper.style.padding = density === 'compact' ? '0.55rem 0.85rem' : '0.8rem 1.05rem';
+    wrapper.style.fontSize = density === 'compact' ? '0.8rem' : '0.92rem';
     wrapper.style.fontWeight = '600';
-    wrapper.style.lineHeight = '1.2';
+    wrapper.style.lineHeight = '1.18';
+    wrapper.style.letterSpacing = '0.01em';
     wrapper.style.fontVariantNumeric = 'tabular-nums';
     wrapper.style.minWidth = 'auto';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.whiteSpace = 'normal';
+    wrapper.style.backdropFilter = 'blur(0px)';
+    wrapper.style.transform = 'translateZ(0)';
 
     const stack = wrapper.querySelector('.voronoi-label__stack');
     if (stack) {
       stack.style.display = 'flex';
       stack.style.flexDirection = 'column';
-      stack.style.alignItems = 'flex-start';
-      stack.style.gap = '0.2rem';
+      stack.style.alignItems = 'center';
+      stack.style.justifyContent = 'center';
+      stack.style.textAlign = 'center';
+      stack.style.gap = density === 'compact' ? '0.1rem' : '0.16rem';
       stack.style.width = '100%';
     }
 
     const value = wrapper.querySelector('.voronoi-label__value');
     if (value) {
       value.style.color = 'inherit';
-      value.style.fontWeight = '600';
-      value.style.letterSpacing = '0.01em';
+      value.style.fontWeight = '700';
+      value.style.fontSize = density === 'compact' ? '0.88rem' : '1rem';
+      value.style.lineHeight = '1.12';
+      value.style.letterSpacing = '0.012em';
     }
 
     const price = wrapper.querySelector('.voronoi-label__price');
     if (price) {
-      price.style.fontSize = density === 'compact' ? '0.64rem' : '0.7rem';
-      price.style.fontWeight = '500';
-      price.style.opacity = '0.85';
-      price.style.letterSpacing = '0.015em';
+      price.style.fontSize = density === 'compact' ? '0.72rem' : '0.8rem';
+      price.style.fontWeight = '600';
+      price.style.opacity = '0.92';
+      price.style.letterSpacing = '0.01em';
+      price.style.lineHeight = '1.1';
     }
 
     const badge = wrapper.querySelector('.voronoi-label__badge');
@@ -3258,16 +3274,16 @@ window.showConfirmModal = showConfirmModal;
       badge.style.display = 'inline-flex';
       badge.style.alignItems = 'center';
       badge.style.justifyContent = 'center';
-      badge.style.padding = density === 'compact' ? '0.15rem 0.45rem' : '0.2rem 0.55rem';
+      badge.style.padding = density === 'compact' ? '0.2rem 0.55rem' : '0.25rem 0.7rem';
       badge.style.borderRadius = '9999px';
       badge.style.background = '#111111';
       badge.style.color = '#ffffff';
-      badge.style.fontSize = density === 'compact' ? '0.56rem' : '0.62rem';
-      badge.style.fontWeight = '600';
-      badge.style.letterSpacing = '0.08em';
+      badge.style.fontSize = density === 'compact' ? '0.62rem' : '0.7rem';
+      badge.style.fontWeight = '700';
+      badge.style.letterSpacing = '0.02em';
       badge.style.textTransform = 'uppercase';
       badge.style.lineHeight = '1';
-      badge.style.alignSelf = 'flex-start';
+      badge.style.alignSelf = 'center';
       if (isFallback) {
         badge.style.background = '#dc2626';
       }
@@ -3278,21 +3294,22 @@ window.showConfirmModal = showConfirmModal;
     if (!wrapper) return;
 
     wrapper.style.background = '#ffffff';
-    wrapper.style.color = '#111111';
-    wrapper.style.border = '1px solid #111111';
+    wrapper.style.color = '#0f172a';
+    wrapper.style.border = '1px solid #0f172a';
     wrapper.style.borderRadius = '9999px';
-    wrapper.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.18)';
+    wrapper.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.22)';
     wrapper.style.display = 'inline-flex';
     wrapper.style.alignItems = 'center';
     wrapper.style.justifyContent = 'center';
-    wrapper.style.gap = '0.5rem';
-    wrapper.style.padding = '0.5rem 0.75rem';
-    wrapper.style.fontSize = '0.82rem';
-    wrapper.style.fontWeight = '500';
-    wrapper.style.lineHeight = '1';
+    wrapper.style.padding = '0.45rem 0.85rem';
+    wrapper.style.fontSize = '0.85rem';
+    wrapper.style.fontWeight = '600';
+    wrapper.style.lineHeight = '1.12';
     wrapper.style.fontVariantNumeric = 'tabular-nums';
+    wrapper.style.letterSpacing = '0.012em';
     wrapper.style.whiteSpace = 'nowrap';
     wrapper.style.pointerEvents = 'none';
+    wrapper.style.transform = 'translateZ(0)';
   }
 
   function calculatePolygonCentroid(path) {

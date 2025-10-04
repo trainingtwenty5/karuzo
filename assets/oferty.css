@@ -864,11 +864,12 @@
 .voronoi-connector-label {
   border-radius:9999px;
   background:#ffffff;
-  color:#111111;
-  border:1px solid #111111;
-  box-shadow:0 1px 2px rgba(0,0,0,0.08);
+  color:#0f172a;
+  border:1px solid #0f172a;
+  box-shadow:0 14px 32px rgba(15,23,42,0.22);
   font-weight:600;
   font-variant-numeric:tabular-nums;
+  letter-spacing:0.01em;
   transition:background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
@@ -877,101 +878,105 @@
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:0.5rem;
-  padding:0.5rem 0.75rem;
-  line-height:1;
-  font-size:0.82rem;
+  gap:0.4rem;
+  padding:0.45rem 0.85rem;
+  line-height:1.12;
+  font-size:0.85rem;
   white-space:nowrap;
 }
 
 .voronoi-pill--compact,
 .voronoi-connector-label {
-  padding:0.4rem 0.65rem;
-  font-size:0.75rem;
+  padding:0.4rem 0.75rem;
+  font-size:0.78rem;
 }
 
 .voronoi-connector-label {
-  box-shadow:0 4px 10px rgba(0,0,0,0.18);
   pointer-events:none;
 }
 
 .voronoi-label {
   min-width:auto;
-  text-align:left;
+  text-align:center;
   pointer-events:none;
   display:flex;
   flex-direction:column;
-  align-items:flex-start;
-  justify-content:flex-start;
-  gap:0.35rem;
-  padding:0.65rem 0.95rem;
-  font-size:0.82rem;
-  line-height:1.2;
+  align-items:center;
+  justify-content:center;
+  gap:0.28rem;
+  padding:0.75rem 1.05rem;
+  font-size:0.9rem;
+  line-height:1.18;
+  letter-spacing:0.012em;
   white-space:normal;
-  box-shadow:0 6px 18px rgba(0,0,0,0.12);
 }
 
 .voronoi-label__stack {
   display:flex;
   flex-direction:column;
-  align-items:flex-start;
-  gap:0.2rem;
+  align-items:center;
+  justify-content:center;
+  gap:0.16rem;
   width:100%;
 }
 
 .voronoi-label__value {
   color:inherit;
-  font-weight:600;
-  letter-spacing:0.01em;
+  font-weight:700;
+  letter-spacing:0.014em;
+  font-size:1rem;
+  line-height:1.12;
 }
 
 .voronoi-label__price {
-  font-size:0.7rem;
-  font-weight:500;
-  opacity:0.85;
-  letter-spacing:0.015em;
+  font-size:0.8rem;
+  font-weight:600;
+  opacity:0.92;
+  letter-spacing:0.01em;
+  line-height:1.1;
 }
 
 .voronoi-label__badge {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:0.2rem 0.55rem;
+  padding:0.25rem 0.7rem;
   border-radius:9999px;
   background:#111111;
   color:#ffffff;
-  font-size:0.62rem;
-  font-weight:600;
-  letter-spacing:0.08em;
+  font-size:0.7rem;
+  font-weight:700;
+  letter-spacing:0.02em;
   text-transform:uppercase;
   line-height:1;
-  align-self:flex-start;
+  align-self:center;
 }
 
 .voronoi-label[data-fallback="true"] {
-  background:#fff4f4;
+  background:#fee2e2;
   border-color:#dc2626;
   color:#7f1d1d;
-  box-shadow:0 6px 18px rgba(220,38,38,0.16);
+  box-shadow:0 12px 28px rgba(220,38,38,0.24);
 }
 
 .voronoi-label[data-fallback="true"] .voronoi-label__badge {
   background:#dc2626;
+  color:#ffffff;
 }
 
 .voronoi-label[data-density="compact"] {
-  padding:0.5rem 0.75rem;
-  font-size:0.74rem;
-  gap:0.25rem;
+  padding:0.55rem 0.85rem;
+  font-size:0.8rem;
+  gap:0.22rem;
 }
 
 .voronoi-label[data-density="compact"] .voronoi-label__price {
-  font-size:0.64rem;
+  font-size:0.72rem;
 }
 
 .voronoi-label[data-density="compact"] .voronoi-label__badge {
-  padding:0.15rem 0.45rem;
-  font-size:0.56rem;
+  padding:0.2rem 0.55rem;
+  font-size:0.62rem;
 }
 
 .voronoi-indicator {
