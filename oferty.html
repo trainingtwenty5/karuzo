@@ -2434,6 +2434,15 @@ window.showConfirmModal = showConfirmModal;
 
     const contributionsByPath = new Map();
 
+    const computeDistanceWeight = (distanceMeters) => {
+      if (!(distanceMeters >= 0) || !Number.isFinite(distanceMeters)) {
+        return 0;
+      }
+
+      const normalized = distanceMeters / 1000;
+      return 1 / (1 + normalized);
+    };
+
     directNeighbors.forEach(neighborIndex => {
       const contribution = findFirstPricedFromNeighbor(neighborIndex);
       if (!contribution) {
@@ -2458,15 +2467,20 @@ window.showConfirmModal = showConfirmModal;
       }
 
       const pathKey = normalizedPath.join('>');
+      const contributionWeight = computeDistanceWeight(pathDistance);
+      if (!(contributionWeight > 0)) {
+        return;
+      }
+
       if (contributionsByPath.has(pathKey)) {
         const existing = contributionsByPath.get(pathKey);
-        existing.weight += 1;
+        existing.weight += contributionWeight;
       } else {
         contributionsByPath.set(pathKey, {
           sourceIndex: contribution.sourceIndex,
           path: normalizedPath,
           metrics: contribution.metrics,
-          weight: 1,
+          weight: contributionWeight,
           distance: pathDistance
         });
       }
