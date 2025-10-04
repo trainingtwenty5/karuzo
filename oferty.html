@@ -525,6 +525,15 @@ window.showConfirmModal = showConfirmModal;
   let randomPreviewTags = [];
   let randomPreviewSignature = '';
   let currentVisibleOffers = [];
+  let voronoiSupplementaryOffers = [];
+  let currentVoronoiOffers = [];
+  let currentVoronoiSupplementary = [];
+  let voronoiHiddenOffersInBounds = [];
+  let voronoiSupplementaryOffersInBounds = [];
+  const voronoiIndicatorState = {
+    hidden: [],
+    supplementary: []
+  };
   const voronoiLayerState = {
     enabled: false,
     polygons: [],
@@ -564,8 +573,8 @@ window.showConfirmModal = showConfirmModal;
   };
 
   const VORONOI_LABEL_SIZE = {
-    width: 150,
-    height: 42
+    width: 160,
+    height: 64
   };
 
   function getVoronoiPolygonStyle(mode = 'default') {
@@ -666,6 +675,105 @@ window.showConfirmModal = showConfirmModal;
     } else if ('map' in label) {
       label.map = targetMap || null;
     }
+  }
+
+  function setOverlayMap(overlay, targetMap) {
+    if (!overlay) return;
+    if (typeof overlay.setMap === 'function') {
+      overlay.setMap(targetMap || null);
+    } else if ('map' in overlay) {
+      overlay.map = targetMap || null;
+    }
+  }
+
+  function createVoronoiIndicatorMarker(position, type) {
+    if (!position) return null;
+    const isHidden = type === 'hidden';
+    const className = isHidden
+      ? 'voronoi-indicator voronoi-indicator--hidden'
+      : 'voronoi-indicator voronoi-indicator--supplementary';
+    const fallbackColor = isHidden ? '#2563EB' : '#DC2626';
+
+    try {
+      const advancedMarkerCtor = (typeof google !== 'undefined' && google && google.maps && google.maps.marker && google.maps.marker.AdvancedMarkerElement)
+        ? google.maps.marker.AdvancedMarkerElement
+        : null;
+      if (advancedMarkerCtor) {
+        const node = document.createElement('div');
+        node.className = className;
+        node.textContent = '×';
+        return new advancedMarkerCtor({
+          position,
+          map: null,
+          content: node,
+          zIndex: 160
+        });
+      }
+    } catch (error) {
+      console.warn('Nie udało się utworzyć wskaźnika Voronoi w trybie AdvancedMarkerElement.', error);
+    }
+
+    return new google.maps.Marker({
+      position,
+      map: null,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0.01, strokeWeight: 0 },
+      label: {
+        text: '×',
+        color: fallbackColor,
+        fontSize: '14px',
+        fontWeight: '700'
+      },
+      zIndex: 160
+    });
+  }
+
+  function clearVoronoiIndicators(type = null) {
+    const groups = [];
+    if (!type || type === 'hidden') {
+      groups.push(voronoiIndicatorState.hidden);
+    }
+    if (!type || type === 'supplementary') {
+      groups.push(voronoiIndicatorState.supplementary);
+    }
+    groups.forEach((collection) => {
+      collection.forEach(marker => setOverlayMap(marker, null));
+      collection.length = 0;
+    });
+  }
+
+  function rebuildVoronoiIndicatorMarkers(type, offers) {
+    const targetCollection = type === 'hidden'
+      ? voronoiIndicatorState.hidden
+      : voronoiIndicatorState.supplementary;
+
+    targetCollection.forEach(marker => setOverlayMap(marker, null));
+    targetCollection.length = 0;
+
+    if (!map || !Array.isArray(offers) || !offers.length) {
+      return;
+    }
+
+    offers.forEach(offer => {
+      const position = getMarkerPositionForOffer(offer);
+      if (!position) return;
+      const marker = createVoronoiIndicatorMarker(position, type);
+      if (!marker) return;
+      setOverlayMap(marker, map);
+      targetCollection.push(marker);
+    });
+  }
+
+  function refreshVoronoiIndicators() {
+    if (!map || !voronoiLayerState.enabled) {
+      clearVoronoiIndicators();
+      return;
+    }
+
+    const filterActive = filterState.selectedTags.size > 0;
+    const hiddenOffers = filterActive ? voronoiHiddenOffersInBounds : [];
+
+    rebuildVoronoiIndicatorMarkers('hidden', hiddenOffers);
+    rebuildVoronoiIndicatorMarkers('supplementary', voronoiSupplementaryOffersInBounds);
   }
 
   function hasVoronoiValuation(entry) {
@@ -978,6 +1086,9 @@ window.showConfirmModal = showConfirmModal;
         if (connector && typeof connector.setVisible === 'function') {
           connector.setVisible(false);
         }
+        if (connector?.__voronoiLabel) {
+          setOverlayMap(connector.__voronoiLabel, null);
+        }
       });
     }
     if (highlight.hiddenPolygons instanceof Map && highlight.hiddenPolygons.size) {
@@ -1057,11 +1168,14 @@ window.showConfirmModal = showConfirmModal;
       : [];
     const uniqueSources = new Set();
 
-    fallbackSources.forEach(path => {
-      if (!Array.isArray(path) || path.length < 2) return;
-      const sourceIndex = path[path.length - 1];
-      if (Number.isInteger(sourceIndex)) {
-        uniqueSources.add(sourceIndex);
+    fallbackSources.forEach(source => {
+      const resolvedSourceIndex = Number.isInteger(source?.sourceIndex)
+        ? source.sourceIndex
+        : (Array.isArray(source?.path) && source.path.length
+          ? source.path[source.path.length - 1]
+          : null);
+      if (Number.isInteger(resolvedSourceIndex)) {
+        uniqueSources.add(resolvedSourceIndex);
       }
     });
 
@@ -1094,6 +1208,9 @@ window.showConfirmModal = showConfirmModal;
         }
         if (connector && typeof connector.setVisible === 'function') {
           connector.setVisible(true);
+        }
+        if (connector?.__voronoiLabel && voronoiLayerState.enabled && map) {
+          setOverlayMap(connector.__voronoiLabel, map);
         }
         highlight.connectors.add(connector);
       });
@@ -1226,7 +1343,29 @@ window.showConfirmModal = showConfirmModal;
             return {
               ...value,
               fallbackSources: Array.isArray(value.fallbackSources)
-                ? value.fallbackSources.map(path => Array.isArray(path) ? path.slice() : [])
+                ? value.fallbackSources.map(source => {
+                    if (!source) {
+                      return null;
+                    }
+                    const path = Array.isArray(source.path)
+                      ? source.path.slice()
+                      : [];
+                    const sourceIndex = Number.isInteger(source.sourceIndex)
+                      ? source.sourceIndex
+                      : null;
+                    const distanceMeters = Number.isFinite(source.distanceMeters)
+                      ? source.distanceMeters
+                      : null;
+                    const weight = Number.isFinite(source.weight)
+                      ? source.weight
+                      : null;
+                    return {
+                      path,
+                      sourceIndex,
+                      distanceMeters,
+                      weight
+                    };
+                  }).filter(Boolean)
                 : []
             };
           })
@@ -1571,6 +1710,32 @@ window.showConfirmModal = showConfirmModal;
     return result;
   }
 
+  function getInactivePlotEntries(rawPlots) {
+    if (!Array.isArray(rawPlots)) return [];
+    const result = [];
+    rawPlots.forEach((plot, index) => {
+      if (!plot || typeof plot !== 'object') return;
+      if (plot.mock !== false) return;
+
+      const normalizedPlot = { ...plot };
+      normalizedPlot.mock = false;
+
+      const storedIndex = Number.isInteger(plot.__originalIndex)
+        ? plot.__originalIndex
+        : Number.isInteger(normalizedPlot.__originalIndex)
+          ? normalizedPlot.__originalIndex
+          : index;
+
+      delete normalizedPlot.__originalIndex;
+
+      result.push({
+        plot: normalizedPlot,
+        originalIndex: storedIndex
+      });
+    });
+    return result;
+  }
+
   function preparePlotsForCache(rawPlots) {
     return getActivePlotEntries(rawPlots)
       .map(({ plot, originalIndex }) => {
@@ -1581,6 +1746,20 @@ window.showConfirmModal = showConfirmModal;
         if (typeof safePlot.mock === 'undefined') {
           safePlot.mock = true;
         }
+        safePlot.__originalIndex = originalIndex;
+        return safePlot;
+      })
+      .filter(Boolean);
+  }
+
+  function prepareInactivePlotsForCache(rawPlots) {
+    return getInactivePlotEntries(rawPlots)
+      .map(({ plot, originalIndex }) => {
+        const safePlot = cloneForCache(plot) || { ...plot };
+        if (!safePlot || typeof safePlot !== 'object') {
+          return null;
+        }
+        safePlot.mock = false;
         safePlot.__originalIndex = originalIndex;
         return safePlot;
       })
@@ -1612,6 +1791,13 @@ window.showConfirmModal = showConfirmModal;
     }
 
     clonedData.plots = normalizedPlots;
+
+    const inactivePlots = prepareInactivePlotsForCache(rawData.plots);
+    if (inactivePlots.length) {
+      clonedData.__inactivePlots = inactivePlots;
+    } else if (clonedData.__inactivePlots) {
+      delete clonedData.__inactivePlots;
+    }
 
     return {
       id,
@@ -1849,6 +2035,12 @@ window.showConfirmModal = showConfirmModal;
     availableTags = [];
     tagMetrics = new Map();
     currentVisibleOffers = [];
+    voronoiSupplementaryOffers = [];
+    currentVoronoiOffers = [];
+    currentVoronoiSupplementary = [];
+    voronoiHiddenOffersInBounds = [];
+    voronoiSupplementaryOffersInBounds = [];
+    clearVoronoiIndicators();
     voronoiLayerState.cachedDataset = null;
     voronoiLayerState.cacheSignature = null;
     voronoiLayerState.frozenLayout = null;
@@ -1957,6 +2149,72 @@ window.showConfirmModal = showConfirmModal;
         };
 
         allOffers.push(hydratedEntry);
+      });
+
+      const inactivePlots = Array.isArray(data.__inactivePlots)
+        ? data.__inactivePlots
+        : [];
+      inactivePlots.forEach((inactivePlot, inactiveIndex) => {
+        if (!inactivePlot || typeof inactivePlot !== 'object') {
+          return;
+        }
+
+        const normalizedPlot = { ...inactivePlot };
+        if (typeof normalizedPlot.mock === 'undefined') {
+          normalizedPlot.mock = false;
+        } else {
+          normalizedPlot.mock = false;
+        }
+
+        const storedIndex = Number.isInteger(inactivePlot.__originalIndex)
+          ? inactivePlot.__originalIndex
+          : Number.isInteger(normalizedPlot.__originalIndex)
+            ? normalizedPlot.__originalIndex
+            : inactiveIndex;
+
+        delete normalizedPlot.__originalIndex;
+
+        let lat = Number(normalizedPlot.lat);
+        let lng = Number(normalizedPlot.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return;
+        }
+
+        let voronoiPoint = { lat, lng };
+        let polygonCoords = [];
+        const geometry = normalizedPlot.geometry_uldk;
+        if (geometry) {
+          const coords = parseGeometry(geometry);
+          if (coords.length) {
+            polygonCoords = coords;
+            const interiorPoint = getPolygonInteriorPoint(coords, voronoiPoint);
+            if (interiorPoint) {
+              voronoiPoint = interiorPoint;
+            }
+          }
+        }
+
+        const tags = normalizeTags(normalizedPlot.tags);
+        const uniquePlotTags = Array.from(new Set(tags));
+
+        const normalizedIndex = Number.isInteger(storedIndex)
+          ? storedIndex
+          : voronoiSupplementaryOffers.length + inactiveIndex;
+
+        const supplementaryEntry = {
+          id: offerId,
+          key: `${offerId || 'unknown'}__inactive__${normalizedIndex}`,
+          data,
+          plot: normalizedPlot,
+          index: normalizedIndex,
+          marker: null,
+          polygon: null,
+          polygonCoords,
+          voronoiPoint,
+          tags: uniquePlotTags
+        };
+
+        voronoiSupplementaryOffers.push(supplementaryEntry);
       });
     });
 
@@ -2139,6 +2397,7 @@ window.showConfirmModal = showConfirmModal;
     } else {
       clearVoronoiLayer();
     }
+    refreshVoronoiIndicators();
     syncVoronoiToggleUI();
   });
 
@@ -2241,6 +2500,13 @@ window.showConfirmModal = showConfirmModal;
         });
       }
     });
+    voronoiSupplementaryOffers.forEach(offer => {
+      if (Array.isArray(offer.tags)) {
+        offer.tags.forEach(tag => {
+          if (tag) uniqueTags.add(tag);
+        });
+      }
+    });
 
     const tags = Array.from(uniqueTags);
     const maxValue = tags.length || 1;
@@ -2324,6 +2590,108 @@ window.showConfirmModal = showConfirmModal;
       total += segment;
     }
     return total;
+  }
+
+  function computeConnectorMidpoint(path) {
+    if (!Array.isArray(path) || path.length === 0) {
+      return null;
+    }
+    if (path.length === 1) {
+      return path[0];
+    }
+
+    let totalDistance = 0;
+    const segments = [];
+    for (let i = 1; i < path.length; i++) {
+      const start = path[i - 1];
+      const end = path[i];
+      const segmentDistance = computeDistanceBetweenPoints(start, end);
+      if (!Number.isFinite(segmentDistance) || segmentDistance <= 0) {
+        continue;
+      }
+      segments.push({ start, end, distance: segmentDistance });
+      totalDistance += segmentDistance;
+    }
+
+    if (!segments.length || !(totalDistance > 0)) {
+      const first = path[0];
+      const last = path[path.length - 1];
+      if (first && last) {
+        return {
+          lat: (Number(first.lat) + Number(last.lat)) / 2,
+          lng: (Number(first.lng) + Number(last.lng)) / 2
+        };
+      }
+      return first || null;
+    }
+
+    const half = totalDistance / 2;
+    let accumulated = 0;
+
+    for (const segment of segments) {
+      if (accumulated + segment.distance >= half) {
+        const remaining = half - accumulated;
+        const ratio = segment.distance > 0 ? remaining / segment.distance : 0;
+        const lat = Number(segment.start.lat) + (Number(segment.end.lat) - Number(segment.start.lat)) * ratio;
+        const lng = Number(segment.start.lng) + (Number(segment.end.lng) - Number(segment.start.lng)) * ratio;
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          return { lat, lng };
+        }
+        break;
+      }
+      accumulated += segment.distance;
+    }
+
+    const lastSegment = segments[segments.length - 1];
+    return lastSegment ? lastSegment.end : path[path.length - 1];
+  }
+
+  function formatDistanceValue(distanceMeters) {
+    if (!(distanceMeters > 0) || !Number.isFinite(distanceMeters)) {
+      return '—';
+    }
+    if (distanceMeters >= 1000) {
+      const km = distanceMeters / 1000;
+      const precision = km >= 10 ? 0 : 1;
+      const formattedKm = km.toLocaleString('pl-PL', {
+        minimumFractionDigits: precision,
+        maximumFractionDigits: precision
+      });
+      return `${formattedKm} km`;
+    }
+    const meters = Math.round(distanceMeters);
+    return `${meters.toLocaleString('pl-PL')} m`;
+  }
+
+  function formatWeightValue(weight) {
+    if (!(weight > 0) || !Number.isFinite(weight)) {
+      return '—';
+    }
+    if (weight >= 0.1) {
+      return weight.toLocaleString('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+    return weight.toLocaleString('pl-PL', {
+      maximumSignificantDigits: 2
+    });
+  }
+
+  function buildConnectorLabelText(weight, distanceMeters) {
+    const weightText = formatWeightValue(weight);
+    const distanceText = formatDistanceValue(distanceMeters);
+    if (weightText === '—' && distanceText === '—') {
+      return '';
+    }
+    const parts = [];
+    if (weightText !== '—') {
+      parts.push(`Waga ${weightText}`);
+    }
+    if (distanceText !== '—') {
+      parts.push(distanceText);
+    }
+    return parts.join(' • ');
   }
 
   const MAX_FALLBACK_DISTANCE_METERS = 30000;
@@ -2542,7 +2910,8 @@ window.showConfirmModal = showConfirmModal;
         sourceIndex,
         directPath: [index, sourceIndex],
         fullPath: path,
-        distanceMeters: Number.isFinite(distance) ? distance : computePathDistance(path, dataset)
+        distanceMeters: Number.isFinite(distance) ? distance : computePathDistance(path, dataset),
+        weight
       });
     });
 
@@ -2600,26 +2969,47 @@ window.showConfirmModal = showConfirmModal;
         };
       }
 
-      const sourcePaths = Array.isArray(fallback.sources)
+      const normalizedSources = Array.isArray(fallback.sources)
         ? fallback.sources
             .map(source => {
-              if (Array.isArray(source?.directPath) && source.directPath.length >= 2) {
-                return source.directPath.slice();
+              let path = Array.isArray(source?.directPath) && source.directPath.length >= 2
+                ? source.directPath.slice()
+                : null;
+              if (!path && Array.isArray(source?.fullPath) && source.fullPath.length >= 2) {
+                path = source.fullPath.slice();
               }
-              if (Array.isArray(source?.fullPath) && source.fullPath.length >= 2) {
-                const path = source.fullPath.slice();
-                if (path[0] !== index) {
-                  path.unshift(index);
+              const sourceIndex = Number.isInteger(source?.sourceIndex)
+                ? source.sourceIndex
+                : null;
+              if (!path) {
+                if (!Number.isInteger(sourceIndex)) {
+                  return null;
                 }
-                return path;
+                path = [index, sourceIndex];
+              } else if (path[0] !== index) {
+                path.unshift(index);
               }
-              const sourceIndex = Number.isInteger(source?.sourceIndex) ? source.sourceIndex : null;
-              if (!Number.isInteger(sourceIndex)) {
+              const sanitizedPath = path
+                .map(value => (Number.isInteger(value) ? value : null))
+                .filter(value => Number.isInteger(value));
+              if (sanitizedPath.length < 2) {
                 return null;
               }
-              return [index, sourceIndex];
+              const resolvedSourceIndex = Number.isInteger(sourceIndex)
+                ? sourceIndex
+                : sanitizedPath[sanitizedPath.length - 1];
+              const distanceMeters = Number.isFinite(source?.distanceMeters)
+                ? source.distanceMeters
+                : computePathDistance(sanitizedPath, dataset);
+              const weightValue = Number(source?.weight);
+              return {
+                path: sanitizedPath,
+                sourceIndex: Number.isInteger(resolvedSourceIndex) ? resolvedSourceIndex : null,
+                distanceMeters: Number.isFinite(distanceMeters) ? distanceMeters : null,
+                weight: Number.isFinite(weightValue) && weightValue > 0 ? weightValue : null
+              };
             })
-            .filter(path => Array.isArray(path) && path.length >= 2)
+            .filter(entry => entry && Array.isArray(entry.path) && entry.path.length >= 2)
         : [];
 
       return {
@@ -2627,7 +3017,7 @@ window.showConfirmModal = showConfirmModal;
         price: fallback.price,
         pricePerSqm: fallback.pricePerSqm,
         hasPrice: true,
-        fallbackSources: sourcePaths
+        fallbackSources: normalizedSources
       };
     });
   }
@@ -2815,6 +3205,34 @@ window.showConfirmModal = showConfirmModal;
     };
   }
 
+  function applyVoronoiLabelStyles(wrapper, options = {}) {
+    if (!wrapper) return;
+
+    const isFallback = options.fallback === true;
+    const density = options.density === 'compact' ? 'compact' : null;
+
+    wrapper.classList.add('voronoi-pill', 'voronoi-label');
+    wrapper.setAttribute('role', 'presentation');
+    wrapper.style.pointerEvents = 'none';
+    if (isFallback) {
+      wrapper.dataset.fallback = 'true';
+    } else {
+      delete wrapper.dataset.fallback;
+    }
+    if (density) {
+      wrapper.dataset.density = density;
+    } else {
+      delete wrapper.dataset.density;
+    }
+  }
+
+  function applyVoronoiConnectorStyles(wrapper) {
+    if (!wrapper) return;
+    wrapper.classList.add('voronoi-pill', 'voronoi-pill--compact', 'voronoi-connector-label');
+    wrapper.setAttribute('role', 'presentation');
+    wrapper.style.pointerEvents = 'none';
+  }
+
   function calculatePolygonCentroid(path) {
     if (!Array.isArray(path) || path.length === 0) return null;
     let signedArea = 0;
@@ -2949,30 +3367,134 @@ window.showConfirmModal = showConfirmModal;
     return first || fallback || null;
   }
 
+  function normalizeOverlayPosition(position) {
+    if (typeof google === 'undefined' || !google?.maps?.LatLng) {
+      return null;
+    }
+    if (!position) return null;
+    if (position instanceof google.maps.LatLng) {
+      return position;
+    }
+    const lat = Number(position.lat);
+    const lng = Number(position.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return new google.maps.LatLng(lat, lng);
+    }
+    return null;
+  }
+
+  let HtmlMapOverlayClass = null;
+
+  function getHtmlMapOverlayClass() {
+    const overlayCtor = (typeof google !== 'undefined' && google && google.maps && google.maps.OverlayView)
+      ? google.maps.OverlayView
+      : null;
+
+    if (HtmlMapOverlayClass && overlayCtor) {
+      return HtmlMapOverlayClass;
+    }
+    if (!overlayCtor) {
+      return null;
+    }
+
+    HtmlMapOverlayClass = class extends overlayCtor {
+      constructor(options = {}) {
+        super();
+        this.position = normalizeOverlayPosition(options.position);
+        this.element = options.element || document.createElement('div');
+        this.paneName = options.pane || 'floatPane';
+        this.zIndex = Number.isFinite(options.zIndex) ? options.zIndex : 0;
+        this.alwaysInteractive = options.pointerEvents === true;
+        this.ariaLabel = typeof options.ariaLabel === 'string' ? options.ariaLabel : '';
+
+        this.element.style.position = 'absolute';
+        this.element.style.transform = 'translate(-50%, -50%)';
+        if (!this.alwaysInteractive) {
+          this.element.style.pointerEvents = 'none';
+        }
+        if (this.ariaLabel) {
+          this.element.setAttribute('aria-label', this.ariaLabel);
+        }
+
+        if (options.map) {
+          this.setMap(options.map);
+        }
+      }
+
+      onAdd() {
+        const panes = this.getPanes();
+        const targetPane = panes?.[this.paneName] || panes?.floatPane || panes?.overlayMouseTarget || panes?.overlayLayer;
+        if (!targetPane) return;
+        if (Number.isFinite(this.zIndex)) {
+          this.element.style.zIndex = String(this.zIndex);
+        }
+        targetPane.appendChild(this.element);
+      }
+
+      draw() {
+        if (!this.element || !this.position) return;
+        const projection = this.getProjection();
+        if (!projection) return;
+        const point = projection.fromLatLngToDivPixel(normalizeOverlayPosition(this.position));
+        if (!point) return;
+        this.element.style.left = `${point.x}px`;
+        this.element.style.top = `${point.y}px`;
+      }
+
+      onRemove() {
+        if (this.element?.parentNode) {
+          this.element.parentNode.removeChild(this.element);
+        }
+      }
+
+      getPosition() {
+        return this.position || null;
+      }
+
+      setPosition(position) {
+        const normalized = normalizeOverlayPosition(position);
+        if (!normalized) return;
+        this.position = normalized;
+        this.draw();
+      }
+
+      setZIndex(zIndex) {
+        this.zIndex = Number.isFinite(zIndex) ? zIndex : 0;
+        if (this.element) {
+          this.element.style.zIndex = String(this.zIndex);
+        }
+      }
+    };
+
+    return HtmlMapOverlayClass;
+  }
+
+  function createHtmlMapOverlay(options = {}) {
+    const OverlayClass = getHtmlMapOverlayClass();
+    if (!OverlayClass) {
+      return null;
+    }
+    return new OverlayClass(options);
+  }
+
   function createVoronoiLabelNode(htmlContent, fallbackText, position, options = {}) {
     if (!position) return null;
     const isFallback = options.fallback === true;
     const density = typeof options.density === 'string' ? options.density : 'default';
-    try {
-      if (google?.maps?.marker?.AdvancedMarkerElement) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'voronoi-label';
-        wrapper.innerHTML = htmlContent;
-        if (isFallback) {
-          wrapper.dataset.fallback = 'true';
-        }
-        if (density && density !== 'default') {
-          wrapper.dataset.density = density;
-        }
-        return new google.maps.marker.AdvancedMarkerElement({
-          position,
-          map: voronoiLayerState.enabled ? map : null,
-          content: wrapper,
-          zIndex: 120
-        });
-      }
-    } catch (error) {
-      console.warn('Nie udało się utworzyć etykiety AdvancedMarkerElement dla Voronoi.', error);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = htmlContent;
+    applyVoronoiLabelStyles(wrapper, { fallback: isFallback, density });
+
+    const overlay = createHtmlMapOverlay({
+      position,
+      element: wrapper,
+      map: voronoiLayerState.enabled ? map : null,
+      zIndex: 120,
+      ariaLabel: typeof fallbackText === 'string' ? fallbackText : ''
+    });
+
+    if (overlay) {
+      return overlay;
     }
 
     return new google.maps.Marker({
@@ -2981,11 +3503,46 @@ window.showConfirmModal = showConfirmModal;
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0.01, strokeWeight: 0 },
       label: {
         text: fallbackText,
-        color: '#ffffff',
+        color: '#111827',
         fontSize: '12px',
         fontWeight: '600'
       },
       zIndex: 120
+    });
+  }
+
+  function createVoronoiConnectorLabel(text, position) {
+    if (!position || typeof text !== 'string' || !text.trim()) {
+      return null;
+    }
+
+    const wrapper = document.createElement('span');
+    wrapper.textContent = text;
+    applyVoronoiConnectorStyles(wrapper);
+
+    const overlay = createHtmlMapOverlay({
+      position,
+      element: wrapper,
+      map: null,
+      zIndex: 150,
+      ariaLabel: text
+    });
+
+    if (overlay) {
+      return overlay;
+    }
+
+    return new google.maps.Marker({
+      position,
+      map: null,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0.01, strokeWeight: 0 },
+      label: {
+        text,
+        color: '#111827',
+        fontSize: '11px',
+        fontWeight: '600'
+      },
+      zIndex: 150
     });
   }
 
@@ -3007,6 +3564,12 @@ window.showConfirmModal = showConfirmModal;
     voronoiLayerState.connectors.forEach(connector => {
       if (connector && typeof connector.setMap === 'function') {
         connector.setMap(null);
+      }
+      if (connector && typeof connector.setVisible === 'function') {
+        connector.setVisible(false);
+      }
+      if (connector?.__voronoiLabel) {
+        setOverlayMap(connector.__voronoiLabel, null);
       }
     });
     voronoiLayerState.connectors = [];
@@ -3033,6 +3596,49 @@ window.showConfirmModal = showConfirmModal;
     if (!preserveFrozenLayout) {
       voronoiLayerState.frozenLayout = null;
     }
+
+    if (voronoiLayerState.enabled) {
+      refreshVoronoiIndicators();
+    } else {
+      clearVoronoiIndicators();
+    }
+  }
+
+  function mergeVoronoiSupplementaryOffers(sourceOffers) {
+    const base = Array.isArray(sourceOffers)
+      ? sourceOffers.filter(Boolean).slice()
+      : [];
+    const supplementaryPool = (currentVoronoiSupplementary.length
+      ? currentVoronoiSupplementary
+      : voronoiSupplementaryOffers).filter(Boolean);
+    if (!supplementaryPool.length) {
+      return base;
+    }
+
+    const keyFor = (offer) => {
+      if (!offer) return null;
+      if (typeof offer.key === 'string') {
+        return offer.key;
+      }
+      const rawId = offer?.id || '';
+      const rawIndex = Number.isInteger(offer?.index) ? offer.index : '';
+      return `${rawId}__${rawIndex}`;
+    };
+
+    const existingKeys = new Set(base.map(keyFor).filter(Boolean));
+
+    supplementaryPool.forEach(offer => {
+      const offerKey = keyFor(offer);
+      if (offerKey && existingKeys.has(offerKey)) {
+        return;
+      }
+      base.push(offer);
+      if (offerKey) {
+        existingKeys.add(offerKey);
+      }
+    });
+
+    return base;
   }
 
   function getVoronoiSourceOffers() {
@@ -3042,7 +3648,7 @@ window.showConfirmModal = showConfirmModal;
         ? selectionLock.layout.offers.filter(Boolean)
         : [];
       if (lockedOffers.length) {
-        return lockedOffers.slice();
+        return mergeVoronoiSupplementaryOffers(lockedOffers);
       }
     }
 
@@ -3052,23 +3658,22 @@ window.showConfirmModal = showConfirmModal;
         ? voronoiLayerState.frozenLayout.offers.filter(Boolean)
         : [];
       if (frozenOffers.length) {
-        return frozenOffers.slice();
+        return mergeVoronoiSupplementaryOffers(frozenOffers);
       }
       const preservedOffers = Array.isArray(voronoiLayerState.lastNonFrozenSource?.offers)
         ? voronoiLayerState.lastNonFrozenSource.offers.filter(Boolean)
         : [];
       if (preservedOffers.length) {
-        return preservedOffers.slice();
+        return mergeVoronoiSupplementaryOffers(preservedOffers);
       }
     }
-    if (currentVisibleOffers.length) {
-      return currentVisibleOffers.slice();
+    if (currentVoronoiOffers.length || currentVoronoiSupplementary.length) {
+      return mergeVoronoiSupplementaryOffers(currentVoronoiOffers);
     }
-    const filtered = getOffersMatchingFilters();
-    if (filtered.length) {
-      return filtered.slice();
+    if (allOffers.length || voronoiSupplementaryOffers.length) {
+      return mergeVoronoiSupplementaryOffers(allOffers);
     }
-    return allOffers.slice();
+    return [];
   }
 
   function getFrozenVoronoiOffers() {
@@ -3472,27 +4077,27 @@ window.showConfirmModal = showConfirmModal;
         }
       }
 
-      fallbackSources.forEach(pathIndices => {
-        let connectorPath = Array.isArray(pathIndices)
-          ? pathIndices
-              .map(i => {
-                const datasetEntry = dataset[i];
-                const markerPosition = getMarkerPositionForDatasetEntry(datasetEntry);
-                if (markerPosition) return markerPosition;
-                const targetCell = cells[i];
-                if (targetCell?.centroid) return targetCell.centroid;
-                return datasetEntry?.position || null;
-              })
-              .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng))
-          : [];
+      fallbackSources.forEach(source => {
+        const pathIndices = Array.isArray(source?.path) ? source.path.slice() : [];
+        let connectorPath = pathIndices
+          .map(i => {
+            const datasetEntry = dataset[i];
+            const markerPosition = getMarkerPositionForDatasetEntry(datasetEntry);
+            if (markerPosition) return markerPosition;
+            const targetCell = cells[i];
+            if (targetCell?.centroid) return targetCell.centroid;
+            return datasetEntry?.position || null;
+          })
+          .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
 
         if (connectorPath.length < 2) {
           const basePosition = getMarkerPositionForDatasetEntry(dataset[index]);
-          const sourceIndex = Array.isArray(pathIndices)
-            ? pathIndices[pathIndices.length - 1]
-            : null;
-          const sourcePosition = Number.isInteger(sourceIndex)
-            ? getMarkerPositionForDatasetEntry(dataset[sourceIndex])
+          const fallbackSourceIndex = pathIndices.length ? pathIndices[pathIndices.length - 1] : null;
+          const resolvedSourceIndex = Number.isInteger(source?.sourceIndex)
+            ? source.sourceIndex
+            : fallbackSourceIndex;
+          const sourcePosition = Number.isInteger(resolvedSourceIndex)
+            ? getMarkerPositionForDatasetEntry(dataset[resolvedSourceIndex])
             : null;
           connectorPath = [basePosition, sourcePosition]
             .filter(point => point && Number.isFinite(point.lat) && Number.isFinite(point.lng));
@@ -3507,8 +4112,23 @@ window.showConfirmModal = showConfirmModal;
           visible: false,
           ...buildVoronoiConnectorStyle('default')
         });
+        const resolvedSourceIndex = Number.isInteger(source?.sourceIndex)
+          ? source.sourceIndex
+          : (pathIndices.length ? pathIndices[pathIndices.length - 1] : null);
         connector.__voronoiBaseIndex = index;
-        connector.__voronoiSourceIndex = pathIndices[pathIndices.length - 1];
+        connector.__voronoiSourceIndex = Number.isInteger(resolvedSourceIndex) ? resolvedSourceIndex : null;
+        connector.__voronoiWeight = Number.isFinite(source?.weight) ? source.weight : null;
+        connector.__voronoiDistance = Number.isFinite(source?.distanceMeters) ? source.distanceMeters : null;
+
+        const labelText = buildConnectorLabelText(connector.__voronoiWeight, connector.__voronoiDistance);
+        if (labelText) {
+          const midpoint = computeConnectorMidpoint(connectorPath);
+          const label = createVoronoiConnectorLabel(labelText, midpoint);
+          if (label) {
+            connector.__voronoiLabel = label;
+          }
+        }
+
         voronoiLayerState.connectors.push(connector);
         const connectorsForBase = voronoiLayerState.connectorIndexMap.get(index) || [];
         connectorsForBase.push(connector);
@@ -3986,6 +4606,8 @@ window.showConfirmModal = showConfirmModal;
 
   // ====== MAPA ======
   async function initMap() {
+    hideMapsKeyPrompt();
+
     const mobileMediaQuery = typeof window !== 'undefined' && window.matchMedia
       ? window.matchMedia('(max-width: 768px)')
       : null;
@@ -4092,7 +4714,55 @@ window.showConfirmModal = showConfirmModal;
     if (!bounds) return;
 
     const base = Array.isArray(filteredOffers) ? filteredOffers : getOffersMatchingFilters();
-    const visibleOffers = base.filter(o => bounds.contains(o.marker.getPosition()));
+    const filteredKeys = new Set(base.map(o => o?.key));
+
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    const latMin = Math.min(sw.lat(), ne.lat());
+    const latMax = Math.max(sw.lat(), ne.lat());
+    const lngMin = Math.min(sw.lng(), ne.lng());
+    const lngMax = Math.max(sw.lng(), ne.lng());
+    const withinBounds = (lat, lng) => Number.isFinite(lat)
+      && Number.isFinite(lng)
+      && lat >= latMin && lat <= latMax
+      && lng >= lngMin && lng <= lngMax;
+
+    const offersInBounds = allOffers.filter(offer => {
+      if (offer?.marker && typeof offer.marker.getPosition === 'function') {
+        const position = offer.marker.getPosition();
+        if (position && typeof position.lat === 'function' && typeof position.lng === 'function') {
+          const lat = position.lat();
+          const lng = position.lng();
+          if (withinBounds(lat, lng)) {
+            return true;
+          }
+        }
+      }
+      const plot = offer?.plot;
+      const lat = Number(plot?.lat);
+      const lng = Number(plot?.lng);
+      return withinBounds(lat, lng);
+    });
+
+    currentVoronoiOffers = offersInBounds.slice();
+    voronoiHiddenOffersInBounds = offersInBounds.filter(offer => !filteredKeys.has(offer?.key));
+
+    const supplementaryInBounds = voronoiSupplementaryOffers.filter(offer => {
+      const position = getMarkerPositionForOffer(offer);
+      if (!position) return false;
+      return withinBounds(Number(position.lat), Number(position.lng));
+    });
+
+    currentVoronoiSupplementary = supplementaryInBounds.slice();
+    voronoiSupplementaryOffersInBounds = supplementaryInBounds.slice();
+
+    const visibleOffers = base.filter(o => {
+      if (!o?.marker || typeof o.marker.getPosition !== 'function') {
+        return false;
+      }
+      const position = o.marker.getPosition();
+      return position ? bounds.contains(position) : false;
+    });
     updateTagCollectionsForVisibleOffers(visibleOffers);
 
     const listContainer = document.getElementById("offersList");
@@ -4130,6 +4800,7 @@ window.showConfirmModal = showConfirmModal;
           };
         }
       }
+      refreshVoronoiIndicators();
       return;
     }
 
@@ -4181,6 +4852,8 @@ window.showConfirmModal = showConfirmModal;
     if (voronoiLayerState.enabled) {
       updateVoronoiLayer(true);
     }
+
+    refreshVoronoiIndicators();
   }
 
   // EPSG:2180 -> WGS84
@@ -4213,14 +4886,148 @@ window.showConfirmModal = showConfirmModal;
   };
 
   // ładowanie Google Maps
+  const DEFAULT_GOOGLE_MAPS_API_KEY = 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
+  const GOOGLE_MAPS_DEFAULT_HOSTS = ['grunteo.pl', 'www.grunteo.pl', 'trainingtwenty5.github.io'];
+
+  function isDefaultMapsHost(hostname) {
+    if (!hostname) return false;
+    return GOOGLE_MAPS_DEFAULT_HOSTS.some(allowed => {
+      if (hostname === allowed) return true;
+      return hostname.endsWith(`.${allowed}`);
+    });
+  }
+
+  function ensureMapsKeyPrompt() {
+    let prompt = document.getElementById('mapsKeyPrompt');
+    if (prompt) {
+      return prompt;
+    }
+    const container = document.querySelector('.map-container');
+    if (!container) return null;
+
+    prompt = document.createElement('div');
+    prompt.className = 'maps-key-prompt';
+    prompt.id = 'mapsKeyPrompt';
+    prompt.setAttribute('role', 'alertdialog');
+    prompt.setAttribute('aria-modal', 'true');
+
+    prompt.innerHTML = `
+      <div class="maps-key-prompt__card">
+        <h4 class="maps-key-prompt__title">Potrzebny klucz Google Maps</h4>
+        <p class="maps-key-prompt__message" data-role="maps-key-message">
+          Nie udało się wczytać mapy Google. Wprowadź własny klucz API, aby kontynuować.
+        </p>
+        <form class="maps-key-prompt__form" data-role="maps-key-form">
+          <input
+            type="text"
+            class="maps-key-prompt__input"
+            data-role="maps-key-input"
+            placeholder="Wklej klucz API Google Maps"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+          <div class="maps-key-prompt__actions">
+            <button type="button" class="maps-key-prompt__dismiss" data-action="dismiss">Zamknij</button>
+            <button type="submit" class="maps-key-prompt__submit">Zapisz klucz</button>
+          </div>
+          <p class="maps-key-prompt__hint">Klucz zostanie zapisany tylko w tej przeglądarce.</p>
+        </form>
+      </div>
+    `;
+
+    container.appendChild(prompt);
+
+    const form = prompt.querySelector('[data-role="maps-key-form"]');
+    const input = prompt.querySelector('[data-role="maps-key-input"]');
+    const dismiss = prompt.querySelector('[data-action="dismiss"]');
+
+    if (form) {
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        if (!input) return;
+        const value = input.value.trim();
+        if (!value) {
+          input.focus();
+          return;
+        }
+        localStorage.setItem('googleMapsApiKey', value);
+        hideMapsKeyPrompt();
+        if (typeof showToast === 'function') {
+          showToast('Zapisano klucz Google Maps. Odświeżam mapę…', 'success');
+        }
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      });
+    }
+
+    if (dismiss) {
+      dismiss.addEventListener('click', () => hideMapsKeyPrompt());
+    }
+
+    return prompt;
+  }
+
+  function showMapsKeyPrompt(message) {
+    const prompt = ensureMapsKeyPrompt();
+    if (!prompt) return;
+    const messageNode = prompt.querySelector('[data-role="maps-key-message"]');
+    const input = prompt.querySelector('[data-role="maps-key-input"]');
+    if (messageNode && typeof message === 'string' && message.trim()) {
+      messageNode.textContent = message.trim();
+    }
+    prompt.classList.add('maps-key-prompt--visible');
+    if (input) {
+      setTimeout(() => input.focus(), 120);
+    }
+  }
+
+  function hideMapsKeyPrompt() {
+    const prompt = document.getElementById('mapsKeyPrompt');
+    if (!prompt) return;
+    prompt.classList.remove('maps-key-prompt--visible');
+  }
+
+  function registerGoogleAuthFailureHandler() {
+    window.gm_authFailure = () => {
+      localStorage.removeItem('googleMapsApiKey');
+      showMapsKeyPrompt('Google Maps odrzuciło klucz API. Wprowadź nowy klucz, aby zobaczyć mapę.');
+    };
+  }
+
   function loadGoogleMaps() {
-    const apiKey = localStorage.getItem('googleMapsApiKey') || 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
-    script.async = true; script.defer = true;
+    if (document.getElementById('googleMapsApiScript')) {
+      return;
+    }
+
+    registerGoogleAuthFailureHandler();
+
+    const storedKey = localStorage.getItem('googleMapsApiKey');
+    const canUseDefault = isDefaultMapsHost(location.hostname);
+    const apiKey = storedKey || (canUseDefault ? DEFAULT_GOOGLE_MAPS_API_KEY : '');
+
+    if (!apiKey) {
+      showMapsKeyPrompt('Aby zobaczyć mapę Google, wprowadź swój klucz API.');
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'googleMapsApiScript';
+    const params = new URLSearchParams({
+      key: apiKey,
+      callback: 'initMap'
+    });
+    script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('error', () => {
+      localStorage.removeItem('googleMapsApiKey');
+      showMapsKeyPrompt('Nie udało się wczytać Map Google. Sprawdź klucz API i spróbuj ponownie.');
+    });
     document.head.appendChild(script);
   }
-  document.addEventListener("DOMContentLoaded", loadGoogleMaps);
+  document.addEventListener('DOMContentLoaded', loadGoogleMaps);
 </script>
 
 
