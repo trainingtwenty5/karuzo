@@ -573,8 +573,8 @@ window.showConfirmModal = showConfirmModal;
   };
 
   const VORONOI_LABEL_SIZE = {
-    width: 150,
-    height: 42
+    width: 160,
+    height: 64
   };
 
   function getVoronoiPolygonStyle(mode = 'default') {
@@ -695,11 +695,14 @@ window.showConfirmModal = showConfirmModal;
     const fallbackColor = isHidden ? '#2563EB' : '#DC2626';
 
     try {
-      if (google?.maps?.marker?.AdvancedMarkerElement) {
+      const advancedMarkerCtor = (typeof google !== 'undefined' && google && google.maps && google.maps.marker && google.maps.marker.AdvancedMarkerElement)
+        ? google.maps.marker.AdvancedMarkerElement
+        : null;
+      if (advancedMarkerCtor) {
         const node = document.createElement('div');
         node.className = className;
         node.textContent = '×';
-        return new google.maps.marker.AdvancedMarkerElement({
+        return new advancedMarkerCtor({
           position,
           map: null,
           content: node,
@@ -3206,155 +3209,28 @@ window.showConfirmModal = showConfirmModal;
     if (!wrapper) return;
 
     const isFallback = options.fallback === true;
-    const density = options.density === 'compact' ? 'compact' : 'default';
+    const density = options.density === 'compact' ? 'compact' : null;
 
-    const baseColor = isFallback ? '#7f1d1d' : '#111111';
-    const accentColor = isFallback ? '#991b1b' : '#111111';
-    const haloColor = 'rgba(255, 255, 255, 0.95)';
-    const haloShadow = [
-      `0 0 1px ${haloColor}`,
-      `0 0 2px ${haloColor}`,
-      `0 0 3px ${haloColor}`,
-      `0 0 4px ${haloColor}`,
-      `0 0 6px ${haloColor}`,
-      `0 0 10px ${haloColor}`
-    ].join(', ');
-    const outerShadow = '0 6px 12px rgba(15, 23, 42, 0.35)';
-    const strokeWidth = isFallback ? 2.6 : 2.4;
-
-    const applyHalo = (element, options = {}) => {
-      if (!element) return;
-      const fill = options.color || baseColor;
-      const weight = options.fontWeight || element.style.fontWeight || '700';
-      const size = options.fontSize || element.style.fontSize || '';
-      const spacing = options.letterSpacing || element.style.letterSpacing || '';
-      const lineHeight = options.lineHeight || element.style.lineHeight || '';
-      const elementStrokeWidth = options.strokeWidth || strokeWidth;
-
-      element.style.color = fill;
-      element.style.webkitTextFillColor = fill;
-      element.style.webkitTextStroke = `${elementStrokeWidth}px ${haloColor}`;
-      element.style.paintOrder = 'stroke fill';
-      element.style.textShadow = `${haloShadow}, ${outerShadow}`;
-      element.style.fontWeight = weight;
-      if (size) element.style.fontSize = size;
-      if (spacing) element.style.letterSpacing = spacing;
-      if (lineHeight) element.style.lineHeight = lineHeight;
-    };
-
-    wrapper.style.background = 'transparent';
-    wrapper.style.border = 'none';
-    wrapper.style.borderRadius = '0';
-    wrapper.style.boxShadow = 'none';
-    wrapper.style.display = 'flex';
-    wrapper.style.flexDirection = 'column';
-    wrapper.style.alignItems = 'center';
-    wrapper.style.justifyContent = 'center';
-    wrapper.style.textAlign = 'center';
-    wrapper.style.gap = density === 'compact' ? '0.1rem' : '0.14rem';
-    wrapper.style.padding = '0';
-    wrapper.style.fontSize = density === 'compact' ? '0.86rem' : '0.92rem';
-    wrapper.style.fontWeight = '700';
-    wrapper.style.lineHeight = '1.18';
-    wrapper.style.letterSpacing = '0.012em';
-    wrapper.style.fontVariantNumeric = 'tabular-nums';
-    wrapper.style.minWidth = 'auto';
+    wrapper.classList.add('voronoi-pill', 'voronoi-label');
+    wrapper.setAttribute('role', 'presentation');
     wrapper.style.pointerEvents = 'none';
-    wrapper.style.whiteSpace = 'normal';
-    wrapper.style.backdropFilter = 'none';
-    wrapper.style.transform = 'translateZ(0)';
-    wrapper.style.filter = 'drop-shadow(0 6px 12px rgba(15, 23, 42, 0.28))';
-
-    applyHalo(wrapper, { fontWeight: '700' });
-
-    const stack = wrapper.querySelector('.voronoi-label__stack');
-    if (stack) {
-      stack.style.display = 'flex';
-      stack.style.flexDirection = 'column';
-      stack.style.alignItems = 'center';
-      stack.style.justifyContent = 'center';
-      stack.style.textAlign = 'center';
-      stack.style.gap = density === 'compact' ? '0.08rem' : '0.12rem';
-      stack.style.width = '100%';
-      applyHalo(stack, { fontWeight: '700' });
+    if (isFallback) {
+      wrapper.dataset.fallback = 'true';
+    } else {
+      delete wrapper.dataset.fallback;
     }
-
-    const value = wrapper.querySelector('.voronoi-label__value');
-    if (value) {
-      applyHalo(value, {
-        fontWeight: '800',
-        fontSize: density === 'compact' ? '0.98rem' : '1.05rem',
-        letterSpacing: '0.016em',
-        lineHeight: '1.12'
-      });
-    }
-
-    const price = wrapper.querySelector('.voronoi-label__price');
-    if (price) {
-      applyHalo(price, {
-        fontWeight: '700',
-        fontSize: density === 'compact' ? '0.76rem' : '0.82rem',
-        letterSpacing: '0.012em',
-        lineHeight: '1.12'
-      });
-      price.style.opacity = '0.96';
-    }
-
-    const badge = wrapper.querySelector('.voronoi-label__badge');
-    if (badge) {
-      badge.style.display = 'inline-flex';
-      badge.style.alignItems = 'center';
-      badge.style.justifyContent = 'center';
-      badge.style.padding = density === 'compact' ? '0.06rem 0.2rem' : '0.08rem 0.24rem';
-      badge.style.borderRadius = '0.25rem';
-      badge.style.textTransform = 'uppercase';
-      badge.style.alignSelf = 'center';
-      applyHalo(badge, {
-        fontWeight: '800',
-        fontSize: density === 'compact' ? '0.6rem' : '0.68rem',
-        letterSpacing: '0.06em',
-        color: accentColor,
-        strokeWidth: 2.2
-      });
+    if (density) {
+      wrapper.dataset.density = density;
+    } else {
+      delete wrapper.dataset.density;
     }
   }
 
   function applyVoronoiConnectorStyles(wrapper) {
     if (!wrapper) return;
-
-    const haloColor = 'rgba(255, 255, 255, 0.95)';
-    const haloShadow = [
-      `0 0 1px ${haloColor}`,
-      `0 0 2px ${haloColor}`,
-      `0 0 3px ${haloColor}`,
-      `0 0 4px ${haloColor}`,
-      `0 0 6px ${haloColor}`,
-      `0 0 10px ${haloColor}`
-    ].join(', ');
-    const outerShadow = '0 6px 12px rgba(15, 23, 42, 0.35)';
-
-    wrapper.style.background = 'transparent';
-    wrapper.style.color = '#111111';
-    wrapper.style.webkitTextFillColor = '#111111';
-    wrapper.style.webkitTextStroke = '2.3px rgba(255, 255, 255, 0.95)';
-    wrapper.style.paintOrder = 'stroke fill';
-    wrapper.style.border = 'none';
-    wrapper.style.borderRadius = '0';
-    wrapper.style.boxShadow = 'none';
-    wrapper.style.display = 'inline-flex';
-    wrapper.style.alignItems = 'center';
-    wrapper.style.justifyContent = 'center';
-    wrapper.style.padding = '0';
-    wrapper.style.fontSize = '0.9rem';
-    wrapper.style.fontWeight = '700';
-    wrapper.style.lineHeight = '1.08';
-    wrapper.style.fontVariantNumeric = 'tabular-nums';
-    wrapper.style.letterSpacing = '0.012em';
-    wrapper.style.whiteSpace = 'nowrap';
+    wrapper.classList.add('voronoi-pill', 'voronoi-pill--compact', 'voronoi-connector-label');
+    wrapper.setAttribute('role', 'presentation');
     wrapper.style.pointerEvents = 'none';
-    wrapper.style.transform = 'translateZ(0)';
-    wrapper.style.textShadow = `${haloShadow}, ${outerShadow}`;
-    wrapper.style.filter = 'drop-shadow(0 6px 12px rgba(15, 23, 42, 0.28))';
   }
 
   function calculatePolygonCentroid(path) {
@@ -3491,31 +3367,134 @@ window.showConfirmModal = showConfirmModal;
     return first || fallback || null;
   }
 
+  function normalizeOverlayPosition(position) {
+    if (typeof google === 'undefined' || !google?.maps?.LatLng) {
+      return null;
+    }
+    if (!position) return null;
+    if (position instanceof google.maps.LatLng) {
+      return position;
+    }
+    const lat = Number(position.lat);
+    const lng = Number(position.lng);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return new google.maps.LatLng(lat, lng);
+    }
+    return null;
+  }
+
+  let HtmlMapOverlayClass = null;
+
+  function getHtmlMapOverlayClass() {
+    const overlayCtor = (typeof google !== 'undefined' && google && google.maps && google.maps.OverlayView)
+      ? google.maps.OverlayView
+      : null;
+
+    if (HtmlMapOverlayClass && overlayCtor) {
+      return HtmlMapOverlayClass;
+    }
+    if (!overlayCtor) {
+      return null;
+    }
+
+    HtmlMapOverlayClass = class extends overlayCtor {
+      constructor(options = {}) {
+        super();
+        this.position = normalizeOverlayPosition(options.position);
+        this.element = options.element || document.createElement('div');
+        this.paneName = options.pane || 'floatPane';
+        this.zIndex = Number.isFinite(options.zIndex) ? options.zIndex : 0;
+        this.alwaysInteractive = options.pointerEvents === true;
+        this.ariaLabel = typeof options.ariaLabel === 'string' ? options.ariaLabel : '';
+
+        this.element.style.position = 'absolute';
+        this.element.style.transform = 'translate(-50%, -50%)';
+        if (!this.alwaysInteractive) {
+          this.element.style.pointerEvents = 'none';
+        }
+        if (this.ariaLabel) {
+          this.element.setAttribute('aria-label', this.ariaLabel);
+        }
+
+        if (options.map) {
+          this.setMap(options.map);
+        }
+      }
+
+      onAdd() {
+        const panes = this.getPanes();
+        const targetPane = panes?.[this.paneName] || panes?.floatPane || panes?.overlayMouseTarget || panes?.overlayLayer;
+        if (!targetPane) return;
+        if (Number.isFinite(this.zIndex)) {
+          this.element.style.zIndex = String(this.zIndex);
+        }
+        targetPane.appendChild(this.element);
+      }
+
+      draw() {
+        if (!this.element || !this.position) return;
+        const projection = this.getProjection();
+        if (!projection) return;
+        const point = projection.fromLatLngToDivPixel(normalizeOverlayPosition(this.position));
+        if (!point) return;
+        this.element.style.left = `${point.x}px`;
+        this.element.style.top = `${point.y}px`;
+      }
+
+      onRemove() {
+        if (this.element?.parentNode) {
+          this.element.parentNode.removeChild(this.element);
+        }
+      }
+
+      getPosition() {
+        return this.position || null;
+      }
+
+      setPosition(position) {
+        const normalized = normalizeOverlayPosition(position);
+        if (!normalized) return;
+        this.position = normalized;
+        this.draw();
+      }
+
+      setZIndex(zIndex) {
+        this.zIndex = Number.isFinite(zIndex) ? zIndex : 0;
+        if (this.element) {
+          this.element.style.zIndex = String(this.zIndex);
+        }
+      }
+    };
+
+    return HtmlMapOverlayClass;
+  }
+
+  function createHtmlMapOverlay(options = {}) {
+    const OverlayClass = getHtmlMapOverlayClass();
+    if (!OverlayClass) {
+      return null;
+    }
+    return new OverlayClass(options);
+  }
+
   function createVoronoiLabelNode(htmlContent, fallbackText, position, options = {}) {
     if (!position) return null;
     const isFallback = options.fallback === true;
     const density = typeof options.density === 'string' ? options.density : 'default';
-    try {
-      if (google?.maps?.marker?.AdvancedMarkerElement) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'voronoi-label';
-        wrapper.innerHTML = htmlContent;
-        if (isFallback) {
-          wrapper.dataset.fallback = 'true';
-        }
-        if (density && density !== 'default') {
-          wrapper.dataset.density = density;
-        }
-        applyVoronoiLabelStyles(wrapper, { fallback: isFallback, density });
-        return new google.maps.marker.AdvancedMarkerElement({
-          position,
-          map: voronoiLayerState.enabled ? map : null,
-          content: wrapper,
-          zIndex: 120
-        });
-      }
-    } catch (error) {
-      console.warn('Nie udało się utworzyć etykiety AdvancedMarkerElement dla Voronoi.', error);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = htmlContent;
+    applyVoronoiLabelStyles(wrapper, { fallback: isFallback, density });
+
+    const overlay = createHtmlMapOverlay({
+      position,
+      element: wrapper,
+      map: voronoiLayerState.enabled ? map : null,
+      zIndex: 120,
+      ariaLabel: typeof fallbackText === 'string' ? fallbackText : ''
+    });
+
+    if (overlay) {
+      return overlay;
     }
 
     return new google.maps.Marker({
@@ -3524,7 +3503,7 @@ window.showConfirmModal = showConfirmModal;
       icon: { path: google.maps.SymbolPath.CIRCLE, scale: 0.01, strokeWeight: 0 },
       label: {
         text: fallbackText,
-        color: '#ffffff',
+        color: '#111827',
         fontSize: '12px',
         fontWeight: '600'
       },
@@ -3537,21 +3516,20 @@ window.showConfirmModal = showConfirmModal;
       return null;
     }
 
-    try {
-      if (google?.maps?.marker?.AdvancedMarkerElement) {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'voronoi-connector-label voronoi-pill voronoi-pill--compact';
-        wrapper.textContent = text;
-        applyVoronoiConnectorStyles(wrapper);
-        return new google.maps.marker.AdvancedMarkerElement({
-          position,
-          map: null,
-          content: wrapper,
-          zIndex: 150
-        });
-      }
-    } catch (error) {
-      console.warn('Nie udało się utworzyć etykiety łącznika Voronoi w trybie AdvancedMarkerElement.', error);
+    const wrapper = document.createElement('span');
+    wrapper.textContent = text;
+    applyVoronoiConnectorStyles(wrapper);
+
+    const overlay = createHtmlMapOverlay({
+      position,
+      element: wrapper,
+      map: null,
+      zIndex: 150,
+      ariaLabel: text
+    });
+
+    if (overlay) {
+      return overlay;
     }
 
     return new google.maps.Marker({
@@ -4628,6 +4606,8 @@ window.showConfirmModal = showConfirmModal;
 
   // ====== MAPA ======
   async function initMap() {
+    hideMapsKeyPrompt();
+
     const mobileMediaQuery = typeof window !== 'undefined' && window.matchMedia
       ? window.matchMedia('(max-width: 768px)')
       : null;
@@ -4906,19 +4886,148 @@ window.showConfirmModal = showConfirmModal;
   };
 
   // ładowanie Google Maps
+  const DEFAULT_GOOGLE_MAPS_API_KEY = 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
+  const GOOGLE_MAPS_DEFAULT_HOSTS = ['grunteo.pl', 'www.grunteo.pl', 'trainingtwenty5.github.io'];
+
+  function isDefaultMapsHost(hostname) {
+    if (!hostname) return false;
+    return GOOGLE_MAPS_DEFAULT_HOSTS.some(allowed => {
+      if (hostname === allowed) return true;
+      return hostname.endsWith(`.${allowed}`);
+    });
+  }
+
+  function ensureMapsKeyPrompt() {
+    let prompt = document.getElementById('mapsKeyPrompt');
+    if (prompt) {
+      return prompt;
+    }
+    const container = document.querySelector('.map-container');
+    if (!container) return null;
+
+    prompt = document.createElement('div');
+    prompt.className = 'maps-key-prompt';
+    prompt.id = 'mapsKeyPrompt';
+    prompt.setAttribute('role', 'alertdialog');
+    prompt.setAttribute('aria-modal', 'true');
+
+    prompt.innerHTML = `
+      <div class="maps-key-prompt__card">
+        <h4 class="maps-key-prompt__title">Potrzebny klucz Google Maps</h4>
+        <p class="maps-key-prompt__message" data-role="maps-key-message">
+          Nie udało się wczytać mapy Google. Wprowadź własny klucz API, aby kontynuować.
+        </p>
+        <form class="maps-key-prompt__form" data-role="maps-key-form">
+          <input
+            type="text"
+            class="maps-key-prompt__input"
+            data-role="maps-key-input"
+            placeholder="Wklej klucz API Google Maps"
+            autocomplete="off"
+            spellcheck="false"
+            required
+          />
+          <div class="maps-key-prompt__actions">
+            <button type="button" class="maps-key-prompt__dismiss" data-action="dismiss">Zamknij</button>
+            <button type="submit" class="maps-key-prompt__submit">Zapisz klucz</button>
+          </div>
+          <p class="maps-key-prompt__hint">Klucz zostanie zapisany tylko w tej przeglądarce.</p>
+        </form>
+      </div>
+    `;
+
+    container.appendChild(prompt);
+
+    const form = prompt.querySelector('[data-role="maps-key-form"]');
+    const input = prompt.querySelector('[data-role="maps-key-input"]');
+    const dismiss = prompt.querySelector('[data-action="dismiss"]');
+
+    if (form) {
+      form.addEventListener('submit', event => {
+        event.preventDefault();
+        if (!input) return;
+        const value = input.value.trim();
+        if (!value) {
+          input.focus();
+          return;
+        }
+        localStorage.setItem('googleMapsApiKey', value);
+        hideMapsKeyPrompt();
+        if (typeof showToast === 'function') {
+          showToast('Zapisano klucz Google Maps. Odświeżam mapę…', 'success');
+        }
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      });
+    }
+
+    if (dismiss) {
+      dismiss.addEventListener('click', () => hideMapsKeyPrompt());
+    }
+
+    return prompt;
+  }
+
+  function showMapsKeyPrompt(message) {
+    const prompt = ensureMapsKeyPrompt();
+    if (!prompt) return;
+    const messageNode = prompt.querySelector('[data-role="maps-key-message"]');
+    const input = prompt.querySelector('[data-role="maps-key-input"]');
+    if (messageNode && typeof message === 'string' && message.trim()) {
+      messageNode.textContent = message.trim();
+    }
+    prompt.classList.add('maps-key-prompt--visible');
+    if (input) {
+      setTimeout(() => input.focus(), 120);
+    }
+  }
+
+  function hideMapsKeyPrompt() {
+    const prompt = document.getElementById('mapsKeyPrompt');
+    if (!prompt) return;
+    prompt.classList.remove('maps-key-prompt--visible');
+  }
+
+  function registerGoogleAuthFailureHandler() {
+    window.gm_authFailure = () => {
+      localStorage.removeItem('googleMapsApiKey');
+      showMapsKeyPrompt('Google Maps odrzuciło klucz API. Wprowadź nowy klucz, aby zobaczyć mapę.');
+    };
+  }
+
   function loadGoogleMaps() {
-    const apiKey = localStorage.getItem('googleMapsApiKey') || 'AIzaSyCr5TmFxnT3enxmyr6vujF8leP995giw8I';
-    const script = document.createElement("script");
+    if (document.getElementById('googleMapsApiScript')) {
+      return;
+    }
+
+    registerGoogleAuthFailureHandler();
+
+    const storedKey = localStorage.getItem('googleMapsApiKey');
+    const canUseDefault = isDefaultMapsHost(location.hostname);
+    const apiKey = storedKey || (canUseDefault ? DEFAULT_GOOGLE_MAPS_API_KEY : '');
+
+    if (!apiKey) {
+      showMapsKeyPrompt('Aby zobaczyć mapę Google, wprowadź swój klucz API.');
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'googleMapsApiScript';
     const params = new URLSearchParams({
       key: apiKey,
-      callback: 'initMap',
-      libraries: 'marker'
+      callback: 'initMap'
     });
     script.src = `https://maps.googleapis.com/maps/api/js?${params.toString()}`;
-    script.async = true; script.defer = true;
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('error', () => {
+      localStorage.removeItem('googleMapsApiKey');
+      showMapsKeyPrompt('Nie udało się wczytać Map Google. Sprawdź klucz API i spróbuj ponownie.');
+    });
     document.head.appendChild(script);
   }
-  document.addEventListener("DOMContentLoaded", loadGoogleMaps);
+  document.addEventListener('DOMContentLoaded', loadGoogleMaps);
 </script>
 
 

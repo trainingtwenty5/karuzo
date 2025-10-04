@@ -859,132 +859,218 @@
 .gm-style-iw-c { padding:8px !important; }
 
 
-.voronoi-label,
-.voronoi-pill,
-.voronoi-connector-label {
-  background:transparent;
-  border:none;
-  color:#111111;
-  font-weight:700;
-  font-variant-numeric:tabular-nums;
-  letter-spacing:0.012em;
-  text-transform:none;
-  -webkit-text-fill-color:#111111;
-  -webkit-text-stroke:2.2px rgba(255,255,255,0.95);
-  paint-order:stroke fill;
-  text-shadow:0 0 1px rgba(255,255,255,0.95),
-              0 0 2px rgba(255,255,255,0.95),
-              0 0 4px rgba(255,255,255,0.9),
-              0 0 8px rgba(255,255,255,0.85),
-              0 2px 6px rgba(15,23,42,0.35);
-  filter:drop-shadow(0 4px 10px rgba(15,23,42,0.28));
-  transition:color 180ms ease;
-}
-
-.voronoi-pill,
-.voronoi-connector-label {
+.voronoi-pill {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:0.35rem;
-  padding:0.1rem 0.25rem;
-  line-height:1.08;
-  font-size:0.95rem;
+  gap:0.4rem;
+  padding:0.38rem 0.7rem;
+  border-radius:9999px;
+  border:1px solid rgba(17,17,17,0.85);
+  background:rgba(255,255,255,0.97);
+  color:#111111;
+  font-weight:600;
+  font-size:0.9rem;
+  line-height:1.12;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0.01em;
   white-space:nowrap;
-}
-
-.voronoi-pill--compact,
-.voronoi-connector-label {
-  font-size:0.88rem;
-}
-
-.voronoi-connector-label {
+  box-shadow:0 1px 2px rgba(15,23,42,0.18), 0 10px 26px rgba(15,23,42,0.18);
+  text-shadow:none;
   pointer-events:none;
+}
+
+.voronoi-pill--compact {
+  padding:0.32rem 0.6rem;
+  font-size:0.84rem;
+  gap:0.32rem;
 }
 
 .voronoi-label {
-  min-width:auto;
-  text-align:center;
-  pointer-events:none;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  gap:0.12rem;
-  padding:0;
-  font-size:0.92rem;
-  line-height:1.18;
+  text-align:center;
+  gap:0.16rem;
+  padding:0.45rem 0.7rem;
   white-space:normal;
-  filter:drop-shadow(0 6px 12px rgba(15,23,42,0.28));
+  min-width:0;
+  color:inherit;
+}
+
+.voronoi-label[data-density="compact"] {
+  font-size:0.86rem;
+  padding:0.35rem 0.6rem;
+  gap:0.12rem;
 }
 
 .voronoi-label__stack {
   display:flex;
   flex-direction:column;
   align-items:center;
-  justify-content:center;
-  gap:0.08rem;
-  width:100%;
+  gap:0.12rem;
 }
 
 .voronoi-label__value {
-  color:inherit;
-  -webkit-text-fill-color:inherit;
-  font-weight:800;
-  letter-spacing:0.016em;
-  font-size:1.05rem;
-  line-height:1.12;
+  font-weight:700;
+  font-size:1rem;
+  letter-spacing:0.018em;
+}
+
+.voronoi-label[data-density="compact"] .voronoi-label__value {
+  font-size:0.94rem;
 }
 
 .voronoi-label__price {
   font-size:0.82rem;
-  font-weight:700;
-  letter-spacing:0.012em;
-  line-height:1.12;
-  opacity:0.96;
+  font-weight:600;
+  opacity:0.92;
 }
 
 .voronoi-label__badge {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:0.08rem 0.24rem;
-  border-radius:0.25rem;
-  color:inherit;
-  -webkit-text-fill-color:inherit;
-  font-size:0.68rem;
-  font-weight:800;
-  letter-spacing:0.06em;
+  padding:0.08rem 0.35rem;
+  border-radius:9999px;
+  border:1px solid rgba(220,38,38,0.45);
+  background:rgba(248,113,113,0.18);
+  color:#991b1b;
+  font-size:0.64rem;
+  font-weight:700;
+  letter-spacing:0.08em;
   text-transform:uppercase;
-  line-height:1.05;
-  align-self:center;
 }
 
 .voronoi-label[data-fallback="true"] {
+  border-color:rgba(153,27,27,0.75);
   color:#7f1d1d;
-  -webkit-text-fill-color:#7f1d1d;
+  box-shadow:0 1px 2px rgba(153,27,27,0.22), 0 12px 28px rgba(153,27,27,0.18);
 }
 
 .voronoi-label[data-fallback="true"] .voronoi-label__badge {
-  color:#991b1b;
-  -webkit-text-fill-color:#991b1b;
+  background:rgba(248,113,113,0.24);
+  border-color:rgba(185,28,28,0.55);
+  color:#7f1d1d;
 }
 
-.voronoi-label[data-density="compact"] {
-  font-size:0.86rem;
-  gap:0.1rem;
+.voronoi-connector-label {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:0.28rem;
+  color:#111111;
 }
 
-.voronoi-label[data-density="compact"] .voronoi-label__price {
-  font-size:0.76rem;
+.voronoi-connector-label strong {
+  font-weight:700;
 }
 
-.voronoi-label[data-density="compact"] .voronoi-label__value {
-  font-size:0.98rem;
+.maps-key-prompt {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:32px 20px;
+  background:linear-gradient(180deg, rgba(15,23,42,0.55), rgba(15,23,42,0.45));
+  backdrop-filter:blur(6px);
+  z-index:210;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity 200ms ease;
 }
 
-.voronoi-label[data-density="compact"] .voronoi-label__badge {
-  font-size:0.6rem;
+.maps-key-prompt--visible {
+  opacity:1;
+  pointer-events:auto;
+}
+
+.maps-key-prompt__card {
+  width:min(420px, 100%);
+  background:#ffffff;
+  border:1px solid rgba(15,23,42,0.08);
+  border-radius:18px;
+  padding:22px 24px;
+  box-shadow:0 18px 40px rgba(15,23,42,0.22);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  color:#0f172a;
+}
+
+.maps-key-prompt__title {
+  margin:0;
+  font-size:1.05rem;
+  font-weight:700;
+}
+
+.maps-key-prompt__message {
+  margin:0;
+  font-size:0.92rem;
+  line-height:1.4;
+  color:#1f2937;
+}
+
+.maps-key-prompt__form {
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.maps-key-prompt__input {
+  width:100%;
+  padding:0.55rem 0.75rem;
+  border-radius:12px;
+  border:1px solid rgba(148,163,184,0.6);
+  font-size:0.95rem;
+  font-family:inherit;
+  color:#0f172a;
+  background:#f9fafb;
+}
+
+.maps-key-prompt__input:focus {
+  outline:3px solid rgba(59,130,246,0.35);
+  outline-offset:2px;
+}
+
+.maps-key-prompt__actions {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+
+.maps-key-prompt__submit,
+.maps-key-prompt__dismiss {
+  border-radius:9999px;
+  border:1px solid #111111;
+  background:#ffffff;
+  color:#111111;
+  font-size:0.9rem;
+  font-weight:600;
+  padding:0.45rem 0.9rem;
+  cursor:pointer;
+  box-shadow:0 1px 2px rgba(15,23,42,0.12);
+  transition:transform 160ms ease, box-shadow 160ms ease;
+}
+
+.maps-key-prompt__submit:hover,
+.maps-key-prompt__dismiss:hover {
+  transform:translateY(-1px);
+  box-shadow:0 6px 18px rgba(15,23,42,0.18);
+}
+
+.maps-key-prompt__dismiss {
+  border-color:rgba(148,163,184,0.8);
+  color:#1f2937;
+}
+
+.maps-key-prompt__hint {
+  margin:0;
+  font-size:0.78rem;
+  color:#475569;
 }
 
 .voronoi-indicator {
