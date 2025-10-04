@@ -293,6 +293,7 @@
 }
 
 .voronoi-inspector__percentage {
+  font-size:0.8rem;
   font-weight:600;
   color:#111111;
   font-variant-numeric:tabular-nums;
@@ -860,8 +861,6 @@
 
 .voronoi-label,
 .voronoi-pill,
-.voronoi-inspector__summary-value,
-.voronoi-inspector__percentage,
 .voronoi-connector-label {
   border-radius:9999px;
   background:#ffffff;
@@ -874,8 +873,6 @@
 }
 
 .voronoi-pill,
-.voronoi-inspector__summary-value,
-.voronoi-inspector__percentage,
 .voronoi-connector-label {
   display:inline-flex;
   align-items:center;
@@ -896,15 +893,6 @@
 .voronoi-connector-label {
   box-shadow:0 4px 10px rgba(0,0,0,0.18);
   pointer-events:none;
-}
-
-.voronoi-inspector__summary-value {
-  font-size:0.92rem;
-  padding:0.6rem 0.95rem;
-}
-
-.voronoi-inspector__percentage {
-  font-size:0.8rem;
 }
 
 .voronoi-label {
