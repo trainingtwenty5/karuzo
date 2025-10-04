@@ -481,7 +481,8 @@
       <div class="map-container">
         <div id="map"></div>
         <div class="map-overlay map-overlay-desktop">
-        <button id="clearPlotsBtn" class="btn-overlay">🗑️ Wyczyść punkty</button>
+        <button id="clearPlotsBtn" class="btn-overlay" type="button">🗑️ Wyczyść punkty</button>
+        <button id="zoomPlotsBtn" class="btn-overlay" type="button" aria-label="Przybliż widok na wybrane działki">🟩 Przybliż działki</button>
         <div class="form-check form-switch">
           <input class="form-check-input" type="checkbox" id="autoSave" />
           <label class="form-check-label" for="autoSave">Auto-zapis</label>
@@ -530,7 +531,8 @@
           <p class="lead-over-map">Kliknij na mapę, aby wskazać lokalizację działki</p>
           <div id="map-mobile"></div>
           <div class="map-overlay map-overlay-mobile">
-            <button id="clearPlotsBtnMobile" class="btn-overlay" aria-label="Wyczyść punkty">🗑️</button>
+            <button id="clearPlotsBtnMobile" class="btn-overlay" type="button" aria-label="Wyczyść punkty">🗑️</button>
+            <button id="zoomPlotsBtnMobile" class="btn-overlay" type="button" aria-label="Przybliż widok na wybrane działki">🟩</button>
           </div>
         </div>
 
@@ -1025,6 +1027,50 @@
       persistSelectedPoints();
     }
 
+    function focusOnSelectedPlots() {
+      if (!selectedPoints || selectedPoints.length === 0) {
+        showToast("Dodaj najpierw punkt działki na mapie, aby przybliżyć widok.", "info");
+        return;
+      }
+
+      if (!window.google || !google.maps || typeof google.maps.LatLngBounds !== 'function') {
+        return;
+      }
+
+      const bounds = new google.maps.LatLngBounds();
+      selectedPoints.forEach(point => {
+        bounds.extend(new google.maps.LatLng(point.lat, point.lng));
+      });
+
+      const desiredZoom = selectedPoints.length === 1 ? 20 : 18;
+
+      const applyBoundsToMap = (mapInstance) => {
+        if (!mapInstance) return;
+
+        if (selectedPoints.length === 1) {
+          mapInstance.panTo(bounds.getCenter());
+          mapInstance.setZoom(desiredZoom);
+          return;
+        }
+
+        mapInstance.fitBounds(bounds, 80);
+        google.maps.event.addListenerOnce(mapInstance, 'idle', () => {
+          const currentZoom = mapInstance.getZoom();
+          if (typeof currentZoom === 'number') {
+            const clampedZoom = Math.min(Math.max(currentZoom, desiredZoom), 20);
+            if (clampedZoom !== currentZoom) {
+              mapInstance.setZoom(clampedZoom);
+            }
+          }
+        });
+      };
+
+      applyBoundsToMap(desktopMap);
+      applyBoundsToMap(mobileMap);
+
+      showToast("Przybliżono widok na zaznaczone działki.", "success");
+    }
+
     function invalidateOffersCache() {
       if (typeof window !== 'undefined' && typeof window.bumpOffersRevisionHint === 'function') {
         try {
@@ -1270,6 +1316,7 @@
       });
 
       $("#clearPlotsBtn, #clearPlotsBtnMobile").on("click", function(){ clearAllPoints(); });
+      $("#zoomPlotsBtn, #zoomPlotsBtnMobile").on("click", function(){ focusOnSelectedPlots(); });
 
       toggleFieldsForAuth(window.currentUser || null);
     });
