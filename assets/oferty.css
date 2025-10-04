@@ -185,11 +185,12 @@
   display:flex;
   flex-direction:column;
   gap:10px;
-  background:linear-gradient(135deg,#0b1f3a,#12284f);
-  color:#f8fafc;
-  padding:12px 14px;
-  border-radius:14px;
-  box-shadow:0 6px 14px rgba(15,23,42,0.18);
+  background:#ffffff;
+  color:#0f172a;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid rgba(15,23,42,0.08);
+  box-shadow:0 8px 24px rgba(15,23,42,0.08);
 }
 
 .voronoi-inspector__summary[hidden] {
@@ -208,21 +209,23 @@
   font-weight:600;
   text-transform:uppercase;
   letter-spacing:0.05em;
-  color:rgba(248,250,252,0.78);
+  color:#1f2937;
 }
 
 .voronoi-inspector__summary-badge {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:2px 8px;
+  padding:4px 10px;
   border-radius:999px;
-  background:rgba(248,250,252,0.2);
-  color:#f8fafc;
+  background:#ffffff;
+  color:#111111;
   font-size:0.68rem;
   font-weight:600;
   text-transform:uppercase;
   letter-spacing:0.08em;
+  border:1px solid rgba(15,23,42,0.16);
+  box-shadow:0 1px 2px rgba(15,23,42,0.12);
 }
 
 .voronoi-inspector__summary-badge[hidden] {
@@ -245,14 +248,14 @@
 .voronoi-inspector__summary-label {
   font-size:0.75rem;
   font-weight:500;
-  color:rgba(226,232,240,0.82);
+  color:#475569;
 }
 
 .voronoi-inspector__summary-value {
   font-size:0.9rem;
   font-weight:700;
   font-variant-numeric:tabular-nums;
-  color:#ffffff;
+  color:#111111;
 }
 
 .voronoi-inspector[hidden] {
@@ -291,7 +294,7 @@
 
 .voronoi-inspector__percentage {
   font-weight:600;
-  color:#1d4ed8;
+  color:#111111;
   font-variant-numeric:tabular-nums;
 }
 
@@ -934,20 +937,47 @@
   font-size:0.56rem;
 }
 
+.voronoi-pill,
+.voronoi-inspector__summary-value,
+.voronoi-inspector__percentage,
 .voronoi-connector-label {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:2px 8px;
-  border-radius:999px;
+  gap:0.35rem;
+  padding:6px 12px;
+  border-radius:9999px;
   background:#ffffff;
-  color:#111827;
-  font-size:11px;
+  color:#111111;
+  border:1px solid rgba(15,23,42,0.16);
+  box-shadow:0 1px 2px rgba(15,23,42,0.12);
   font-weight:600;
-  border:1px solid rgba(148,163,184,0.45);
-  box-shadow:0 2px 6px rgba(15,23,42,0.25);
+  line-height:1;
+  font-size:0.82rem;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+.voronoi-pill--compact,
+.voronoi-connector-label {
+  padding:4px 10px;
+  font-size:0.75rem;
+}
+
+.voronoi-connector-label {
+  box-shadow:0 4px 10px rgba(15,23,42,0.2);
   pointer-events:none;
   white-space:nowrap;
+}
+
+.voronoi-inspector__summary-value {
+  font-size:0.92rem;
+  padding:8px 14px;
+}
+
+.voronoi-inspector__percentage {
+  font-size:0.8rem;
+  padding:6px 12px;
 }
 
 .voronoi-indicator {

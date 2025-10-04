@@ -2650,9 +2650,14 @@ window.showConfirmModal = showConfirmModal;
     if (distanceMeters >= 1000) {
       const km = distanceMeters / 1000;
       const precision = km >= 10 ? 0 : 1;
-      return `${km.toFixed(precision)} km`;
+      const formattedKm = km.toLocaleString('pl-PL', {
+        minimumFractionDigits: precision,
+        maximumFractionDigits: precision
+      });
+      return `${formattedKm} km`;
     }
-    return `${Math.round(distanceMeters)} m`;
+    const meters = Math.round(distanceMeters);
+    return `${meters.toLocaleString('pl-PL')} m`;
   }
 
   function formatWeightValue(weight) {
@@ -2660,9 +2665,14 @@ window.showConfirmModal = showConfirmModal;
       return '—';
     }
     if (weight >= 0.1) {
-      return weight.toFixed(2);
+      return weight.toLocaleString('pl-PL', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
     }
-    return weight.toPrecision(2);
+    return weight.toLocaleString('pl-PL', {
+      maximumSignificantDigits: 2
+    });
   }
 
   function buildConnectorLabelText(weight, distanceMeters) {
@@ -2671,13 +2681,14 @@ window.showConfirmModal = showConfirmModal;
     if (weightText === '—' && distanceText === '—') {
       return '';
     }
-    if (weightText === '—') {
-      return distanceText;
+    const parts = [];
+    if (weightText !== '—') {
+      parts.push(`Waga ${weightText}`);
     }
-    if (distanceText === '—') {
-      return `w=${weightText}`;
+    if (distanceText !== '—') {
+      parts.push(distanceText);
     }
-    return `w=${weightText} • ${distanceText}`;
+    return parts.join(' • ');
   }
 
   const MAX_FALLBACK_DISTANCE_METERS = 30000;
@@ -3373,7 +3384,7 @@ window.showConfirmModal = showConfirmModal;
     try {
       if (google?.maps?.marker?.AdvancedMarkerElement) {
         const wrapper = document.createElement('div');
-        wrapper.className = 'voronoi-connector-label';
+        wrapper.className = 'voronoi-connector-label voronoi-pill voronoi-pill--compact';
         wrapper.textContent = text;
         return new google.maps.marker.AdvancedMarkerElement({
           position,
