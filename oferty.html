@@ -3986,6 +3986,13 @@ window.showConfirmModal = showConfirmModal;
 
   // ====== MAPA ======
   async function initMap() {
+    const mobileMediaQuery = typeof window !== 'undefined' && window.matchMedia
+      ? window.matchMedia('(max-width: 768px)')
+      : null;
+    const isMobileScreen = mobileMediaQuery
+      ? mobileMediaQuery.matches
+      : (typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+
     map = new google.maps.Map(document.getElementById("map"), {
       center: { lat: 52.0, lng: 19.0 },
       zoom: 6,
@@ -3995,8 +4002,20 @@ window.showConfirmModal = showConfirmModal;
       tilt: 0,
       heading: 0,
       tiltControl: false,
-      rotateControl: false
+      rotateControl: false,
+      streetViewControl: !isMobileScreen
     });
+
+    const updateStreetViewControl = (isMobile) => {
+      if (!map) return;
+      map.setOptions({ streetViewControl: !isMobile });
+    };
+
+    if (mobileMediaQuery && typeof mobileMediaQuery.addEventListener === 'function') {
+      mobileMediaQuery.addEventListener('change', (event) => updateStreetViewControl(event.matches));
+    } else if (mobileMediaQuery && typeof mobileMediaQuery.addListener === 'function') {
+      mobileMediaQuery.addListener((event) => updateStreetViewControl(event.matches));
+    }
 
     const keepMapFlat = () => {
       if (!map) return;
