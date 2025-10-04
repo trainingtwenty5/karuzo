@@ -300,6 +300,15 @@ window.showConfirmModal = showConfirmModal;
               Kliknij poligon, aby zobaczyć procenty tagów.
             </p>
             <ul class="voronoi-inspector__list" id="voronoiInspectorList"></ul>
+            <div
+              class="voronoi-inspector__sources"
+              id="voronoiInspectorSources"
+              hidden
+              aria-hidden="true"
+            >
+              <span class="voronoi-inspector__sources-title">Źródła wyceny</span>
+              <ul class="voronoi-inspector__sources-list" id="voronoiInspectorSourcesList"></ul>
+            </div>
           </div>
         </div>
 
@@ -512,6 +521,13 @@ window.showConfirmModal = showConfirmModal;
   let map;
   let markers = [];
   let markerCluster;
+  const VALUATION_SOURCE_MARKER_ICON = {
+    path: 'M -8 0 L 8 0 M 0 -8 L 0 8',
+    strokeColor: '#ff3b30',
+    strokeOpacity: 1,
+    strokeWeight: 3,
+    scale: 1.4
+  };
   let allOffers = [];
   let availableTags = [];
   let tagMetrics = new Map();
@@ -525,6 +541,7 @@ window.showConfirmModal = showConfirmModal;
   let randomPreviewTags = [];
   let randomPreviewSignature = '';
   let currentVisibleOffers = [];
+  let voronoiVisibleOffers = [];
   const voronoiLayerState = {
     enabled: false,
     polygons: [],
@@ -790,10 +807,22 @@ window.showConfirmModal = showConfirmModal;
     const summaryAvg = document.getElementById('voronoiInspectorAvgValue');
     const summaryEstimate = document.getElementById('voronoiInspectorEstimateValue');
     const summaryBadge = document.getElementById('voronoiInspectorSummaryBadge');
+    const sourcesSection = document.getElementById('voronoiInspectorSources');
+    const sourcesList = document.getElementById('voronoiInspectorSourcesList');
     if (!container || !list || !emptyState) {
       return null;
     }
-    return { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge };
+    return {
+      container,
+      list,
+      emptyState,
+      summary,
+      summaryAvg,
+      summaryEstimate,
+      summaryBadge,
+      sourcesSection,
+      sourcesList
+    };
   }
 
   function extractPlotAreaFromOffer(offer) {
@@ -823,11 +852,28 @@ window.showConfirmModal = showConfirmModal;
   function hideVoronoiTagInspector() {
     const elements = getVoronoiInspectorElements();
     if (!elements) return;
-    const { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge } = elements;
+    const {
+      container,
+      list,
+      emptyState,
+      summary,
+      summaryAvg,
+      summaryEstimate,
+      summaryBadge,
+      sourcesSection,
+      sourcesList
+    } = elements;
     list.innerHTML = '';
     const defaultMessage = emptyState.dataset.defaultMessage || emptyState.textContent || '';
     emptyState.textContent = defaultMessage;
     emptyState.hidden = false;
+    if (sourcesSection) {
+      sourcesSection.setAttribute('hidden', 'true');
+      sourcesSection.setAttribute('aria-hidden', 'true');
+    }
+    if (sourcesList) {
+      sourcesList.innerHTML = '';
+    }
     if (summary) {
       summary.setAttribute('hidden', 'true');
     }
@@ -847,7 +893,17 @@ window.showConfirmModal = showConfirmModal;
   function updateVoronoiTagInspector(index) {
     const elements = getVoronoiInspectorElements();
     if (!elements) return;
-    const { container, list, emptyState, summary, summaryAvg, summaryEstimate, summaryBadge } = elements;
+    const {
+      container,
+      list,
+      emptyState,
+      summary,
+      summaryAvg,
+      summaryEstimate,
+      summaryBadge,
+      sourcesSection,
+      sourcesList
+    } = elements;
 
     if (!Number.isInteger(index) || index < 0) {
       hideVoronoiTagInspector();
@@ -867,6 +923,9 @@ window.showConfirmModal = showConfirmModal;
     container.removeAttribute('hidden');
     container.setAttribute('aria-hidden', 'false');
     list.innerHTML = '';
+    if (sourcesList) {
+      sourcesList.innerHTML = '';
+    }
 
     if (summary) {
       const summaryData = (() => {
@@ -920,47 +979,112 @@ window.showConfirmModal = showConfirmModal;
       }
     }
 
+    const fallbackEntries = Array.isArray(resolvedEntry?.fallbackSources)
+      ? resolvedEntry.fallbackSources.filter(entry => Array.isArray(entry?.path) && entry.path.length >= 2)
+      : [];
+
     if (!offerTags.length) {
       emptyState.textContent = 'Brak tagów dla tej działki.';
       emptyState.hidden = false;
-      return;
+    } else {
+      emptyState.hidden = true;
+
+      const uniqueTags = Array.from(new Set(offerTags));
+      uniqueTags.sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
+
+      const weightMap = voronoiLayerState.tagWeights instanceof Map
+        ? voronoiLayerState.tagWeights
+        : new Map();
+      const maxValue = Math.max(Number(voronoiLayerState.maxTagValue) || 1, 1);
+      const totalWeight = uniqueTags.reduce((sum, tag) => {
+        const weight = Number(weightMap.get(tag));
+        return sum + (Number.isFinite(weight) && weight > 0 ? weight : 0);
+      }, 0);
+
+      uniqueTags.forEach(tag => {
+        const weight = Number(weightMap.get(tag)) || 0;
+        const percentBase = totalWeight > 0 ? totalWeight : maxValue;
+        const rawPercent = percentBase > 0 ? Math.round((weight / percentBase) * 100) : 0;
+        const displayPercent = percentBase > 0 && weight > 0 ? Math.max(1, rawPercent) : 0;
+
+        const item = document.createElement('li');
+        item.className = 'voronoi-inspector__item';
+
+        const tagLabel = document.createElement('span');
+        tagLabel.className = 'voronoi-inspector__tag';
+        tagLabel.textContent = formatTagLabel(tag);
+
+        const value = document.createElement('span');
+        value.className = 'voronoi-inspector__percentage';
+        value.textContent = `${displayPercent}%`;
+
+        item.appendChild(tagLabel);
+        item.appendChild(value);
+        list.appendChild(item);
+      });
     }
 
-    emptyState.hidden = true;
+    if (sourcesSection && sourcesList) {
+      if (!fallbackEntries.length) {
+        sourcesSection.setAttribute('hidden', 'true');
+        sourcesSection.setAttribute('aria-hidden', 'true');
+      } else {
+        const sortedFallback = fallbackEntries.slice().sort((a, b) => {
+          const weightA = Number(a?.weight);
+          const weightB = Number(b?.weight);
+          if (Number.isFinite(weightA) && Number.isFinite(weightB) && weightA !== weightB) {
+            return weightB - weightA;
+          }
+          const distA = Number(a?.distanceMeters);
+          const distB = Number(b?.distanceMeters);
+          if (Number.isFinite(distA) && Number.isFinite(distB) && distA !== distB) {
+            return distA - distB;
+          }
+          return 0;
+        });
 
-    const uniqueTags = Array.from(new Set(offerTags));
-    uniqueTags.sort((a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }));
+        sortedFallback.forEach(source => {
+          const path = Array.isArray(source?.path) ? source.path : [];
+          const sourceIndex = Number.isInteger(source?.sourceIndex)
+            ? source.sourceIndex
+            : (path.length ? path[path.length - 1] : null);
+          const datasetSource = Number.isInteger(sourceIndex)
+            ? voronoiLayerState.datasetSnapshot?.[sourceIndex]
+            : null;
+          const labelText = getVoronoiSourceLabel(datasetSource?.offer || datasetSource);
+          const weightText = formatWeightValue(source?.weight);
+          const distanceText = formatDistanceValue(source?.distanceMeters);
 
-    const weightMap = voronoiLayerState.tagWeights instanceof Map
-      ? voronoiLayerState.tagWeights
-      : new Map();
-    const maxValue = Math.max(Number(voronoiLayerState.maxTagValue) || 1, 1);
-    const totalWeight = uniqueTags.reduce((sum, tag) => {
-      const weight = Number(weightMap.get(tag));
-      return sum + (Number.isFinite(weight) && weight > 0 ? weight : 0);
-    }, 0);
+          const item = document.createElement('li');
+          item.className = 'voronoi-inspector__source-item';
 
-    uniqueTags.forEach(tag => {
-      const weight = Number(weightMap.get(tag)) || 0;
-      const percentBase = totalWeight > 0 ? totalWeight : maxValue;
-      const rawPercent = percentBase > 0 ? Math.round((weight / percentBase) * 100) : 0;
-      const displayPercent = percentBase > 0 && weight > 0 ? Math.max(1, rawPercent) : 0;
+          const labelNode = document.createElement('span');
+          labelNode.className = 'voronoi-inspector__source-label';
+          labelNode.textContent = labelText;
+          item.appendChild(labelNode);
 
-      const item = document.createElement('li');
-      item.className = 'voronoi-inspector__item';
+          const metaParts = [];
+          if (weightText) {
+            metaParts.push(`Waga: ${weightText}`);
+          }
+          if (distanceText) {
+            metaParts.push(`Odległość: ${distanceText}`);
+          }
 
-      const tagLabel = document.createElement('span');
-      tagLabel.className = 'voronoi-inspector__tag';
-      tagLabel.textContent = formatTagLabel(tag);
+          if (metaParts.length) {
+            const metaNode = document.createElement('span');
+            metaNode.className = 'voronoi-inspector__source-meta';
+            metaNode.textContent = metaParts.join(' • ');
+            item.appendChild(metaNode);
+          }
 
-      const value = document.createElement('span');
-      value.className = 'voronoi-inspector__percentage';
-      value.textContent = `${displayPercent}%`;
+          sourcesList.appendChild(item);
+        });
 
-      item.appendChild(tagLabel);
-      item.appendChild(value);
-      list.appendChild(item);
-    });
+        sourcesSection.removeAttribute('hidden');
+        sourcesSection.setAttribute('aria-hidden', 'false');
+      }
+    }
   }
 
   function clearVoronoiHighlights(options = {}) {
@@ -1057,9 +1181,12 @@ window.showConfirmModal = showConfirmModal;
       : [];
     const uniqueSources = new Set();
 
-    fallbackSources.forEach(path => {
-      if (!Array.isArray(path) || path.length < 2) return;
-      const sourceIndex = path[path.length - 1];
+    fallbackSources.forEach(source => {
+      const path = Array.isArray(source?.path) ? source.path : [];
+      if (path.length < 2) return;
+      const sourceIndex = Number.isInteger(source?.sourceIndex)
+        ? source.sourceIndex
+        : path[path.length - 1];
       if (Number.isInteger(sourceIndex)) {
         uniqueSources.add(sourceIndex);
       }
@@ -1226,7 +1353,27 @@ window.showConfirmModal = showConfirmModal;
             return {
               ...value,
               fallbackSources: Array.isArray(value.fallbackSources)
-                ? value.fallbackSources.map(path => Array.isArray(path) ? path.slice() : [])
+                ? value.fallbackSources
+                    .map(source => {
+                      const path = Array.isArray(source?.path) ? source.path.slice() : [];
+                      const sourceIndex = Number.isInteger(source?.sourceIndex)
+                        ? source.sourceIndex
+                        : (path.length ? path[path.length - 1] : null);
+                      if (!Array.isArray(path) || path.length < 2 || !Number.isInteger(sourceIndex)) {
+                        return null;
+                      }
+                      return {
+                        path,
+                        sourceIndex,
+                        distanceMeters: Number.isFinite(source?.distanceMeters) && source.distanceMeters >= 0
+                          ? source.distanceMeters
+                          : null,
+                        weight: Number.isFinite(source?.weight) && source.weight > 0
+                          ? source.weight
+                          : null
+                      };
+                    })
+                    .filter(Boolean)
                 : []
             };
           })
@@ -1548,7 +1695,6 @@ window.showConfirmModal = showConfirmModal;
     const result = [];
     rawPlots.forEach((plot, index) => {
       if (!plot || typeof plot !== 'object') return;
-      if (plot.mock === false) return;
 
       const normalizedPlot = { ...plot };
       if (typeof normalizedPlot.mock === 'undefined') {
@@ -1596,10 +1742,6 @@ window.showConfirmModal = showConfirmModal;
     if (!clonedData || typeof clonedData !== 'object') {
       return null;
     }
-    if (clonedData.mock === false) {
-      return null;
-    }
-
     OFFERS_CACHE_SENSITIVE_FIELDS.forEach((field) => {
       if (field in clonedData) {
         delete clonedData[field];
@@ -1849,6 +1991,7 @@ window.showConfirmModal = showConfirmModal;
     availableTags = [];
     tagMetrics = new Map();
     currentVisibleOffers = [];
+    voronoiVisibleOffers = [];
     voronoiLayerState.cachedDataset = null;
     voronoiLayerState.cacheSignature = null;
     voronoiLayerState.frozenLayout = null;
@@ -1881,6 +2024,7 @@ window.showConfirmModal = showConfirmModal;
         const geometry = plot.geometry_uldk;
         const tags = normalizeTags(plot.tags);
         const uniquePlotTags = Array.from(new Set(tags));
+        const isValuationOnly = plot?.mock === false;
 
         const baseVoronoiPoint = Number.isFinite(lat) && Number.isFinite(lng)
           ? { lat, lng }
@@ -1893,8 +2037,8 @@ window.showConfirmModal = showConfirmModal;
         const marker = new google.maps.Marker({
           position: { lat, lng },
           map,
-          title: data.firstName || "Oferta",
-          icon: { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
+          title: isValuationOnly ? "Źródło wyceny" : (data.firstName || "Oferta"),
+          icon: isValuationOnly ? VALUATION_SOURCE_MARKER_ICON : { url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png" }
         });
         markers.push(marker);
 
@@ -1953,7 +2097,8 @@ window.showConfirmModal = showConfirmModal;
           polygon,
           polygonCoords,
           voronoiPoint,
-          tags: uniquePlotTags
+          tags: uniquePlotTags,
+          isValuationOnly
         };
 
         allOffers.push(hydratedEntry);
@@ -2196,16 +2341,13 @@ window.showConfirmModal = showConfirmModal;
     const rawName = typeof data.firstName === "string" ? data.firstName.trim() : "";
     const shortName = rawName ? rawName.split(/\s+/)[0] : "";
     const phone = formatPhone(data.phone);
-    const detailsUrl = `details.html?id=${offerId}&plot=${plotIndex}`;
+    const isValuationOnly = plot?.mock === false;
+    const hasDetailsTarget = typeof offerId === 'string' && offerId && Number.isInteger(plotIndex);
+    const showDetailsLink = !isValuationOnly && hasDetailsTarget;
+    const detailsUrl = showDetailsLink ? `details.html?id=${offerId}&plot=${plotIndex}` : null;
 
-    return `
-      <div class="map-info-window">
-        <h3>${plot.Id || "Brak identyfikatora"}</h3>
-        <p><b>Miejscowość:</b> ${locationLabel}</p>
-        ${price ? `<p><b>Cena:</b> ${price.toLocaleString('pl-PL')} zł${ppm2 ? ` <span style="color:#718096;">(${ppm2} zł/m²)</span>` : ''}</p>` : ''}
-        ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
-        ${shortName ? `<p><b>Imię:</b> ${shortName}</p>` : ''}
-        <p><b>Telefon:</b> ${phone || 'brak'}</p>
+    const detailsSection = showDetailsLink
+      ? `
         <div class="mini-actions center">
           <a
             class="btn-mini"
@@ -2215,6 +2357,18 @@ window.showConfirmModal = showConfirmModal;
             ${Number.isInteger(plotIndex) ? `data-plot-index="${plotIndex}"` : ''}
           >Szczegóły</a>
         </div>
+      `
+      : '';
+
+    return `
+      <div class="map-info-window">
+        <h3>${plot.Id || "Brak identyfikatora"}</h3>
+        <p><b>Miejscowość:</b> ${locationLabel}</p>
+        ${price ? `<p><b>Cena:</b> ${price.toLocaleString('pl-PL')} zł${ppm2 ? ` <span style="color:#718096;">(${ppm2} zł/m²)</span>` : ''}</p>` : ''}
+        ${area  ? `<p><b>Powierzchnia:</b> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+        ${shortName ? `<p><b>Imię:</b> ${shortName}</p>` : ''}
+        <p><b>Telefon:</b> ${phone || 'brak'}</p>
+        ${detailsSection}
       </div>
     `;
   }
@@ -2307,6 +2461,14 @@ window.showConfirmModal = showConfirmModal;
     const aVal = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLng / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
     return earthRadius * c;
+  }
+
+  function computeDistanceWeight(distanceMeters) {
+    if (!(distanceMeters >= 0) || !Number.isFinite(distanceMeters)) {
+      return 0;
+    }
+    const normalized = distanceMeters / 1000;
+    return 1 / (1 + normalized);
   }
 
   function computePathDistance(path, dataset) {
@@ -2434,15 +2596,6 @@ window.showConfirmModal = showConfirmModal;
 
     const contributionsByPath = new Map();
 
-    const computeDistanceWeight = (distanceMeters) => {
-      if (!(distanceMeters >= 0) || !Number.isFinite(distanceMeters)) {
-        return 0;
-      }
-
-      const normalized = distanceMeters / 1000;
-      return 1 / (1 + normalized);
-    };
-
     directNeighbors.forEach(neighborIndex => {
       const contribution = findFirstPricedFromNeighbor(neighborIndex);
       if (!contribution) {
@@ -2538,12 +2691,16 @@ window.showConfirmModal = showConfirmModal;
         totalArea += area * weight;
       }
 
-      fallbackSources.push({
+      const effectiveDistance = Number.isFinite(distance) ? distance : computePathDistance(path, dataset);
+      const normalizedFallback = normalizeFallbackSource({
+        path,
         sourceIndex,
-        directPath: [index, sourceIndex],
-        fullPath: path,
-        distanceMeters: Number.isFinite(distance) ? distance : computePathDistance(path, dataset)
-      });
+        distanceMeters: effectiveDistance,
+        weight
+      }, index);
+      if (normalizedFallback) {
+        fallbackSources.push(normalizedFallback);
+      }
     });
 
     if (!perSqmWeight && !priceWeight) {
@@ -2580,15 +2737,87 @@ window.showConfirmModal = showConfirmModal;
     };
   }
 
+  function normalizeFallbackSource(source, baseIndex = null) {
+    if (!source) {
+      return null;
+    }
+
+    const derivePath = () => {
+      if (Array.isArray(source.path)) return source.path.slice();
+      if (Array.isArray(source.fullPath)) return source.fullPath.slice();
+      if (Array.isArray(source.directPath)) return source.directPath.slice();
+      if (Array.isArray(source)) return source.slice();
+      return null;
+    };
+
+    let path = derivePath();
+    if (Array.isArray(path)) {
+      path = path
+        .map(value => {
+          const numeric = Number(value);
+          return Number.isFinite(numeric) ? Math.trunc(numeric) : null;
+        })
+        .filter(Number.isInteger);
+    }
+
+    const explicitSourceIndex = Number.isInteger(source.sourceIndex) ? source.sourceIndex : null;
+
+    if (!Array.isArray(path) || path.length < 2) {
+      if (Number.isInteger(baseIndex) && Number.isInteger(explicitSourceIndex)) {
+        path = [baseIndex, explicitSourceIndex];
+      } else {
+        return null;
+      }
+    } else {
+      if (Number.isInteger(baseIndex) && path[0] !== baseIndex) {
+        path.unshift(baseIndex);
+      }
+      if (Number.isInteger(explicitSourceIndex)) {
+        path[path.length - 1] = explicitSourceIndex;
+      }
+    }
+
+    if (!Array.isArray(path) || path.length < 2) {
+      return null;
+    }
+
+    const resolvedSourceIndex = Number.isInteger(explicitSourceIndex)
+      ? explicitSourceIndex
+      : path[path.length - 1];
+
+    if (!Number.isInteger(resolvedSourceIndex)) {
+      return null;
+    }
+
+    const distance = Number(source.distanceMeters);
+    const normalizedDistance = Number.isFinite(distance) && distance >= 0 ? distance : null;
+    const rawWeight = Number(source.weight);
+    const normalizedWeight = Number.isFinite(rawWeight) && rawWeight > 0
+      ? rawWeight
+      : (normalizedDistance !== null ? computeDistanceWeight(normalizedDistance) : null);
+
+    return {
+      path,
+      sourceIndex: resolvedSourceIndex,
+      distanceMeters: normalizedDistance,
+      weight: normalizedWeight
+    };
+  }
+
   function resolveVoronoiValues(baseValues, adjacencyList, dataset) {
     const graphHasPrice = baseValues.some(value => value?.hasPrice && value.price > 0);
 
     return baseValues.map((entry, index) => {
       if (!entry) return entry;
       if (entry.hasPrice && entry.price > 0) {
+        const normalizedFallback = Array.isArray(entry.fallbackSources)
+          ? entry.fallbackSources
+              .map(source => normalizeFallbackSource(source, index))
+              .filter(Boolean)
+          : [];
         return {
           ...entry,
-          fallbackSources: Array.isArray(entry.fallbackSources) ? entry.fallbackSources.slice() : []
+          fallbackSources: normalizedFallback
         };
       }
 
@@ -2600,26 +2829,10 @@ window.showConfirmModal = showConfirmModal;
         };
       }
 
-      const sourcePaths = Array.isArray(fallback.sources)
+      const normalizedSources = Array.isArray(fallback.sources)
         ? fallback.sources
-            .map(source => {
-              if (Array.isArray(source?.directPath) && source.directPath.length >= 2) {
-                return source.directPath.slice();
-              }
-              if (Array.isArray(source?.fullPath) && source.fullPath.length >= 2) {
-                const path = source.fullPath.slice();
-                if (path[0] !== index) {
-                  path.unshift(index);
-                }
-                return path;
-              }
-              const sourceIndex = Number.isInteger(source?.sourceIndex) ? source.sourceIndex : null;
-              if (!Number.isInteger(sourceIndex)) {
-                return null;
-              }
-              return [index, sourceIndex];
-            })
-            .filter(path => Array.isArray(path) && path.length >= 2)
+            .map(source => normalizeFallbackSource(source, index))
+            .filter(Boolean)
         : [];
 
       return {
@@ -2627,7 +2840,7 @@ window.showConfirmModal = showConfirmModal;
         price: fallback.price,
         pricePerSqm: fallback.pricePerSqm,
         hasPrice: true,
-        fallbackSources: sourcePaths
+        fallbackSources: normalizedSources
       };
     });
   }
@@ -2781,6 +2994,62 @@ window.showConfirmModal = showConfirmModal;
     if (!Number.isFinite(value)) return '0';
     const rounded = Math.round(value);
     return rounded.toLocaleString('pl-PL');
+  }
+
+  function formatWeightValue(weight) {
+    if (!Number.isFinite(weight) || weight <= 0) {
+      return '—';
+    }
+    const rounded = weight >= 1 ? weight.toFixed(2) : weight.toFixed(3);
+    return rounded.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+  }
+
+  function formatDistanceValue(distanceMeters) {
+    if (!Number.isFinite(distanceMeters) || distanceMeters < 0) {
+      return '—';
+    }
+    if (distanceMeters >= 1000) {
+      const km = distanceMeters / 1000;
+      const formatted = km >= 10 ? km.toFixed(1) : km.toFixed(2);
+      return `${formatted.replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')} km`;
+    }
+    const meters = Math.round(distanceMeters);
+    return `${meters} m`;
+  }
+
+  function getVoronoiSourceLabel(offer) {
+    if (!offer || typeof offer !== 'object') {
+      return 'Źródło wyceny';
+    }
+    const plot = offer.plot || {};
+    const data = offer.data || {};
+    const plotId = pickDisplayValue([
+      plot.Id,
+      plot.Id_dzialki,
+      plot.id,
+      plot.id_dzialki,
+      plot.numer_dzialki
+    ], '');
+    if (plotId) {
+      return `Działka ${plotId}`;
+    }
+    const locationLabel = pickDisplayValue([
+      data.city,
+      plot.city,
+      plot.location,
+      data.location
+    ], '');
+    if (locationLabel) {
+      return locationLabel;
+    }
+    const fallbackId = pickDisplayValue([
+      offer.key,
+      offer.id
+    ], '');
+    if (fallbackId) {
+      return `Źródło ${fallbackId}`;
+    }
+    return 'Źródło wyceny';
   }
 
   function buildVoronoiLabelContent(stats, options = {}) {
@@ -3061,14 +3330,13 @@ window.showConfirmModal = showConfirmModal;
         return preservedOffers.slice();
       }
     }
-    if (currentVisibleOffers.length) {
-      return currentVisibleOffers.slice();
+    if (voronoiVisibleOffers.length) {
+      return voronoiVisibleOffers.slice();
     }
-    const filtered = getOffersMatchingFilters();
-    if (filtered.length) {
-      return filtered.slice();
+    if (allOffers.length) {
+      return allOffers.slice();
     }
-    return allOffers.slice();
+    return [];
   }
 
   function getFrozenVoronoiOffers() {
@@ -3472,7 +3740,8 @@ window.showConfirmModal = showConfirmModal;
         }
       }
 
-      fallbackSources.forEach(pathIndices => {
+      fallbackSources.forEach(source => {
+        const pathIndices = Array.isArray(source?.path) ? source.path : [];
         let connectorPath = Array.isArray(pathIndices)
           ? pathIndices
               .map(i => {
@@ -3488,9 +3757,11 @@ window.showConfirmModal = showConfirmModal;
 
         if (connectorPath.length < 2) {
           const basePosition = getMarkerPositionForDatasetEntry(dataset[index]);
-          const sourceIndex = Array.isArray(pathIndices)
-            ? pathIndices[pathIndices.length - 1]
-            : null;
+          const sourceIndex = Number.isInteger(source?.sourceIndex)
+            ? source.sourceIndex
+            : (Array.isArray(pathIndices) && pathIndices.length
+                ? pathIndices[pathIndices.length - 1]
+                : null);
           const sourcePosition = Number.isInteger(sourceIndex)
             ? getMarkerPositionForDatasetEntry(dataset[sourceIndex])
             : null;
@@ -3508,7 +3779,11 @@ window.showConfirmModal = showConfirmModal;
           ...buildVoronoiConnectorStyle('default')
         });
         connector.__voronoiBaseIndex = index;
-        connector.__voronoiSourceIndex = pathIndices[pathIndices.length - 1];
+        connector.__voronoiSourceIndex = Number.isInteger(source?.sourceIndex)
+          ? source.sourceIndex
+          : (Array.isArray(pathIndices) && pathIndices.length
+              ? pathIndices[pathIndices.length - 1]
+              : null);
         voronoiLayerState.connectors.push(connector);
         const connectorsForBase = voronoiLayerState.connectorIndexMap.get(index) || [];
         connectorsForBase.push(connector);
@@ -3559,6 +3834,7 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function offerMatchesSelectedTags(offer) {
+    if (!offer || offer.isValuationOnly) return false;
     if (!filterState.selectedTags.size) return true;
     if (!offer.tags || !offer.tags.length) return false;
     for (const tag of filterState.selectedTags) {
@@ -3616,11 +3892,12 @@ window.showConfirmModal = showConfirmModal;
     const activeKeys = new Set(filteredOffers.map(o => o.key));
     const activeMarkers = [];
     allOffers.forEach(offer => {
-      const isActive = activeKeys.has(offer.key);
+      const shouldForceVisible = offer.isValuationOnly;
+      const isActive = shouldForceVisible || activeKeys.has(offer.key);
       if (offer.marker) {
         offer.marker.setVisible(isActive);
         offer.marker.setMap(isActive ? map : null);
-        if (isActive) {
+        if (isActive && !shouldForceVisible) {
           activeMarkers.push(offer.marker);
         }
       }
@@ -4087,11 +4364,37 @@ window.showConfirmModal = showConfirmModal;
 
   // widoczność listy wg granic + sortowanie wyników
   function filterOffersByBounds(filteredOffers = null) {
-    if (!map || !allOffers.length) return;
+    if (!map || !allOffers.length) {
+      voronoiVisibleOffers = [];
+      return;
+    }
     const bounds = map.getBounds();
-    if (!bounds) return;
+    if (!bounds) {
+      voronoiVisibleOffers = [];
+      return;
+    }
 
     const base = Array.isArray(filteredOffers) ? filteredOffers : getOffersMatchingFilters();
+    voronoiVisibleOffers = allOffers.filter(offer => {
+      if (!offer || !offer.marker || typeof offer.marker.getPosition !== 'function') {
+        return false;
+      }
+      let position = null;
+      try {
+        position = offer.marker.getPosition();
+      } catch (_) {
+        position = null;
+      }
+      if (!position) {
+        return false;
+      }
+      try {
+        return bounds.contains(position);
+      } catch (_) {
+        return false;
+      }
+    });
+
     const visibleOffers = base.filter(o => bounds.contains(o.marker.getPosition()));
     updateTagCollectionsForVisibleOffers(visibleOffers);
 

@@ -274,6 +274,52 @@
   gap:4px;
 }
 
+.voronoi-inspector__sources {
+  margin-top:16px;
+  padding-top:12px;
+  border-top:1px solid rgba(148, 163, 184, 0.35);
+}
+
+.voronoi-inspector__sources[hidden] {
+  display:none;
+}
+
+.voronoi-inspector__sources-title {
+  display:block;
+  font-weight:600;
+  color:#0f172a;
+  margin-bottom:8px;
+  font-size:0.95rem;
+}
+
+.voronoi-inspector__sources-list {
+  margin:0;
+  padding:0;
+  list-style:none;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.voronoi-inspector__source-item {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  font-size:0.9rem;
+  color:#1e293b;
+}
+
+.voronoi-inspector__source-label {
+  font-weight:600;
+  color:#0f172a;
+}
+
+.voronoi-inspector__source-meta {
+  color:#475569;
+  font-size:0.85rem;
+  font-variant-numeric:tabular-nums;
+}
+
 .voronoi-inspector__item {
   display:flex;
   align-items:center;
