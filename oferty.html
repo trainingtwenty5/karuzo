@@ -3994,7 +3994,8 @@ window.showConfirmModal = showConfirmModal;
       mapTypeId: google.maps.MapTypeId.HYBRID,
       tilt: 0,
       heading: 0,
-      tiltControl: false
+      tiltControl: false,
+      rotateControl: false
     });
 
     const keepMapFlat = () => {
@@ -4011,6 +4012,11 @@ window.showConfirmModal = showConfirmModal;
     ensureVoronoiLabelOverlay();
 
     applySavedMapView();
+
+    if (map?.addListener) {
+      map.addListener("tilt_changed", keepMapFlat);
+      map.addListener("heading_changed", keepMapFlat);
+    }
 
     google.maps.event.addListener(map, "idle", () => {
       keepMapFlat();
