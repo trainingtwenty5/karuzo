@@ -256,7 +256,7 @@ const MAP_MODE_DEFAULT = 'base';
 
 const LIGHTBOX_ZOOM_DEFAULT = 1;
 const LIGHTBOX_ZOOM_MIN = 0.75;
-const LIGHTBOX_ZOOM_MAX = 6;
+const LIGHTBOX_ZOOM_MAX = 12;
 const LIGHTBOX_ZOOM_STEP = 0.25;
 
 let lightboxStageInteractivityUpdateId = 0;
