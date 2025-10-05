@@ -72,6 +72,15 @@ const state = {
   lightboxBaseHeight: 0,
   lightboxImageModes: [],
   lightboxActiveMode: '',
+  lightboxModeLabel: '',
+  lightboxPan: {
+    isActive: false,
+    pointerId: null,
+    startX: 0,
+    startY: 0,
+    scrollLeft: 0,
+    scrollTop: 0
+  },
   isArchived: false
 };
 
@@ -130,6 +139,8 @@ const elements = {
   mapImageLightboxNext: document.getElementById('mapImageLightboxNext'),
   mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
   mapImageLightboxZoomOut: document.getElementById('mapImageLightboxZoomOut'),
+  mapImageLightboxInfo: document.getElementById('mapImageLightboxInfo'),
+  mapImageLightboxModeLabel: document.getElementById('mapImageLightboxModeLabel'),
   backToOffersBtn: document.getElementById('backToOffersBtn'),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
@@ -227,6 +238,17 @@ elements.mapImageLightboxNext?.addEventListener('click', handleLightboxNextClick
 elements.mapImageLightboxZoomIn?.addEventListener('click', handleLightboxZoomIn);
 elements.mapImageLightboxZoomOut?.addEventListener('click', handleLightboxZoomOut);
 document.addEventListener('keydown', handleLightboxKeydown);
+elements.mapImageLightboxStage?.addEventListener('wheel', handleLightboxWheel, { passive: false });
+elements.mapImageLightboxStage?.addEventListener('pointerdown', handleLightboxStagePointerDown);
+elements.mapImageLightboxStage?.addEventListener('pointermove', handleLightboxStagePointerMove);
+elements.mapImageLightboxStage?.addEventListener('pointerup', handleLightboxStagePointerUp);
+elements.mapImageLightboxStage?.addEventListener('pointercancel', handleLightboxStagePointerUp);
+elements.mapImageLightboxStage?.addEventListener('pointerleave', handleLightboxStagePointerLeave);
+elements.mapImageLightboxStage?.addEventListener('scroll', scheduleLightboxStageInteractivityUpdate, { passive: true });
+elements.mapImageLightboxPicture?.addEventListener('load', scheduleLightboxStageInteractivityUpdate);
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', handleLightboxResize);
+}
 
 updateZoomButtonsState();
 
@@ -236,6 +258,8 @@ const LIGHTBOX_ZOOM_DEFAULT = 1;
 const LIGHTBOX_ZOOM_MIN = 0.5;
 const LIGHTBOX_ZOOM_MAX = 3;
 const LIGHTBOX_ZOOM_STEP = 0.25;
+
+let lightboxStageInteractivityUpdateId = 0;
 
 const MAP_MODES = {
   base: { type: 'map', mapType: 'hybrid' },
@@ -705,6 +729,178 @@ function applyLightboxZoom() {
   elements.mapImageLightboxPicture.style.maxWidth = 'none';
   elements.mapImageLightboxPicture.style.maxHeight = 'none';
   updateZoomButtonsState();
+  scheduleLightboxStageInteractivityUpdate();
+}
+
+function isLightboxStageScrollable() {
+  const stage = elements.mapImageLightboxStage;
+  if (!stage) return false;
+  const horizontalOverflow = Math.abs(stage.scrollWidth - stage.clientWidth) > 1;
+  const verticalOverflow = Math.abs(stage.scrollHeight - stage.clientHeight) > 1;
+  return horizontalOverflow || verticalOverflow;
+}
+
+function updateLightboxStageInteractivity() {
+  const stage = elements.mapImageLightboxStage;
+  if (!stage) return;
+  const scrollable = state.isLightboxOpen && isLightboxStageScrollable();
+  stage.classList.toggle('is-scrollable', scrollable);
+  if (!scrollable) {
+    resetLightboxPanState();
+  }
+}
+
+function cancelLightboxStageInteractivityUpdate() {
+  if (typeof window !== 'undefined'
+    && typeof window.cancelAnimationFrame === 'function'
+    && lightboxStageInteractivityUpdateId) {
+    window.cancelAnimationFrame(lightboxStageInteractivityUpdateId);
+    lightboxStageInteractivityUpdateId = 0;
+  }
+}
+
+function scheduleLightboxStageInteractivityUpdate() {
+  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+    updateLightboxStageInteractivity();
+    return;
+  }
+  cancelLightboxStageInteractivityUpdate();
+  lightboxStageInteractivityUpdateId = window.requestAnimationFrame(() => {
+    lightboxStageInteractivityUpdateId = 0;
+    updateLightboxStageInteractivity();
+  });
+}
+
+function resetLightboxPanState() {
+  const stage = elements.mapImageLightboxStage;
+  if (stage) {
+    stage.classList.remove('is-panning');
+  }
+  state.lightboxPan.isActive = false;
+  state.lightboxPan.pointerId = null;
+  state.lightboxPan.startX = 0;
+  state.lightboxPan.startY = 0;
+  state.lightboxPan.scrollLeft = 0;
+  state.lightboxPan.scrollTop = 0;
+}
+
+function endLightboxPan(event) {
+  if (!state.lightboxPan.isActive) return;
+  const stage = elements.mapImageLightboxStage;
+  if (!stage) {
+    resetLightboxPanState();
+    return;
+  }
+  if (event && state.lightboxPan.pointerId !== null && event.pointerId !== state.lightboxPan.pointerId) {
+    return;
+  }
+  if (state.lightboxPan.pointerId !== null && typeof stage.releasePointerCapture === 'function') {
+    try {
+      stage.releasePointerCapture(state.lightboxPan.pointerId);
+    } catch (error) {
+      // Ignore release errors
+    }
+  }
+  resetLightboxPanState();
+  scheduleLightboxStageInteractivityUpdate();
+}
+
+function handleLightboxStagePointerDown(event) {
+  if (!event || !state.isLightboxOpen) return;
+  if (event.pointerType === 'touch') return;
+  if (typeof event.button === 'number' && event.button !== 0) return;
+  const stage = elements.mapImageLightboxStage;
+  if (!stage || !isLightboxStageScrollable()) return;
+
+  state.lightboxPan.isActive = true;
+  state.lightboxPan.pointerId = event.pointerId;
+  state.lightboxPan.startX = event.clientX;
+  state.lightboxPan.startY = event.clientY;
+  state.lightboxPan.scrollLeft = stage.scrollLeft;
+  state.lightboxPan.scrollTop = stage.scrollTop;
+
+  if (typeof stage.setPointerCapture === 'function') {
+    try {
+      stage.setPointerCapture(event.pointerId);
+    } catch (error) {
+      // Ignore capture errors
+    }
+  }
+
+  stage.classList.add('is-panning');
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function handleLightboxStagePointerMove(event) {
+  if (!event || !state.lightboxPan.isActive || event.pointerId !== state.lightboxPan.pointerId) {
+    return;
+  }
+  const stage = elements.mapImageLightboxStage;
+  if (!stage) {
+    resetLightboxPanState();
+    return;
+  }
+  const deltaX = event.clientX - state.lightboxPan.startX;
+  const deltaY = event.clientY - state.lightboxPan.startY;
+  stage.scrollLeft = state.lightboxPan.scrollLeft - deltaX;
+  stage.scrollTop = state.lightboxPan.scrollTop - deltaY;
+  event.preventDefault();
+}
+
+function handleLightboxStagePointerUp(event) {
+  endLightboxPan(event);
+}
+
+function handleLightboxStagePointerLeave(event) {
+  endLightboxPan(event);
+}
+
+function handleLightboxWheel(event) {
+  if (!event || !state.isLightboxOpen) return;
+  const stage = elements.mapImageLightboxStage;
+  if (!stage) return;
+
+  const scrollableX = Math.abs(stage.scrollWidth - stage.clientWidth) > 1;
+  const scrollableY = Math.abs(stage.scrollHeight - stage.clientHeight) > 1;
+  const wantsZoom = event.ctrlKey || event.metaKey || (!scrollableX && !scrollableY);
+
+  if (!wantsZoom) {
+    return;
+  }
+
+  event.preventDefault();
+  if (event.deltaY === 0) return;
+  const delta = event.deltaY < 0 ? LIGHTBOX_ZOOM_STEP : -LIGHTBOX_ZOOM_STEP;
+  adjustLightboxZoom(delta);
+}
+
+function handleLightboxResize() {
+  if (!state.isLightboxOpen) return;
+  initializeLightboxZoom(true);
+}
+
+function setLightboxModeLabel(mode, label) {
+  state.lightboxModeLabel = typeof label === 'string' ? label : '';
+  const info = elements.mapImageLightboxInfo;
+  const target = elements.mapImageLightboxModeLabel;
+  if (!info || !target) return;
+
+  const trimmed = state.lightboxModeLabel.trim();
+  if (!trimmed) {
+    target.textContent = '';
+    info.classList.add('hidden');
+    delete info.dataset.mode;
+    return;
+  }
+
+  target.textContent = `Zakładka: ${trimmed}`;
+  info.classList.remove('hidden');
+  if (mode) {
+    info.dataset.mode = mode;
+  } else {
+    delete info.dataset.mode;
+  }
 }
 
 function initializeLightboxZoom(preserveZoom = false) {
@@ -784,6 +980,8 @@ function resetLightboxStageScroll() {
   if (!elements.mapImageLightboxStage) return;
   elements.mapImageLightboxStage.scrollTop = 0;
   elements.mapImageLightboxStage.scrollLeft = 0;
+  resetLightboxPanState();
+  scheduleLightboxStageInteractivityUpdate();
 }
 
 function resetLightboxZoomState() {
@@ -865,6 +1063,7 @@ function showLightboxImage(mode, options = {}) {
   const accessibleLabel = label
     ? `Powiększony widok warstwy „${label}”`
     : 'Powiększony podgląd warstwy mapy';
+  const displayLabel = label || (typeof config.key === 'string' ? config.key : '');
 
   state.lightboxActiveMode = mode;
   if (!preserveZoom) {
@@ -877,11 +1076,13 @@ function showLightboxImage(mode, options = {}) {
 
   elements.mapImageLightboxPicture.src = url;
   elements.mapImageLightboxPicture.alt = accessibleLabel;
+  setLightboxModeLabel(mode, displayLabel);
 
   applyLightboxTheme(mode);
   setLightboxNavigationState();
   prepareLightboxZoom(preserveZoom);
   updateZoomButtonsState();
+  scheduleLightboxStageInteractivityUpdate();
   return true;
 }
 
@@ -938,6 +1139,7 @@ function openMapImageLightbox() {
     state.isLightboxOpen = false;
     state.lightboxImageModes = [];
     state.lightboxActiveMode = '';
+    setLightboxModeLabel('', '');
     updateZoomButtonsState();
     setLightboxNavigationState();
     return;
@@ -953,6 +1155,7 @@ function openMapImageLightbox() {
 
 function closeMapImageLightbox() {
   if (!state.isLightboxOpen) return;
+  cancelLightboxStageInteractivityUpdate();
   if (elements.mapImageLightbox) {
     elements.mapImageLightbox.classList.add('hidden');
     elements.mapImageLightbox.setAttribute('aria-hidden', 'true');
@@ -965,6 +1168,7 @@ function closeMapImageLightbox() {
   state.isLightboxOpen = false;
   state.lightboxImageModes = [];
   state.lightboxActiveMode = '';
+  setLightboxModeLabel('', '');
   setLightboxNavigationState();
   resetLightboxZoomState();
   if (state.lightboxReturnFocus instanceof HTMLElement) {
