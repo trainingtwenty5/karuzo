@@ -335,7 +335,12 @@ main.property-wrapper {
   min-width: 0;
   min-height: 0;
   overflow: auto;
-  scrollbar-gutter: stable both-edges;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.image-lightbox__stage::-webkit-scrollbar {
+  display: none;
 }
 
 .image-lightbox__stage.is-scrollable {
