@@ -859,20 +859,18 @@ function handleLightboxStagePointerLeave(event) {
 function handleLightboxWheel(event) {
   if (!event || !state.isLightboxOpen) return;
   const stage = elements.mapImageLightboxStage;
-  if (!stage) return;
+  const picture = elements.mapImageLightboxPicture;
+  if (!stage || !picture) return;
 
-  const scrollableX = Math.abs(stage.scrollWidth - stage.clientWidth) > 1;
-  const scrollableY = Math.abs(stage.scrollHeight - stage.clientHeight) > 1;
-  const wantsZoom = event.ctrlKey || event.metaKey || (!scrollableX && !scrollableY);
+  event.preventDefault();
+  event.stopPropagation();
 
-  if (!wantsZoom) {
+  if (!Number.isFinite(event.deltaY) || event.deltaY === 0) {
     return;
   }
 
-  event.preventDefault();
-  if (event.deltaY === 0) return;
   const delta = event.deltaY < 0 ? LIGHTBOX_ZOOM_STEP : -LIGHTBOX_ZOOM_STEP;
-  adjustLightboxZoom(delta);
+  adjustLightboxZoom(delta, { clientX: event.clientX, clientY: event.clientY });
 }
 
 function handleLightboxResize() {
@@ -946,18 +944,71 @@ function prepareLightboxZoom(preserveZoom = false) {
   }
 }
 
-function adjustLightboxZoom(delta) {
+function adjustLightboxZoom(delta, anchorPoint = null) {
   if (!state.isLightboxOpen) {
     updateZoomButtonsState();
     return;
   }
-  const next = clamp(state.lightboxZoom + delta, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX);
+
+  const stage = elements.mapImageLightboxStage;
+  const picture = elements.mapImageLightboxPicture;
+  const currentZoom = state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT;
+  const next = clamp(currentZoom + delta, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX);
+
   if (Math.abs(next - state.lightboxZoom) < 0.001) {
     updateZoomButtonsState();
     return;
   }
+
+  let previousWidth = 0;
+  let previousHeight = 0;
+  let previousScrollLeft = 0;
+  let previousScrollTop = 0;
+  let relativeX = 0.5;
+  let relativeY = 0.5;
+  let shouldRestoreFocusPoint = false;
+
+  if (stage && picture && anchorPoint && currentZoom > 0) {
+    const bounds = picture.getBoundingClientRect();
+    if (bounds.width > 0 && bounds.height > 0) {
+      previousWidth = bounds.width;
+      previousHeight = bounds.height;
+      previousScrollLeft = stage.scrollLeft;
+      previousScrollTop = stage.scrollTop;
+      relativeX = clamp((anchorPoint.clientX - bounds.left) / bounds.width, 0, 1);
+      relativeY = clamp((anchorPoint.clientY - bounds.top) / bounds.height, 0, 1);
+      shouldRestoreFocusPoint = true;
+    }
+  }
+
   state.lightboxZoom = next;
   applyLightboxZoom();
+
+  if (!stage || !picture || !shouldRestoreFocusPoint) {
+    return;
+  }
+
+  const baseWidth = currentZoom > 0 ? previousWidth / currentZoom : previousWidth;
+  const baseHeight = currentZoom > 0 ? previousHeight / currentZoom : previousHeight;
+  const nextWidth = baseWidth * next;
+  const nextHeight = baseHeight * next;
+
+  const targetScrollLeft = previousScrollLeft + (relativeX * previousWidth) - (relativeX * nextWidth);
+  const targetScrollTop = previousScrollTop + (relativeY * previousHeight) - (relativeY * nextHeight);
+
+  const applyScroll = () => {
+    const maxScrollLeft = Math.max(0, stage.scrollWidth - stage.clientWidth);
+    const maxScrollTop = Math.max(0, stage.scrollHeight - stage.clientHeight);
+    stage.scrollLeft = clamp(targetScrollLeft, 0, maxScrollLeft);
+    stage.scrollTop = clamp(targetScrollTop, 0, maxScrollTop);
+    scheduleLightboxStageInteractivityUpdate();
+  };
+
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    window.requestAnimationFrame(applyScroll);
+  } else {
+    applyScroll();
+  }
 }
 
 function handleLightboxZoomIn(event) {
