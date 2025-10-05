@@ -775,19 +775,32 @@
     let lastCenter = { lat: 51.63538575429843, lng: 16.45740592647929 };
     let lastZoom = 17;
 
+    const SMALL_SCALE_ZOOM_THRESHOLD = 12;
+    const DETAILED_MAP_STYLES = [
+      { featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] },
+      { featureType: "administrative.locality", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+      { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+      { featureType: "road", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+      { featureType: "poi", elementType: "labels.text", stylers: [{ visibility: "on" }] },
+      { featureType: "address", elementType: "labels.text", stylers: [{ visibility: "on" }] }
+    ];
+
+    function getStylesForZoom(zoom) {
+      return zoom && zoom <= SMALL_SCALE_ZOOM_THRESHOLD ? null : DETAILED_MAP_STYLES;
+    }
+
+    function applyZoomBasedStyles(map) {
+      if (!map) return;
+      const zoom = map.getZoom();
+      map.setOptions({ styles: getStylesForZoom(zoom) });
+    }
+
     function initMap() {
       const mapOptionsBase = {
         center: lastCenter,
         zoom: lastZoom,
         fullscreenControl: false,
-        styles: [
-          { featureType: "all", elementType: "labels", stylers: [{ visibility: "off" }] },
-          { featureType: "administrative.locality", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-          { featureType: "water", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-          { featureType: "road", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-          { featureType: "poi", elementType: "labels.text", stylers: [{ visibility: "on" }] },
-          { featureType: "address", elementType: "labels.text", stylers: [{ visibility: "on" }] }
-        ]
+        styles: getStylesForZoom(lastZoom)
       };
 
       // Desktop
@@ -798,6 +811,8 @@
         desktopMap.addListener('idle', () => {
           if (isVisible(desktopEl)) { const c = desktopMap.getCenter(); if (c) lastCenter = c.toJSON(); lastZoom = desktopMap.getZoom(); }
         });
+        applyZoomBasedStyles(desktopMap);
+        desktopMap.addListener('zoom_changed', () => applyZoomBasedStyles(desktopMap));
         addWmsLayer(desktopMap, "dzialki");
         addWmsLayer(desktopMap, "numery_dzialek");
       }
@@ -810,6 +825,8 @@
         mobileMap.addListener('idle', () => {
           if (isVisible(mobileEl)) { const c = mobileMap.getCenter(); if (c) lastCenter = c.toJSON(); lastZoom = mobileMap.getZoom(); }
         });
+        applyZoomBasedStyles(mobileMap);
+        mobileMap.addListener('zoom_changed', () => applyZoomBasedStyles(mobileMap));
         addWmsLayer(mobileMap, "dzialki");
         addWmsLayer(mobileMap, "numery_dzialek");
       }
