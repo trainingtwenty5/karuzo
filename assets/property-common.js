@@ -90,9 +90,39 @@ export function formatCurrency(value) {
   return formatted ? `${formatted} zł` : null;
 }
 
+export function roundAreaValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  let number;
+  if (typeof value === "number") {
+    number = value;
+  } else {
+    number = parseNumberFromText(value);
+  }
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  const rounded = Math.round(number * 10) / 10;
+  if (!Number.isFinite(rounded) || rounded <= 0) {
+    return null;
+  }
+  return rounded;
+}
+
 export function formatArea(value) {
-  const formatted = formatNumber(value);
-  return formatted ? `${formatted} m²` : null;
+  const rounded = roundAreaValue(value);
+  if (!Number.isFinite(rounded)) {
+    return null;
+  }
+  const formatted = new Intl.NumberFormat("pl-PL", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(rounded);
+  return `${formatted} m²`;
 }
 
 export function toDate(value) {

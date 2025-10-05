@@ -743,6 +743,26 @@ window.showConfirmModal = showConfirmModal;
 
     const formatNumberPL = (value) => Number.isFinite(value) ? value.toLocaleString('pl-PL') : null;
 
+    const roundAreaValue = (value) => {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number <= 0) {
+        return null;
+      }
+      const rounded = Math.round(number * 10) / 10;
+      return rounded > 0 ? rounded : null;
+    };
+
+    const formatAreaValue = (value) => {
+      const rounded = roundAreaValue(value);
+      if (!Number.isFinite(rounded)) {
+        return null;
+      }
+      return rounded.toLocaleString('pl-PL', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1
+      });
+    };
+
     const normalizeEmail = (value) => {
       if (typeof value !== 'string') return null;
       const trimmed = value.trim();
@@ -1357,8 +1377,9 @@ window.showConfirmModal = showConfirmModal;
             el.className = 'offer-card offer-card--stacked';
 
             const price = Number(plot.price || 0);
-            const area = Number(plot.pow_dzialki_m2_uldk || 0);
-            const ppm2 = price && area ? Math.round(price / area) : 0;
+            const areaRaw = Number(plot.pow_dzialki_m2_uldk || 0);
+            const areaDisplay = formatAreaValue(areaRaw);
+            const ppm2 = price && areaRaw > 0 ? Math.round(price / areaRaw) : 0;
             const city = offer.city || 'Nie podano';
             const phone = offer.phone || 'Nie podano';
             const title = plot.Id || `Działka ${visibleIdx + 1}`;
@@ -1376,7 +1397,7 @@ window.showConfirmModal = showConfirmModal;
                 <div class="offer-details">
                   <p><strong>Lokalizacja:</strong> ${city}</p>
                   <p><strong>Telefon:</strong> ${phone}</p>
-                  ${area ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+                  ${areaDisplay ? `<p><strong>Powierzchnia:</strong> ${areaDisplay} m²</p>` : ''}
                   ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł${ppm2 ? `<span style="color:#5b6475;font-size:.82em;margin-left:6px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>` : ''}</p>` : ''}
                 </div>
                 <div class="offer-actions">
@@ -1471,11 +1492,12 @@ window.showConfirmModal = showConfirmModal;
       const plotIndex = Number.isFinite(favorite?.plotIndex) ? favorite.plotIndex : Number(favorite?.plotIndex) || 0;
       const title = favorite?.title || (favorite?.plotNumber ? `Działka ${favorite.plotNumber}` : `Działka ${plotIndex + 1}`);
       const city = favorite?.city || 'Nie podano';
-      const area = Number(favorite?.area || 0);
+      const areaRaw = Number(favorite?.area || 0);
       const price = Number(favorite?.price || 0);
-      const areaText = Number.isFinite(area) && area > 0 ? `${area.toLocaleString('pl-PL')} m²` : '';
+      const areaDisplay = formatAreaValue(areaRaw);
+      const areaText = areaDisplay ? `${areaDisplay} m²` : '';
       const priceText = Number.isFinite(price) && price > 0 ? `${price.toLocaleString('pl-PL')} zł` : '';
-      const ppm = Number.isFinite(price) && Number.isFinite(area) && area > 0 ? Math.round(price / area) : null;
+      const ppm = Number.isFinite(price) && Number.isFinite(areaRaw) && areaRaw > 0 ? Math.round(price / areaRaw) : null;
       const ppmText = Number.isFinite(ppm) ? `${ppm.toLocaleString('pl-PL')} zł/m²` : '';
       const savedAtText = formatDateTime(favorite?.savedAt);
       const detailsUrl = offerId ? `details.html?id=${offerId}&plot=${plotIndex}` : '#';
