@@ -340,6 +340,8 @@ main.property-wrapper {
 
 .image-lightbox__stage.is-scrollable {
   cursor: grab;
+  align-items: flex-start;
+  justify-content: flex-start;
 }
 
 .image-lightbox__stage.is-panning {
