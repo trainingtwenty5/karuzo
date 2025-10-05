@@ -5782,33 +5782,41 @@ async function loadUserOffers(email, uid) {
         }
         const locationLabel = pickDisplayValue(locationSources, 'Nie podano');
 
+        const previewUrl = getPlotPreviewImage(plot || {}, offer || {}, originalIndex, offerId);
+        const previewMarkup = previewUrl
+          ? `<div class="offer-card__media"><img src="${previewUrl}" alt="Podgląd działki" loading="lazy"></div>`
+          : `<div class="offer-card__media offer-card__media--empty">Brak podglądu</div>`;
+
         const el = document.createElement('div');
         el.className = 'offer-card';
         el.innerHTML = `
-          <h3 class="offer-title">${plot.Id || `Działka ${i+1}`}</h3>
-          <div class="offer-details">
-            <p><strong>Lokalizacja:</strong> ${locationLabel}</p>
-            ${area  ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
-            ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
-              ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>`:''}
-            </p>` : ''}
-          </div>
-          <div class="offer-actions">
-            <a
-              class="btn btn-accent btn-sm"
-              href="${detailsUrl}"
-              data-preserve-map-state="true"
-              ${offerId ? `data-offer-id="${offerId}"` : ''}
-              ${Number.isInteger(originalIndex) ? `data-plot-index="${originalIndex}"` : ''}
-            >
-              <i class="fas fa-info-circle"></i> Szczegóły
-            </a>
-            <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
-              <i class="fas fa-edit"></i> Edytuj
-            </button>
-            <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(plot.Id||`Działka ${i+1}`).replace(/'/g,"\\'")}')">
-              <i class="fas fa-trash"></i> Usuń
-            </button>
+          ${previewMarkup}
+          <div class="offer-card__body">
+            <h3 class="offer-title">${plot.Id || `Działka ${i+1}`}</h3>
+            <div class="offer-details">
+              <p><strong>Lokalizacja:</strong> ${locationLabel}</p>
+              ${area  ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
+              ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
+                ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>`:''}
+              </p>` : ''}
+            </div>
+            <div class="offer-actions">
+              <a
+                class="btn btn-accent btn-sm"
+                href="${detailsUrl}"
+                data-preserve-map-state="true"
+                ${offerId ? `data-offer-id="${offerId}"` : ''}
+                ${Number.isInteger(originalIndex) ? `data-plot-index="${originalIndex}"` : ''}
+              >
+                <i class="fas fa-info-circle"></i> Szczegóły
+              </a>
+              <button class="btn btn-primary btn-sm" onclick="window.location.href='edit.html?id=${offerId}&plot=${originalIndex}'">
+                <i class="fas fa-edit"></i> Edytuj
+              </button>
+              <button class="btn btn-secondary btn-sm" onclick="deletePlot && deletePlot('${offerId}', ${originalIndex}, '${(plot.Id||`Działka ${i+1}`).replace(/'/g,"\\'")}')">
+                <i class="fas fa-trash"></i> Usuń
+              </button>
+            </div>
           </div>
         `;
         el.addEventListener('click', (e) => {
