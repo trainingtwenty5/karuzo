@@ -73,6 +73,8 @@ const state = {
   lightboxImageModes: [],
   lightboxActiveMode: '',
   lightboxModeLabel: '',
+  lightboxZoomMin: LIGHTBOX_ZOOM_MIN,
+  lightboxZoomMax: LIGHTBOX_ZOOM_MAX,
   lightboxPan: {
     isActive: false,
     pointerId: null,
@@ -258,6 +260,8 @@ const LIGHTBOX_ZOOM_DEFAULT = 1;
 const LIGHTBOX_ZOOM_MIN = 0.75;
 const LIGHTBOX_ZOOM_MAX = 12;
 const LIGHTBOX_ZOOM_STEP = 0.25;
+const LIGHTBOX_ZOOM_FACTOR = 1.25;
+const LIGHTBOX_PIXEL_ZOOM_OVERSHOOT = 3;
 
 let lightboxStageInteractivityUpdateId = 0;
 
@@ -712,7 +716,8 @@ function computeLightboxBaseSize() {
 
   return {
     width: naturalWidth * ratio,
-    height: naturalHeight * ratio
+    height: naturalHeight * ratio,
+    ratio
   };
 }
 
@@ -904,26 +909,49 @@ function setLightboxModeLabel(mode, label) {
 function initializeLightboxZoom(preserveZoom = false) {
   state.lightboxBaseWidth = 0;
   state.lightboxBaseHeight = 0;
-  if (!elements.mapImageLightboxPicture) {
+  state.lightboxZoomMin = LIGHTBOX_ZOOM_MIN;
+  state.lightboxZoomMax = LIGHTBOX_ZOOM_MAX;
+  const picture = elements.mapImageLightboxPicture;
+  if (!picture) {
     updateZoomButtonsState();
     return;
   }
 
   const size = computeLightboxBaseSize();
+  const naturalWidth = picture.naturalWidth || elements.mapImageElement?.naturalWidth || 0;
+  const naturalHeight = picture.naturalHeight || elements.mapImageElement?.naturalHeight || 0;
+  let fitRatio = 1;
   if (size) {
     state.lightboxBaseWidth = size.width;
     state.lightboxBaseHeight = size.height;
+    if (Number.isFinite(size.ratio) && size.ratio > 0) {
+      fitRatio = Math.min(size.ratio, 1);
+    } else if (naturalWidth > 0) {
+      fitRatio = Math.min(state.lightboxBaseWidth / naturalWidth, 1);
+    }
   } else {
     const fallbackWidth = elements.mapImageElement?.clientWidth || elements.mapImageLightboxPicture.clientWidth || 0;
     const fallbackHeight = elements.mapImageElement?.clientHeight || elements.mapImageLightboxPicture.clientHeight || 0;
     state.lightboxBaseWidth = fallbackWidth;
     state.lightboxBaseHeight = fallbackHeight;
+    if (naturalWidth > 0 && fallbackWidth > 0) {
+      fitRatio = Math.min(fallbackWidth / naturalWidth, 1);
+    } else if (naturalHeight > 0 && fallbackHeight > 0) {
+      fitRatio = Math.min(fallbackHeight / naturalHeight, 1);
+    }
   }
 
-  const nextZoom = preserveZoom
-    ? clamp(state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX)
-    : LIGHTBOX_ZOOM_DEFAULT;
-  state.lightboxZoom = nextZoom;
+  const safeRatio = Number.isFinite(fitRatio) && fitRatio > 0 ? Math.min(fitRatio, 1) : 1;
+  const pixelPerfectZoom = safeRatio > 0 ? 1 / safeRatio : LIGHTBOX_ZOOM_MAX;
+  const computedMaxZoom = Math.max(LIGHTBOX_ZOOM_MAX, pixelPerfectZoom * LIGHTBOX_PIXEL_ZOOM_OVERSHOOT);
+  state.lightboxZoomMax = computedMaxZoom;
+
+  if (preserveZoom) {
+    state.lightboxZoom = clamp(state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT, state.lightboxZoomMin, state.lightboxZoomMax);
+  } else {
+    state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+  }
+
   applyLightboxZoom();
 }
 
@@ -950,12 +978,51 @@ function adjustLightboxZoom(delta, anchorPoint = null) {
     return;
   }
 
+  if (!Number.isFinite(delta) || delta === 0) {
+    updateZoomButtonsState();
+    return;
+  }
+
   const stage = elements.mapImageLightboxStage;
   const picture = elements.mapImageLightboxPicture;
-  const currentZoom = state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT;
-  const next = clamp(currentZoom + delta, LIGHTBOX_ZOOM_MIN, LIGHTBOX_ZOOM_MAX);
+  if (!picture) {
+    updateZoomButtonsState();
+    return;
+  }
 
-  if (Math.abs(next - state.lightboxZoom) < 0.001) {
+  let anchor = anchorPoint;
+  if ((!anchor || typeof anchor.clientX !== 'number' || typeof anchor.clientY !== 'number') && stage) {
+    const stageBounds = stage.getBoundingClientRect();
+    anchor = {
+      clientX: stageBounds.left + stageBounds.width / 2,
+      clientY: stageBounds.top + stageBounds.height / 2
+    };
+  }
+
+  const currentZoom = state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT;
+  const minZoom = state.lightboxZoomMin || LIGHTBOX_ZOOM_MIN;
+  const maxZoom = state.lightboxZoomMax || LIGHTBOX_ZOOM_MAX;
+  const stepSize = Number.isFinite(LIGHTBOX_ZOOM_STEP) && LIGHTBOX_ZOOM_STEP > 0 ? LIGHTBOX_ZOOM_STEP : 0.25;
+  let stepCount = stepSize > 0 ? delta / stepSize : delta;
+  if (!Number.isFinite(stepCount) || stepCount === 0) {
+    updateZoomButtonsState();
+    return;
+  }
+
+  const baseFactor = Number.isFinite(LIGHTBOX_ZOOM_FACTOR) && LIGHTBOX_ZOOM_FACTOR > 0
+    ? LIGHTBOX_ZOOM_FACTOR
+    : 1.25;
+  const absSteps = Math.abs(stepCount);
+  const factor = Math.pow(baseFactor, absSteps);
+  if (!Number.isFinite(factor) || factor <= 0) {
+    updateZoomButtonsState();
+    return;
+  }
+  const multiplier = stepCount > 0 ? factor : 1 / factor;
+  const targetZoom = currentZoom * multiplier;
+  const next = clamp(targetZoom, minZoom, maxZoom);
+
+  if (!Number.isFinite(next) || Math.abs(next - state.lightboxZoom) < 0.001 * Math.max(1, currentZoom)) {
     updateZoomButtonsState();
     return;
   }
@@ -968,15 +1035,15 @@ function adjustLightboxZoom(delta, anchorPoint = null) {
   let relativeY = 0.5;
   let shouldRestoreFocusPoint = false;
 
-  if (stage && picture && anchorPoint && currentZoom > 0) {
+  if (stage && anchor && currentZoom > 0) {
     const bounds = picture.getBoundingClientRect();
     if (bounds.width > 0 && bounds.height > 0) {
       previousWidth = bounds.width;
       previousHeight = bounds.height;
       previousScrollLeft = stage.scrollLeft;
       previousScrollTop = stage.scrollTop;
-      relativeX = clamp((anchorPoint.clientX - bounds.left) / bounds.width, 0, 1);
-      relativeY = clamp((anchorPoint.clientY - bounds.top) / bounds.height, 0, 1);
+      relativeX = clamp((anchor.clientX - bounds.left) / bounds.width, 0, 1);
+      relativeY = clamp((anchor.clientY - bounds.top) / bounds.height, 0, 1);
       shouldRestoreFocusPoint = true;
     }
   }
@@ -984,7 +1051,7 @@ function adjustLightboxZoom(delta, anchorPoint = null) {
   state.lightboxZoom = next;
   applyLightboxZoom();
 
-  if (!stage || !picture || !shouldRestoreFocusPoint) {
+  if (!stage || !shouldRestoreFocusPoint) {
     return;
   }
 
@@ -1037,6 +1104,8 @@ function resetLightboxStageScroll() {
 
 function resetLightboxZoomState() {
   state.lightboxZoom = LIGHTBOX_ZOOM_DEFAULT;
+  state.lightboxZoomMin = LIGHTBOX_ZOOM_MIN;
+  state.lightboxZoomMax = LIGHTBOX_ZOOM_MAX;
   state.lightboxBaseWidth = 0;
   state.lightboxBaseHeight = 0;
   if (elements.mapImageLightboxPicture) {
@@ -1055,8 +1124,11 @@ function updateZoomButtonsState() {
   if (!zoomIn || !zoomOut) return;
 
   const isOpen = state.isLightboxOpen;
-  const canZoomIn = isOpen && state.lightboxZoom < (LIGHTBOX_ZOOM_MAX - 0.001);
-  const canZoomOut = isOpen && state.lightboxZoom > (LIGHTBOX_ZOOM_MIN + 0.001);
+  const maxZoom = state.lightboxZoomMax || LIGHTBOX_ZOOM_MAX;
+  const minZoom = state.lightboxZoomMin || LIGHTBOX_ZOOM_MIN;
+  const tolerance = 0.001 * Math.max(1, state.lightboxZoom || LIGHTBOX_ZOOM_DEFAULT);
+  const canZoomIn = isOpen && (maxZoom - state.lightboxZoom) > tolerance;
+  const canZoomOut = isOpen && (state.lightboxZoom - minZoom) > tolerance;
 
   zoomIn.disabled = !canZoomIn;
   zoomOut.disabled = !canZoomOut;
