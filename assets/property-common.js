@@ -91,7 +91,10 @@ export function formatCurrency(value) {
 }
 
 export function formatArea(value) {
-  const formatted = formatNumber(value);
+  const formatted = formatNumber(value, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  });
   return formatted ? `${formatted} m²` : null;
 }
 
