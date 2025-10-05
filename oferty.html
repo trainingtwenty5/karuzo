@@ -538,6 +538,56 @@ window.showConfirmModal = showConfirmModal;
   let currentVoronoiSupplementary = [];
   let voronoiHiddenOffersInBounds = [];
   let voronoiSupplementaryOffersInBounds = [];
+
+  function normalizeMockFlag(value) {
+    if (value === true) return true;
+    if (value === false) return false;
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return null;
+      if (["false", "0", "no", "nie", "n", "f"].includes(normalized)) {
+        return false;
+      }
+      if (["true", "1", "yes", "tak", "t", "y"].includes(normalized)) {
+        return true;
+      }
+    }
+    if (typeof value === 'number') {
+      if (value === 0) return false;
+      if (value === 1) return true;
+    }
+    return null;
+  }
+
+  function shouldUseOfferForValuation(offer) {
+    if (!offer || typeof offer !== 'object') {
+      return false;
+    }
+
+    const plot = offer.plot && typeof offer.plot === 'object'
+      ? offer.plot
+      : null;
+
+    if (plot) {
+      const plotMock = normalizeMockFlag(plot.mock);
+      if (plotMock !== null) {
+        return plotMock === false;
+      }
+    }
+
+    const offerMock = normalizeMockFlag(offer.mock);
+    if (offerMock !== null) {
+      return offerMock === false;
+    }
+
+    return false;
+  }
+
+  function filterOffersForValuation(offers) {
+    return Array.isArray(offers)
+      ? offers.filter(shouldUseOfferForValuation)
+      : [];
+  }
   const voronoiIndicatorState = {
     hidden: [],
     supplementary: []
@@ -3952,12 +4002,12 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function mergeVoronoiSupplementaryOffers(sourceOffers) {
-    const base = Array.isArray(sourceOffers)
-      ? sourceOffers.filter(Boolean).slice()
-      : [];
-    const supplementaryPool = (currentVoronoiSupplementary.length
+    const base = filterOffersForValuation(Array.isArray(sourceOffers)
+      ? sourceOffers.filter(Boolean)
+      : []);
+    const supplementaryPool = filterOffersForValuation((currentVoronoiSupplementary.length
       ? currentVoronoiSupplementary
-      : voronoiSupplementaryOffers).filter(Boolean);
+      : voronoiSupplementaryOffers).filter(Boolean));
     if (!supplementaryPool.length) {
       return base;
     }
@@ -5094,11 +5144,13 @@ window.showConfirmModal = showConfirmModal;
     currentVoronoiOffers = offersInBounds.slice();
     voronoiHiddenOffersInBounds = offersInBounds.filter(offer => !filteredKeys.has(offer?.key));
 
-    const supplementaryInBounds = voronoiSupplementaryOffers.filter(offer => {
-      const position = getMarkerPositionForOffer(offer);
-      if (!position) return false;
-      return withinBounds(Number(position.lat), Number(position.lng));
-    });
+    const supplementaryInBounds = filterOffersForValuation(
+      voronoiSupplementaryOffers.filter(offer => {
+        const position = getMarkerPositionForOffer(offer);
+        if (!position) return false;
+        return withinBounds(Number(position.lat), Number(position.lng));
+      })
+    );
 
     currentVoronoiSupplementary = supplementaryInBounds.slice();
     voronoiSupplementaryOffersInBounds = supplementaryInBounds.slice();
