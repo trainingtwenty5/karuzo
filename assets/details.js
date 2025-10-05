@@ -832,7 +832,7 @@ function setLightboxModeLabel(label) {
 
   const text = typeof label === 'string' ? label.trim() : '';
   if (text) {
-    labelElement.textContent = `„${text}”`;
+    labelElement.textContent = text;
     info.classList.remove('hidden');
   } else {
     labelElement.textContent = '';
