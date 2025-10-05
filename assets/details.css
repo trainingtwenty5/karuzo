@@ -272,6 +272,27 @@ main.property-wrapper {
   box-shadow: inset 0 0 0 1px rgba(30,111,186,.08);
 }
 
+.map-image-label {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  margin: 0;
+  padding: .4rem .9rem;
+  background: rgba(12, 13, 17, .82);
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  border-radius: 999px;
+  box-shadow: 0 12px 32px rgba(12, 13, 17, .25);
+  transition: opacity .2s ease;
+}
+
+.map-image-label.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
 .map-image-picture {
   display: block;
   width: 100%;
@@ -293,6 +314,15 @@ main.property-wrapper {
 
 .map-image-picture.is-interactive {
   cursor: zoom-in;
+}
+
+@media (max-width: 640px) {
+  .map-image-label {
+    top: 14px;
+    left: 14px;
+    padding: .35rem .75rem;
+    font-size: .78rem;
+  }
 }
 
 .image-lightbox {

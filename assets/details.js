@@ -117,6 +117,7 @@ const elements = {
   mapSection: document.getElementById('mapSection'),
   mapElement: document.getElementById('propertyMap'),
   mapImageContainer: document.getElementById('mapImageContainer'),
+  mapImageLabel: document.getElementById('mapImageLabel'),
   mapImageElement: document.getElementById('mapImage'),
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
   plotPreviewImage: document.getElementById('plotPreviewImage'),
@@ -589,6 +590,20 @@ function getMapModeLabel(mode) {
   return button ? button.textContent.trim() : '';
 }
 
+function updateMapImageLabel(label) {
+  if (!elements.mapImageLabel) return;
+  const text = typeof label === 'string' ? label.trim() : '';
+  if (text) {
+    elements.mapImageLabel.textContent = text;
+    elements.mapImageLabel.classList.remove('hidden');
+    elements.mapImageLabel.setAttribute('aria-hidden', 'false');
+  } else {
+    elements.mapImageLabel.textContent = '';
+    elements.mapImageLabel.classList.add('hidden');
+    elements.mapImageLabel.setAttribute('aria-hidden', 'true');
+  }
+}
+
 function setActiveMapButton(mode) {
   elements.mapModeButtons.forEach(btn => {
     if (btn.dataset.mode === mode) {
@@ -603,6 +618,7 @@ function showMapCanvas(mapType) {
   if (elements.mapImageContainer) {
     elements.mapImageContainer.classList.add('hidden');
   }
+  updateMapImageLabel('');
   if (elements.mapImageElement) {
     elements.mapImageElement.src = '';
     elements.mapImageElement.alt = '';
@@ -640,6 +656,7 @@ function showMapImage(key, label) {
     elements.mapElement.classList.add('hidden');
   }
   elements.mapImageContainer.classList.remove('hidden');
+  updateMapImageLabel(label);
 
   if (hasUrl) {
     elements.mapImageElement.src = url;
@@ -1384,6 +1401,7 @@ function handleMapImageError() {
   if (!elements.mapImageElement || !elements.mapImagePlaceholder) return;
   const label = elements.mapImageElement.dataset?.layerLabel;
   const name = label ? `warstwy „${label}”` : 'tej warstwy';
+  updateMapImageLabel(label);
   elements.mapImageElement.src = '';
   elements.mapImageElement.alt = '';
   elements.mapImageElement.classList.add('hidden');

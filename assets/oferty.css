@@ -100,21 +100,32 @@
 .voronoi-toggle__option {
   position:relative;
   z-index:1;
-  border:0;
+  border:2px solid transparent;
   border-radius:999px;
-  padding:6px 12px;
+  padding:6px 14px;
   font-size:0.78rem;
   font-weight:600;
   color:#1d4ed8;
-  background:rgba(255,255,255,0.35);
+  background:transparent;
   cursor:pointer;
-  transition:color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.voronoi-toggle__option:hover,
+.voronoi-toggle__option:focus-visible {
+  background:rgba(255,255,255,0.45);
 }
 
 .voronoi-toggle__option--active {
-  color:#0b1c4a;
-  background:#e0f2ff;
-  box-shadow:0 6px 14px rgba(30,64,175,0.18);
+  color:#0c0d11;
+  background:#fff;
+  border-color:#0c0d11;
+  box-shadow:0 8px 20px rgba(12,13,17,0.16);
+}
+
+.voronoi-toggle__option--active:hover,
+.voronoi-toggle__option--active:focus-visible {
+  background:#fff;
 }
 
 @media (max-width: 640px) {
