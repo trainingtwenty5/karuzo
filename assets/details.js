@@ -110,6 +110,8 @@ const elements = {
   mapImageContainer: document.getElementById('mapImageContainer'),
   mapImageElement: document.getElementById('mapImage'),
   mapImagePlaceholder: document.getElementById('mapImagePlaceholder'),
+  plotPreviewImage: document.getElementById('plotPreviewImage'),
+  plotPreviewPlaceholder: document.getElementById('plotPreviewPlaceholder'),
   mapModeButtons: Array.from(document.querySelectorAll('.map-mode-btn')),
   mapImageLightbox: document.getElementById('mapImageLightbox'),
   mapImageLightboxStage: document.getElementById('mapImageLightboxStage'),
@@ -1013,11 +1015,42 @@ function handleLightboxKeydown(event) {
   }
 }
 
+function getPreferredPreviewUrl(images) {
+  if (!images || typeof images !== 'object') return '';
+  for (const key of ['lokalizacja', 'teren', 'media', 'mpzp', 'mpzpskan', 'studium', 'uzytkigruntowe']) {
+    const candidate = images[key];
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  const fallback = Object.values(images)
+    .map(value => (typeof value === 'string' ? value.trim() : ''))
+    .find(value => value);
+  return fallback || '';
+}
+
+function updatePlotPreviewImage(images) {
+  const img = elements.plotPreviewImage;
+  const placeholder = elements.plotPreviewPlaceholder;
+  if (!img || !placeholder) return;
+  const url = getPreferredPreviewUrl(images);
+  if (url) {
+    img.src = url;
+    img.classList.remove('hidden');
+    placeholder.classList.add('hidden');
+  } else {
+    img.src = '';
+    img.classList.add('hidden');
+    placeholder.classList.remove('hidden');
+  }
+}
+
 function updateMapImages(images) {
   const nextImages = images && typeof images === 'object' && !Array.isArray(images)
     ? { ...images }
     : {};
   state.mapImages = nextImages;
+  updatePlotPreviewImage(nextImages);
   elements.mapModeButtons.forEach(btn => {
     const mode = btn.dataset.mode;
     const config = MAP_MODES[mode];
