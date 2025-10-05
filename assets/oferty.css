@@ -685,8 +685,10 @@
 }
 
 .offers-list .offer-card__media{
-  flex-basis:240px;
-  min-height:160px;
+  flex:0 0 180px;
+  min-height:120px;
+  border-radius:12px;
+  overflow:hidden;
 }
 
 .offers-list .offer-card{align-items:stretch;}
