@@ -381,6 +381,11 @@ main.property-wrapper {
   text-align: center;
 }
 
+.image-lightbox__mode-prefix {
+  margin-right: .375rem;
+  font-weight: 600;
+}
+
 .image-lightbox__mode-label {
   display: inline-block;
   font-weight: 600;
