@@ -39,6 +39,13 @@ const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
 
 const FAVORITES_CACHE_TTL_MS = 60 * 1000;
 
+const LIGHTBOX_ZOOM_DEFAULT = 1;
+const LIGHTBOX_ZOOM_MIN = 0.75;
+const LIGHTBOX_ZOOM_MAX = 12;
+const LIGHTBOX_ZOOM_STEP = 0.25;
+const LIGHTBOX_ZOOM_FACTOR = 1.25;
+const LIGHTBOX_PIXEL_ZOOM_OVERSHOOT = 3;
+
 const ARCHIVED_MARKER_SYMBOL = {
   path: 'M -12 -12 L 12 12 M -12 12 L 12 -12',
   strokeColor: '#ff3b30',
@@ -255,13 +262,6 @@ if (typeof window !== 'undefined') {
 updateZoomButtonsState();
 
 const MAP_MODE_DEFAULT = 'base';
-
-const LIGHTBOX_ZOOM_DEFAULT = 1;
-const LIGHTBOX_ZOOM_MIN = 0.75;
-const LIGHTBOX_ZOOM_MAX = 12;
-const LIGHTBOX_ZOOM_STEP = 0.25;
-const LIGHTBOX_ZOOM_FACTOR = 1.25;
-const LIGHTBOX_PIXEL_ZOOM_OVERSHOOT = 3;
 
 let lightboxStageInteractivityUpdateId = 0;
 
