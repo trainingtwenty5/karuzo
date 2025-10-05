@@ -749,6 +749,325 @@ window.showConfirmModal = showConfirmModal;
       return trimmed ? trimmed.toLowerCase() : null;
     };
 
+    const MAP_LAYER_BASE_URLS = {
+      lokalizacja: 'https://grunteo.s3.eu-west-3.amazonaws.com/Orto_Esri%2BGrunty/MARGE_Orto_Esri%2BGrunty',
+      media: 'https://grunteo.s3.eu-west-3.amazonaws.com/Cyclosm_Esri%2BGESUT/MARGE_Cyclosm_Esri%2BGESUT',
+      teren: 'https://grunteo.s3.eu-west-3.amazonaws.com/GRID%2BGrunty/MARGE_GRID%2BGrunty',
+      mpzp: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP%2BGrunty/MARGE_MPZP%2BGrunty',
+      mpzpskan: 'https://grunteo.s3.eu-west-3.amazonaws.com/MPZP_rastrowe%2BGrunty/MARGE_MPZP_rastrowe%2BGrunty',
+      studium: 'https://grunteo.s3.eu-west-3.amazonaws.com/Studium%2BGrunty/MARGE_Studium%2BGrunty',
+      uzytkigruntowe: 'https://grunteo.s3.eu-west-3.amazonaws.com/Uzytki%2BGrunty/MARGE_Uzytki%2BGrunty'
+    };
+
+    const PREVIEW_PRIORITY_KEYS = ['lokalizacja', 'teren', 'media', 'mpzp', 'mpzpskan', 'studium', 'uzytkigruntowe'];
+
+    const isUrlLike = (value) => typeof value === 'string'
+      && /^(https?:)?\/\//i.test(value.trim());
+
+    function resolveImageUrl(value) {
+      if (!value) return '';
+      if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        if (isUrlLike(trimmed) || trimmed.startsWith('data:') || trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+          return trimmed;
+        }
+        return '';
+      }
+      if (typeof value === 'object') {
+        const candidate = value.url ?? value.href ?? value.src ?? value.value ?? value.link;
+        if (typeof candidate === 'string') {
+          return resolveImageUrl(candidate);
+        }
+      }
+      return '';
+    }
+
+    function normalizeLayerKey(key) {
+      return String(key || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    function matchLayerKey(rawKey) {
+      const normalized = normalizeLayerKey(rawKey);
+      if (!normalized) return '';
+      const aliasMap = {
+        lokalizacja: ['lokalizacja', 'location', 'localization', 'orto', 'orthophoto', 'aerial'],
+        media: ['media', 'uzbrojenie', 'utilities', 'gesut', 'cyclosm'],
+        teren: ['teren', 'terrain', 'grid', 'ground', 'siatka'],
+        mpzp: ['mpzp', 'plan', 'zoning', 'miejscowyplan'],
+        mpzpskan: ['mpzpskan', 'mpzpraster', 'mpzprastrowe', 'mpzpscan', 'planraster', 'planrasterowy', 'planzdjecie', 'skanmpzp', 'scanplanu'],
+        studium: ['studium', 'study', 'uwarunkowania', 'kierunki'],
+        uzytkigruntowe: ['uzytkigruntowe', 'uzytki', 'uzytkirolne', 'landuse', 'landusage', 'pokryciegruntu']
+      };
+
+      for (const [target, aliases] of Object.entries(aliasMap)) {
+        if (normalized === target) return target;
+        for (const alias of aliases) {
+          if (normalized === alias || normalized.includes(alias) || alias.includes(normalized)) {
+            return target;
+          }
+        }
+      }
+      return '';
+    }
+
+    function extractLayerImages(source) {
+      const result = {};
+      if (!source) return result;
+      if (Array.isArray(source)) {
+        source.forEach(item => Object.assign(result, extractLayerImages(item)));
+        return result;
+      }
+      if (typeof source !== 'object') return result;
+
+      const candidateKey = source.key ?? source.type ?? source.layer ?? source.name ?? source.label;
+      const candidateUrl = source.url ?? source.href ?? source.src ?? source.value ?? source.link;
+      const matchedKey = matchLayerKey(candidateKey);
+      const resolvedUrl = resolveImageUrl(candidateUrl);
+      if (matchedKey && resolvedUrl) {
+        result[matchedKey] = resolvedUrl;
+      }
+
+      Object.entries(source).forEach(([key, value]) => {
+        const layerKey = matchLayerKey(key);
+        if (!layerKey) return;
+        const url = resolveImageUrl(value);
+        if (url) {
+          result[layerKey] = url;
+        }
+      });
+
+      return result;
+    }
+
+    function collectMapImages(plot = {}, offer = {}, plotIndex = 0, fallbackId = '') {
+      const sources = [
+        plot.mapImages,
+        plot.mapTiles,
+        plot.mapLayers,
+        plot.planImages,
+        plot.planTiles,
+        plot.mapPreviews,
+        plot.mapGallery,
+        offer.mapImages,
+        offer.mapTiles,
+        offer.mapLayers,
+        offer.planImages,
+        offer.planTiles,
+        offer.mapPreviews,
+        offer.mapGallery
+      ];
+
+      const result = {};
+      sources.forEach(source => Object.assign(result, extractLayerImages(source)));
+
+      const directFields = {
+        lokalizacja: [
+          plot.mapLokalizacja,
+          plot.lokalizacjaMap,
+          plot.mapLocation,
+          plot.locationMap,
+          offer.mapLokalizacja,
+          offer.lokalizacjaMap,
+          offer.mapLocation,
+          offer.locationMap
+        ],
+        media: [
+          plot.mapMedia,
+          plot.mediaMap,
+          plot.mapUzbrojenie,
+          plot.mapGesut,
+          offer.mapMedia,
+          offer.mediaMap,
+          offer.mapUzbrojenie,
+          offer.mapGesut
+        ],
+        teren: [
+          plot.mapTeren,
+          plot.terrainMap,
+          plot.mapGrid,
+          plot.gridMap,
+          offer.mapTeren,
+          offer.terrainMap,
+          offer.mapGrid,
+          offer.gridMap
+        ],
+        mpzp: [
+          plot.mapMpzp,
+          plot.mapMPZP,
+          plot.mpzpMap,
+          plot.planMap,
+          offer.mapMpzp,
+          offer.mapMPZP,
+          offer.mpzpMap,
+          offer.planMap
+        ],
+        mpzpskan: [
+          plot.mapMpzpSkan,
+          plot.mapMpzpScan,
+          plot.mapMpzpRaster,
+          plot.mapMpzpRastrowe,
+          plot.mapMPZPSkan,
+          plot.mapMPZPScan,
+          plot.mapMPZPRaster,
+          plot.mpzpSkan,
+          plot.mpzpScan,
+          plot.mpzpRaster,
+          plot.planRaster,
+          plot.planScan,
+          plot.planSkan,
+          offer.mapMpzpSkan,
+          offer.mapMpzpScan,
+          offer.mapMpzpRaster,
+          offer.mapMpzpRastrowe,
+          offer.mapMPZPSkan,
+          offer.mapMPZPScan,
+          offer.mapMPZPRaster,
+          offer.mpzpSkan,
+          offer.mpzpScan,
+          offer.mpzpRaster,
+          offer.planRaster,
+          offer.planScan,
+          offer.planSkan
+        ],
+        studium: [
+          plot.mapStudium,
+          plot.studiumMap,
+          offer.mapStudium,
+          offer.studiumMap
+        ],
+        uzytkigruntowe: [
+          plot.mapUzytki,
+          plot.mapUzytkiGruntowe,
+          plot.mapUzytkiGruntu,
+          plot.mapUzytkiRolne,
+          plot.uzytkiMap,
+          plot.uzytkiGruntoweMap,
+          plot.mapLandUse,
+          plot.landUseMap,
+          plot.landuseMap,
+          plot.mapLandcover,
+          offer.mapUzytki,
+          offer.mapUzytkiGruntowe,
+          offer.mapUzytkiGruntu,
+          offer.mapUzytkiRolne,
+          offer.uzytkiMap,
+          offer.uzytkiGruntoweMap,
+          offer.mapLandUse,
+          offer.landUseMap,
+          offer.landuseMap,
+          offer.mapLandcover
+        ]
+      };
+
+      Object.entries(directFields).forEach(([key, values]) => {
+        if (result[key]) return;
+        for (const value of values) {
+          const url = resolveImageUrl(value);
+          if (url) {
+            result[key] = url;
+            break;
+          }
+        }
+      });
+
+      const candidateIds = [
+        typeof fallbackId === 'string' ? fallbackId.trim() : fallbackId,
+        plot.mapImageId,
+        plot.mapId,
+        plot.imageId,
+        plot.imagesId,
+        plot.plotId,
+        plot.Id,
+        plot.id,
+        offer.mapImageId,
+        offer.mapId,
+        offer.plotId,
+        offer.Id,
+        offer.id
+      ];
+
+      const trimmedId = candidateIds
+        .map(value => {
+          if (value === undefined || value === null) return '';
+          const text = typeof value === 'string' ? value : String(value);
+          return text.trim();
+        })
+        .find(value => value && /^[A-Za-z0-9_-]+$/.test(value)) || '';
+
+      const indexNumber = Number.isFinite(plotIndex) && plotIndex >= 0 ? plotIndex : 0;
+      const indexSuffix = `_${String(indexNumber).padStart(3, '0')}`;
+
+      if (trimmedId) {
+        const expectedSuffix = `_${trimmedId}${indexSuffix}.png`;
+        Object.entries(MAP_LAYER_BASE_URLS).forEach(([key, baseUrl]) => {
+          const expectedUrl = `${baseUrl}${expectedSuffix}`;
+          const currentUrl = typeof result[key] === 'string' ? result[key].trim() : '';
+          if (!currentUrl) {
+            result[key] = expectedUrl;
+            return;
+          }
+          const normalizedCurrent = currentUrl.split('?')[0];
+          if (!normalizedCurrent.endsWith(expectedSuffix)) {
+            result[key] = expectedUrl;
+          }
+        });
+      }
+
+      return result;
+    }
+
+    function getPlotPreviewImage(plot, offer, plotIndex, fallbackId) {
+      const images = collectMapImages(plot, offer, plotIndex, fallbackId);
+      for (const key of PREVIEW_PRIORITY_KEYS) {
+        const url = images[key];
+        if (url) return url;
+      }
+
+      const miscCandidates = [
+        plot?.previewImage,
+        plot?.previewUrl,
+        plot?.thumbnail,
+        plot?.image,
+        plot?.imageUrl,
+        offer?.previewImage,
+        offer?.previewUrl,
+        offer?.thumbnail,
+        offer?.image,
+        offer?.imageUrl
+      ];
+
+      for (const candidate of miscCandidates) {
+        const url = resolveImageUrl(candidate);
+        if (url) return url;
+      }
+
+      const genericSources = [plot?.mapImage, plot?.mapPreview, offer?.mapImage, offer?.mapPreview];
+      for (const source of genericSources) {
+        if (!source) continue;
+        if (typeof source === 'string') {
+          const url = resolveImageUrl(source);
+          if (url) return url;
+        } else if (typeof source === 'object') {
+          const extracted = extractLayerImages(source);
+          for (const key of PREVIEW_PRIORITY_KEYS) {
+            const url = extracted[key];
+            if (url) return url;
+          }
+          const values = Object.values(source)
+            .map(resolveImageUrl)
+            .find(Boolean);
+          if (values) return values;
+        }
+      }
+
+      return '';
+    }
+
     function buildOwnerLookupKeys(email, uid) {
       const keys = new Set();
       const normalizedEmail = normalizeEmail(email);
@@ -1035,26 +1354,30 @@ window.showConfirmModal = showConfirmModal;
 
           activePlots.forEach(({ plot, originalIndex }, visibleIdx) => {
             const el = document.createElement('div');
-            el.className = 'offer-card';
+            el.className = 'offer-card offer-card--stacked';
 
             const price = Number(plot.price || 0);
             const area = Number(plot.pow_dzialki_m2_uldk || 0);
-              const ppm2 = price && area ? Math.round(price / area) : 0;
-              const city = offer.city || 'Nie podano';
-              const phone = offer.phone || 'Nie podano';
-              const title = plot.Id || `Działka ${visibleIdx + 1}`;
-              const safeTitle = (title || '').replace(/'/g, "\'");
-              const detailsUrl = `details.html?id=${offerId}&plot=${originalIndex}`;
+            const ppm2 = price && area ? Math.round(price / area) : 0;
+            const city = offer.city || 'Nie podano';
+            const phone = offer.phone || 'Nie podano';
+            const title = plot.Id || `Działka ${visibleIdx + 1}`;
+            const safeTitle = (title || '').replace(/'/g, "\'");
+            const detailsUrl = `details.html?id=${offerId}&plot=${originalIndex}`;
+            const previewUrl = getPlotPreviewImage(plot, offer, originalIndex, offerId);
+            const previewMarkup = previewUrl
+              ? `<div class="offer-card__media"><img src="${previewUrl}" alt="Podgląd działki" loading="lazy"></div>`
+              : `<div class="offer-card__media offer-card__media--empty">Brak podglądu</div>`;
 
-              el.innerHTML = `
+            el.innerHTML = `
+              ${previewMarkup}
+              <div class="offer-card__body">
                 <h3 class="offer-title">${title}</h3>
                 <div class="offer-details">
                   <p><strong>Lokalizacja:</strong> ${city}</p>
                   <p><strong>Telefon:</strong> ${phone}</p>
                   ${area ? `<p><strong>Powierzchnia:</strong> ${area.toLocaleString('pl-PL')} m²</p>` : ''}
-                  ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł
-                    ${ppm2 ? `<span style="color:#888;font-size:.85em;margin-left:5px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>` : ''}
-                  </p>` : ''}
+                  ${price ? `<p><strong>Cena całkowita:</strong> ${price.toLocaleString('pl-PL')} zł${ppm2 ? `<span style="color:#5b6475;font-size:.82em;margin-left:6px;">${ppm2.toLocaleString('pl-PL')} zł/m²</span>` : ''}</p>` : ''}
                 </div>
                 <div class="offer-actions">
                   <a class="btn btn-accent btn-sm" href="${detailsUrl}">
@@ -1067,16 +1390,17 @@ window.showConfirmModal = showConfirmModal;
                     <i class="fas fa-trash"></i> Usuń
                   </button>
                 </div>
-              `;
+              </div>
+            `;
 
-              el.addEventListener('click', (event) => {
-                if (event.target.closest('.offer-actions')) return;
-                if (window.focusOfferOnMap) window.focusOfferOnMap(offerId, originalIndex);
-              });
-
-              ownedOffers.appendChild(el);
-              hasOwned = true;
+            el.addEventListener('click', (event) => {
+              if (event.target.closest('.offer-actions')) return;
+              if (window.focusOfferOnMap) window.focusOfferOnMap(offerId, originalIndex);
             });
+
+            ownedOffers.appendChild(el);
+            hasOwned = true;
+          });
         });
 
         if (!hasOwned) {
@@ -1157,24 +1481,31 @@ window.showConfirmModal = showConfirmModal;
       const detailsUrl = offerId ? `details.html?id=${offerId}&plot=${plotIndex}` : '#';
 
       const card = document.createElement('div');
-      card.className = 'offer-card';
+      card.className = 'offer-card offer-card--stacked';
+      const previewUrl = getPlotPreviewImage(favorite, favorite, plotIndex, favorite?.offerId || favorite?.plotId || title);
+      const previewMarkup = previewUrl
+        ? `<div class="offer-card__media"><img src="${previewUrl}" alt="Podgląd działki" loading="lazy"></div>`
+        : `<div class="offer-card__media offer-card__media--empty">Brak podglądu</div>`;
       card.innerHTML = `
-        <h3 class="offer-title">${title}</h3>
-        <div class="offer-details">
-          <p><strong>Lokalizacja:</strong> ${city}</p>
-          ${favorite?.contactName ? `<p><strong>Kontakt:</strong> ${favorite.contactName}</p>` : ''}
-          ${favorite?.contactPhone ? `<p><strong>Telefon:</strong> ${favorite.contactPhone}</p>` : ''}
-          ${areaText ? `<p><strong>Powierzchnia:</strong> ${areaText}</p>` : ''}
-          ${priceText ? `<p><strong>Cena:</strong> ${priceText}${ppmText ? ` <span class="favorite-ppm">(${ppmText})</span>` : ''}</p>` : ''}
-          ${savedAtText ? `<p class="favorite-meta"><strong>Zapisano:</strong> ${savedAtText}</p>` : ''}
-        </div>
-        <div class="offer-actions">
-          <a class="btn btn-accent btn-sm" ${offerId ? `href="${detailsUrl}"` : 'href="#" aria-disabled="true" style="pointer-events:none;opacity:.6;"'}>
-            <i class="fas fa-info-circle"></i> Szczegóły
-          </a>
-          <button class="btn btn-secondary btn-sm favorite-remove" type="button">
-            <i class="fas fa-times"></i> Usuń
-          </button>
+        ${previewMarkup}
+        <div class="offer-card__body">
+          <h3 class="offer-title">${title}</h3>
+          <div class="offer-details">
+            <p><strong>Lokalizacja:</strong> ${city}</p>
+            ${favorite?.contactName ? `<p><strong>Kontakt:</strong> ${favorite.contactName}</p>` : ''}
+            ${favorite?.contactPhone ? `<p><strong>Telefon:</strong> ${favorite.contactPhone}</p>` : ''}
+            ${areaText ? `<p><strong>Powierzchnia:</strong> ${areaText}</p>` : ''}
+            ${priceText ? `<p><strong>Cena:</strong> ${priceText}${ppmText ? ` <span class="favorite-ppm">(${ppmText})</span>` : ''}</p>` : ''}
+            ${savedAtText ? `<p class="favorite-meta"><strong>Zapisano:</strong> ${savedAtText}</p>` : ''}
+          </div>
+          <div class="offer-actions">
+            <a class="btn btn-accent btn-sm" ${offerId ? `href="${detailsUrl}"` : 'href="#" aria-disabled="true" style="pointer-events:none;opacity:.6;"'}>
+              <i class="fas fa-info-circle"></i> Szczegóły
+            </a>
+            <button class="btn btn-secondary btn-sm favorite-remove" type="button">
+              <i class="fas fa-times"></i> Usuń
+            </button>
+          </div>
         </div>
       `;
 
