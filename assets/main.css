@@ -109,10 +109,10 @@ a{color:var(--primary);text-decoration:none;transition:var(--transition);}
 .offer-card:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(15,23,42,.12);}
 .offer-card--stacked{flex-direction:column;}
 .offer-card--reverse{flex-direction:row-reverse;}
-.offer-card__media{position:relative;flex:0 0 180px;min-height:120px;border-radius:12px;overflow:hidden;background:linear-gradient(135deg,#eef4ff,#d9e6ff);display:flex;align-items:center;justify-content:center;color:#41557a;font-weight:600;font-size:.82rem;text-align:center;padding:.75rem;}
+.offer-card__media{position:relative;flex:0 0 180px;min-height:120px;border-radius:12px;overflow:hidden;background:none;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:.82rem;text-align:center;padding:0;}
 .offer-card__media img{width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit;}
 .offer-card--stacked .offer-card__media{flex:0 0 auto;width:100%;aspect-ratio:16/9;min-height:0;}
-.offer-card__media::after{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(15,23,42,.08);border-radius:12px;pointer-events:none;}
+.offer-card__media::after{display:none;}
 .offer-card__media--empty{background:linear-gradient(135deg,#f3f4f6,#e5e7eb);color:#4b5563;}
 .offer-card__body{flex:1;display:flex;flex-direction:column;gap:.65rem;min-width:0;}
 .offer-title{font-size:1rem;font-weight:600;margin:0;color:#1f2937;}
