@@ -233,6 +233,32 @@ main.property-wrapper {
   background: #dbe8f7;
 }
 
+#mapSection.is-archived #propertyMap {
+  box-shadow: 0 0 0 2px rgba(255, 59, 48, .35);
+}
+
+#mapSection.is-archived .map-panel {
+  position: relative;
+}
+
+#mapSection.is-archived .map-panel::after {
+  content: 'DANE ARCHIWALNE';
+  position: absolute;
+  top: 1.1rem;
+  right: 1.1rem;
+  background: rgba(255, 59, 48, .92);
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: .35rem .75rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  z-index: 2;
+  box-shadow: 0 4px 14px rgba(255, 59, 48, .35);
+  pointer-events: none;
+}
+
 .map-image {
   width: 100%;
   height: 360px;

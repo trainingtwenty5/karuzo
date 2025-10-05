@@ -39,6 +39,14 @@ const MAP_STATE_TTL_MS = 1000 * 60 * 60 * 12; // 12 godzin
 
 const FAVORITES_CACHE_TTL_MS = 60 * 1000;
 
+const ARCHIVED_MARKER_SYMBOL = {
+  path: 'M -12 -12 L 12 12 M -12 12 L 12 -12',
+  strokeColor: '#ff3b30',
+  strokeOpacity: 1,
+  strokeWeight: 4,
+  scale: 1.4
+};
+
 const state = {
   user: null,
   offerId: '',
@@ -63,7 +71,8 @@ const state = {
   lightboxBaseWidth: 0,
   lightboxBaseHeight: 0,
   lightboxImageModes: [],
-  lightboxActiveMode: ''
+  lightboxActiveMode: '',
+  isArchived: false
 };
 
 const elements = {
@@ -1134,6 +1143,11 @@ function renderPlanBadges(badges) {
   });
 }
 
+function updateMapSectionArchivedState() {
+  if (!elements.mapSection) return;
+  elements.mapSection.classList.toggle('is-archived', Boolean(state.isArchived));
+}
+
 function renderTags(tags) {
   if (!elements.tagsList || !elements.tagsEmpty) return;
   elements.tagsList.innerHTML = '';
@@ -1258,6 +1272,8 @@ function showError(message) {
   }
   state.offerData = null;
   state.plotData = null;
+  state.isArchived = false;
+  updateMapSectionArchivedState();
   updateSaveButtonState();
 }
 
@@ -1311,7 +1327,14 @@ function renderOffer(data, plot) {
   const plotNumberValue = pickValue(plot.plotNumber, plot.Id, plot.number);
   setTextContent(elements.plotNumber, extractPlotNumberSegment(plotNumberValue), '');
   setTextContent(elements.landRegister, pickValue(plot.landRegister, plot.kwNumber, plot.landRegistry, plot.numer_kw), '');
-  setTextContent(elements.plotStatus, pickValue(plot.status, plot.offerStatus, data.status), '');
+  const rawStatus = pickValue(plot.status, plot.offerStatus, data.status);
+  const baseStatus = textContentOrFallback(rawStatus, '');
+  const finalStatus = state.isArchived
+    ? (baseStatus ? `${baseStatus} · Dane archiwalne` : 'Dane archiwalne')
+    : baseStatus;
+  setTextContent(elements.plotStatus, finalStatus, '');
+
+  updateMapSectionArchivedState();
 
   setMultilineText(elements.locationAddress, pickValue(plot.locationAddress, data.address, plot.address), '');
   setRichTextContent(elements.locationAccess, pickValue(plot.locationAccess, plot.access, data.access), '');
@@ -1481,11 +1504,17 @@ async function renderMap(plot) {
     streetViewControl: false,
     fullscreenControl: false
   });
-  state.marker = new google.maps.Marker({
+  const markerTitle = state.isArchived ? `${title} (dane archiwalne)` : title;
+  const markerOptions = {
     map: state.map,
     position: center,
-    title
-  });
+    title: markerTitle
+  };
+  if (state.isArchived) {
+    markerOptions.icon = { ...ARCHIVED_MARKER_SYMBOL };
+    markerOptions.zIndex = 1000;
+  }
+  state.marker = new google.maps.Marker(markerOptions);
   if (geometryCoords.length) {
     state.polygon = new google.maps.Polygon({
       paths: geometryCoords,
@@ -2084,6 +2113,7 @@ async function loadProperty() {
     return;
   }
   try {
+    state.isArchived = false;
     let data = getCachedPropertyListing(state.offerId);
     if (!data) {
       const { db } = initFirebase();
@@ -2102,10 +2132,7 @@ async function loadProperty() {
       showError('Nie odnaleziono wskazanej działki.');
       return;
     }
-    if (data.mock === false || plot.mock === false) {
-      showError('Ogłoszenie nie istnieje lub zostało usunięte.');
-      return;
-    }
+    state.isArchived = data.mock === false || plot.mock === false;
     state.offerData = data;
     state.plotData = plot;
     state.currentMapMode = MAP_MODE_DEFAULT;
