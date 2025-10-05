@@ -684,6 +684,18 @@
   gap:1rem;
 }
 
+.offers-list .offer-card__media{
+  flex-basis:240px;
+  min-height:160px;
+}
+
+.offers-list .offer-card{align-items:stretch;}
+
+@media (max-width: 900px){
+  .offers-list .offer-card{flex-direction:column;}
+  .offers-list .offer-card__media{flex-basis:auto;width:100%;aspect-ratio:16/9;min-height:0;}
+}
+
 .offer-tags {
   margin-top:0.75rem;
   font-size:0.82rem;
