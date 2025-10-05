@@ -351,6 +351,47 @@ main.property-wrapper {
   max-height: 100%;
 }
 
+.image-lightbox__stage.is-scrollable {
+  cursor: grab;
+}
+
+.image-lightbox__stage.is-panning {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.image-lightbox__stage.is-panning .image-lightbox__picture {
+  pointer-events: none;
+}
+
+.image-lightbox__info {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1rem, 3vw, 2.5rem);
+  transform: translateX(-50%);
+  padding: .5rem 1.25rem;
+  border-radius: 999px;
+  background: rgba(12, 13, 17, .85);
+  color: #fff;
+  font-size: .875rem;
+  font-weight: 500;
+  letter-spacing: .01em;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .35);
+  pointer-events: none;
+  text-align: center;
+}
+
+.image-lightbox__mode-label {
+  display: inline-block;
+  font-weight: 600;
+}
+
+.image-lightbox--light .image-lightbox__info {
+  background: rgba(12, 13, 17, .8);
+  color: #fff;
+  box-shadow: 0 18px 40px rgba(12, 13, 17, .2);
+}
+
 .image-lightbox__controls {
   position: absolute;
   top: 1.5rem;

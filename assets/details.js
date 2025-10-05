@@ -130,6 +130,8 @@ const elements = {
   mapImageLightboxNext: document.getElementById('mapImageLightboxNext'),
   mapImageLightboxZoomIn: document.getElementById('mapImageLightboxZoomIn'),
   mapImageLightboxZoomOut: document.getElementById('mapImageLightboxZoomOut'),
+  mapImageLightboxInfo: document.getElementById('mapImageLightboxInfo'),
+  mapImageLightboxModeLabel: document.getElementById('mapImageLightboxModeLabel'),
   backToOffersBtn: document.getElementById('backToOffersBtn'),
   authButtons: document.getElementById('authButtons'),
   userMenu: document.getElementById('userMenu'),
@@ -823,6 +825,21 @@ function applyLightboxTheme(mode) {
   elements.mapImageLightbox.classList.toggle('image-lightbox--light', useLightTheme);
 }
 
+function setLightboxModeLabel(label) {
+  const info = elements.mapImageLightboxInfo;
+  const labelElement = elements.mapImageLightboxModeLabel;
+  if (!info || !labelElement) return;
+
+  const text = typeof label === 'string' ? label.trim() : '';
+  if (text) {
+    labelElement.textContent = `„${text}”`;
+    info.classList.remove('hidden');
+  } else {
+    labelElement.textContent = '';
+    info.classList.add('hidden');
+  }
+}
+
 function getAvailableLightboxModes() {
   return (elements.mapModeButtons || [])
     .map(btn => btn?.dataset?.mode)
@@ -878,6 +895,7 @@ function showLightboxImage(mode, options = {}) {
   elements.mapImageLightboxPicture.src = url;
   elements.mapImageLightboxPicture.alt = accessibleLabel;
 
+  setLightboxModeLabel(label);
   applyLightboxTheme(mode);
   setLightboxNavigationState();
   prepareLightboxZoom(preserveZoom);
@@ -961,6 +979,7 @@ function closeMapImageLightbox() {
     elements.mapImageLightboxPicture.src = '';
     elements.mapImageLightboxPicture.alt = '';
   }
+  setLightboxModeLabel('');
   document.body.classList.remove('lightbox-open');
   state.isLightboxOpen = false;
   state.lightboxImageModes = [];
