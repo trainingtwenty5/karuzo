@@ -1,15 +1,21 @@
+:root {
+  --offers-sidebar-width: clamp(320px, 32vw, 420px);
+}
+
 .main-layout {
   display:flex;
   height:calc(100vh - 120px);
   margin-top:120px;
   position:relative;
+  align-items:stretch;
+  gap:24px;
 }
 
 .map-container {
   position:fixed;
   left:0;
   top:120px;
-  width:70%;
+  width:calc(100% - var(--offers-sidebar-width) - 24px);
   height:calc(100vh - 120px);
   z-index:1;
 }
@@ -323,12 +329,14 @@
 }
 
 .content-container {
-  margin-left:70%;
-  width:30%;
+  margin-left:calc(100% - var(--offers-sidebar-width));
+  width:var(--offers-sidebar-width);
   padding:20px;
   overflow-y:auto;
   background:#f8f9fa;
   height:calc(100vh - 120px);
+  position:relative;
+  z-index:2;
 }
 
 .offers-section {
@@ -701,16 +709,21 @@
   gap:1rem;
 }
 
+.offers-list .offer-card{
+  align-items:stretch;
+  gap:1.25rem;
+  flex-wrap:nowrap;
+}
+
 .offers-list .offer-card__media{
-  flex-basis:180px;
+  flex:0 0 180px;
+  max-width:180px;
   min-height:120px;
 }
 
-.offers-list .offer-card{align-items:stretch;}
-
 @media (max-width: 900px){
   .offers-list .offer-card{flex-direction:column;}
-  .offers-list .offer-card__media{flex-basis:auto;width:100%;aspect-ratio:16/9;min-height:0;}
+  .offers-list .offer-card__media{flex:0 0 auto;width:100%;max-width:none;aspect-ratio:16/9;min-height:0;}
 }
 
 .offer-tags {
