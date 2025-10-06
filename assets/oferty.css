@@ -368,9 +368,9 @@
   }
 
   .sidebar-stack {
-    position:sticky;
-    top:24px;
-    z-index:5;
+    position:static;
+    top:auto;
+    z-index:auto;
   }
 }
 
