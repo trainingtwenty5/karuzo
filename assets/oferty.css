@@ -720,8 +720,10 @@
 .offers-list .offer-card{align-items:stretch;}
 
 @media (max-width: 900px){
-  .offers-list .offer-card{flex-direction:column;}
-  .offers-list .offer-card__media{flex-basis:auto;width:100%;aspect-ratio:16/9;min-height:0;}
+  .offers-list .offer-card,
+  .offers-grid .offer-card{flex-direction:column;}
+  .offers-list .offer-card__media,
+  .offers-grid .offer-card__media{flex-basis:auto;width:100%;max-width:none;aspect-ratio:16/9;min-height:0;}
 }
 
 .offer-tags {
