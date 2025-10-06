@@ -1902,6 +1902,23 @@ window.showConfirmModal = showConfirmModal;
     }
   }
 
+  function scrollMapIntoViewIfMobile() {
+    if (typeof window === 'undefined') return;
+    const isMobile = window.matchMedia
+      ? window.matchMedia('(max-width: 1024px)').matches
+      : window.innerWidth <= 1024;
+    if (!isMobile) return;
+
+    const container = document.querySelector('.map-container');
+    if (!container) return;
+
+    try {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+      container.scrollIntoView();
+    }
+  }
+
   function focusOfferFromMapState() {
     if (!map || !pendingMapState || !pendingMapState.focusOfferId) return;
     const { focusOfferId } = pendingMapState;
@@ -1944,7 +1961,7 @@ window.showConfirmModal = showConfirmModal;
         plotIndex: Number.isInteger(match.index) ? match.index : null,
         skipMapStateUpdate: true
       });
-      document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scrollMapIntoViewIfMobile();
     }
 
     clearStoredMapState();
@@ -5177,6 +5194,7 @@ window.showConfirmModal = showConfirmModal;
           offerId: typeof o.id === 'string' ? o.id : null,
           plotIndex: Number.isInteger(o.index) ? o.index : null
         });
+        scrollMapIntoViewIfMobile();
       });
 
       listContainer.appendChild(card);
@@ -5215,7 +5233,7 @@ window.showConfirmModal = showConfirmModal;
       offerId: typeof match.id === 'string' ? match.id : null,
       plotIndex: Number.isInteger(match.index) ? match.index : null
     });
-    document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollMapIntoViewIfMobile();
   };
 
   // ładowanie Google Maps
