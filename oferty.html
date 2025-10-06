@@ -542,6 +542,10 @@ window.showConfirmModal = showConfirmModal;
     hidden: [],
     supplementary: []
   };
+  const MOBILE_SCROLL_QUERY = '(max-width: 992px)';
+  const MARKER_HIGHLIGHT_DURATION = 2100;
+  let highlightedMarker = null;
+  let highlightedMarkerTimeout = null;
   const voronoiLayerState = {
     enabled: false,
     polygons: [],
@@ -1944,7 +1948,10 @@ window.showConfirmModal = showConfirmModal;
         plotIndex: Number.isInteger(match.index) ? match.index : null,
         skipMapStateUpdate: true
       });
-      document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (match.marker) {
+        highlightMarker(match.marker);
+      }
+      scrollMapIntoView({ force: true });
     }
 
     clearStoredMapState();
@@ -4916,6 +4923,79 @@ window.showConfirmModal = showConfirmModal;
     infoWin.open({ map });
   }
 
+  function isMobileViewport() {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    if (typeof window.matchMedia === 'function') {
+      try {
+        return window.matchMedia(MOBILE_SCROLL_QUERY).matches;
+      } catch (_) {
+        /* ignore */
+      }
+    }
+    return window.innerWidth <= 992;
+  }
+
+  function scrollMapIntoView(options = {}) {
+    const { force = false, behavior = 'smooth' } = options || {};
+    if (!force && !isMobileViewport()) {
+      return;
+    }
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const container = document.querySelector('.map-container');
+    if (!container) {
+      return;
+    }
+    try {
+      container.scrollIntoView({ behavior, block: 'start' });
+    } catch (_) {
+      /* ignore */
+    }
+  }
+
+  function highlightMarker(marker, duration = MARKER_HIGHLIGHT_DURATION) {
+    const animation = (typeof window !== 'undefined'
+      && window.google
+      && window.google.maps
+      && window.google.maps.Animation)
+      ? window.google.maps.Animation.BOUNCE
+      : null;
+    if (!marker || typeof marker.setAnimation !== 'function' || !animation) {
+      return;
+    }
+    if (highlightedMarker && highlightedMarker !== marker && typeof highlightedMarker.setAnimation === 'function') {
+      highlightedMarker.setAnimation(null);
+    }
+    if (highlightedMarkerTimeout) {
+      clearTimeout(highlightedMarkerTimeout);
+      highlightedMarkerTimeout = null;
+    }
+
+    marker.setAnimation(animation);
+    highlightedMarker = marker;
+
+    const scheduleTimeout = (typeof window !== 'undefined' && typeof window.setTimeout === 'function')
+      ? window.setTimeout
+      : setTimeout;
+    highlightedMarkerTimeout = scheduleTimeout(() => {
+      try {
+        if (marker.getAnimation && marker.getAnimation() === animation) {
+          marker.setAnimation(null);
+        } else {
+          marker.setAnimation(null);
+        }
+      } catch (_) {
+        /* ignore */
+      }
+      if (highlightedMarker === marker) {
+        highlightedMarker = null;
+      }
+    }, Math.max(0, Number(duration) || MARKER_HIGHLIGHT_DURATION));
+  }
+
   function panMapTo(position, minZoom = 16) {
     if (!map || !position) return;
 
@@ -5172,11 +5252,22 @@ window.showConfirmModal = showConfirmModal;
 
       card.addEventListener("click", (e) => {
         if (e.target.closest('a')) return;
-        panMapTo(o.marker.getPosition());
-        openInfo(o.marker, infoHTML(o.plot, o.data, o.id, o.index), {
+
+        const focusPosition = getMarkerPositionForOffer(o);
+        if (focusPosition) {
+          panMapTo(focusPosition);
+        }
+
+        if (o.marker) {
+          highlightMarker(o.marker);
+        }
+
+        openInfo(o.marker || focusPosition, infoHTML(o.plot, o.data, o.id, o.index), {
           offerId: typeof o.id === 'string' ? o.id : null,
           plotIndex: Number.isInteger(o.index) ? o.index : null
         });
+
+        scrollMapIntoView();
       });
 
       listContainer.appendChild(card);
@@ -5210,12 +5301,20 @@ window.showConfirmModal = showConfirmModal;
   window.focusOfferOnMap = function(offerId, plotIndex) {
     const match = allOffers.find(o => o.id === offerId && o.index === plotIndex);
     if (!match || !map) return;
-    panMapTo(match.marker.getPosition(), 17);
-    openInfo(match.marker, infoHTML(match.plot, match.data, match.id, match.index), {
+    const focusPosition = getMarkerPositionForOffer(match);
+    if (focusPosition) {
+      panMapTo(focusPosition, 17);
+    }
+
+    if (match.marker) {
+      highlightMarker(match.marker);
+    }
+
+    openInfo(match.marker || focusPosition, infoHTML(match.plot, match.data, match.id, match.index), {
       offerId: typeof match.id === 'string' ? match.id : null,
       plotIndex: Number.isInteger(match.index) ? match.index : null
     });
-    document.querySelector('.map-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    scrollMapIntoView({ force: true });
   };
 
   // ładowanie Google Maps
