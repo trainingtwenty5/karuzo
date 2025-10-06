@@ -1903,7 +1903,7 @@ window.showConfirmModal = showConfirmModal;
   }
 
   function scrollMapIntoViewIfMobile() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
     const isMobile = window.matchMedia
       ? window.matchMedia('(max-width: 1024px)').matches
       : window.innerWidth <= 1024;
@@ -1912,10 +1912,18 @@ window.showConfirmModal = showConfirmModal;
     const container = document.querySelector('.map-container');
     if (!container) return;
 
+    const fixedElements = ['.top-navbar', 'header']
+      .map(selector => document.querySelector(selector))
+      .filter(element => element && window.getComputedStyle(element).display !== 'none');
+    const offset = fixedElements.reduce((total, element) => total + (element.offsetHeight || 0), 0);
+
+    const targetTop = container.getBoundingClientRect().top + window.pageYOffset - offset;
+    const scrollTarget = Math.max(targetTop, 0);
+
     try {
-      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
     } catch (error) {
-      container.scrollIntoView();
+      window.scrollTo(0, scrollTarget);
     }
   }
 
