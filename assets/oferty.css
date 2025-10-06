@@ -31,6 +31,8 @@
   flex-direction:column;
   gap:22px;
   margin-bottom:24px;
+  position:relative;
+  z-index:0;
 }
 
 .voronoi-panel {
@@ -354,10 +356,18 @@
   gap:1.15rem;
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
+  position:relative;
+  z-index:1;
 }
 
 .sidebar-stack .filters-panel {
   margin-bottom:0;
+}
+
+.sidebar-stack + .offers-section {
+  position:relative;
+  z-index:2;
+  margin-top:32px;
 }
 
 @media (min-width:993px){
@@ -368,9 +378,9 @@
   }
 
   .sidebar-stack {
-    position:sticky;
-    top:24px;
-    z-index:5;
+    position:static;
+    top:auto;
+    z-index:auto;
   }
 }
 
