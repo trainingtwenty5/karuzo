@@ -774,6 +774,7 @@
     let isSaving = false;
     let lastCenter = { lat: 51.63538575429843, lng: 16.45740592647929 };
     let lastZoom = 17;
+    const PLOTS_SUBCOLLECTION_NAME = 'plots';
 
     const SMALL_SCALE_ZOOM_THRESHOLD = 12;
     const DETAILED_MAP_STYLES = [
@@ -1165,7 +1166,7 @@
     });
 
     /* ===== BUDOWANIE DANYCH DO ZAPISU ===== */
-    function buildFormData(points) {
+    function buildFormData(points, { offerGroupId } = {}) {
       const user = window.currentUser || null;
 
       const firstName = $('#firstName').val().trim();
@@ -1198,6 +1199,9 @@
           marketingConsent,
           updatedAt: window.serverTimestamp ? window.serverTimestamp() : new Date()
         };
+        if (typeof offerGroupId === 'string' && offerGroupId.trim()) {
+          base.offerGroupId = offerGroupId.trim();
+        }
 
         if (isLoggedIn) {
           base.userUid = user?.uid || '';
@@ -1215,19 +1219,93 @@
         return base;
     }
 
+    function generateOfferGroupId() {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+      }
+      const randomPart = Math.random().toString(36).slice(2, 10);
+      return `offer-${Date.now().toString(36)}-${randomPart}`;
+    }
+
+    function buildPlotDocuments(points, { offerId, offerGroupId, formData }) {
+      if (!Array.isArray(points) || !offerId) {
+        return [];
+      }
+
+      const timestampFactory = () => window.serverTimestamp ? window.serverTimestamp() : new Date();
+      const plotsFromForm = Array.isArray(formData?.plots) ? formData.plots : [];
+      const groupId = typeof offerGroupId === 'string' && offerGroupId.trim()
+        ? offerGroupId.trim()
+        : offerId;
+
+      return points.map((point, index) => {
+        const lat = Number(point?.lat);
+        const lng = Number(point?.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return null;
+        }
+
+        const originalPlot = plotsFromForm[index] ? { ...plotsFromForm[index] } : null;
+        const plotPayload = originalPlot || {
+          Id: "",
+          idDzialki_uldk: "",
+          lat,
+          lng,
+          mock: true,
+          geometry_uldk: null,
+          pow_dzialki_m2_uldk: null,
+          price: formData?.price || "",
+          termsConsent: !!formData?.termsConsent,
+          timestamp: new Date()
+        };
+
+        return {
+          offerId,
+          offerGroupId: groupId,
+          pointId: point?.id || `point_${index + 1}`,
+          pointIndex: index,
+          lat,
+          lng,
+          plot: { ...plotPayload, lat, lng },
+          price: formData?.price || "",
+          city: formData?.city || "",
+          createdAt: timestampFactory(),
+          updatedAt: timestampFactory(),
+          termsConsent: !!formData?.termsConsent,
+          marketingConsent: !!formData?.marketingConsent
+        };
+      }).filter(Boolean);
+    }
+
     /* ===== ZAPIS DO FIRESTORE ===== */
     async function savePlots(points) {
       if (isSaving) return false;
       if (!points || points.length === 0) { showToast("Żadna działka nie jest zaznaczona.", "warning"); return false; }
       if (!validateForm()) { showToast("Uzupełnij wymagane pola.", "warning"); return false; }
 
-      const formData = buildFormData(points);
+      const offerGroupId = generateOfferGroupId();
+      const formData = buildFormData(points, { offerGroupId });
       const submitBtn = document.querySelector('#propertyForm button[type="submit"]');
       const submitText = document.getElementById('submitText');
 
       try {
         isSaving = true; if (submitBtn) submitBtn.disabled = true; if (submitText) submitText.textContent = "Zapisywanie...";
-        await window.addDoc(window.collection(window.db, "propertyListings"), formData);
+        const listingsCollection = window.collection(window.db, "propertyListings");
+        const offerRef = await window.addDoc(listingsCollection, formData);
+        const offerId = offerRef?.id;
+
+        if (offerId) {
+          const normalizedGroupId = (typeof offerGroupId === 'string' && offerGroupId.trim()) ? offerGroupId.trim() : offerId;
+          await window.setDoc(offerRef, { offerId, offerGroupId: normalizedGroupId }, { merge: true });
+
+          const plotDocuments = buildPlotDocuments(points, { offerId, offerGroupId: normalizedGroupId, formData });
+          if (plotDocuments.length) {
+            const plotsCollection = window.collection(window.db, "propertyListings", offerId, PLOTS_SUBCOLLECTION_NAME);
+            for (const plotDoc of plotDocuments) {
+              await window.addDoc(plotsCollection, plotDoc);
+            }
+          }
+        }
         invalidateOffersCache();
         showToast("Zapisano do bazy!", "success");
         return true;
